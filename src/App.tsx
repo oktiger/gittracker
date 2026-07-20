@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "./api";
 import { AiSidePanel } from "./components/AiSidePanel";
@@ -8,6 +8,7 @@ import { CommitDialog } from "./components/CommitDialog";
 import { DiscardDialog } from "./components/DiscardDialog";
 import { HelpTip } from "./components/HelpTip";
 import { LogDiaryPage } from "./components/LogDiaryPage";
+import { DailyCompletionPage } from "./components/DailyCompletionPage";
 import { MarkdownEditorDialog } from "./components/MarkdownEditorDialog";
 import { ProjectCard } from "./components/ProjectCard";
 import { SettingsPage } from "./components/SettingsPage";
@@ -23,7 +24,7 @@ type DialogState =
   | { type: "commit"; id: string; name: string }
   | { type: "discard"; id: string; name: string }
   | { type: "changes"; id: string; name: string }
-  | { type: "doc"; id: string; relativePath: string; title: string }
+  | { type: "doc"; id: string; relativePath: string; title: string; libraryFile?: boolean }
   | null;
 
 function App() {
@@ -62,6 +63,25 @@ function App() {
     setPanelEpoch((n) => n + 1);
     setSidePanel(session);
   }, []);
+
+  useEffect(() => {
+    const checkSchedule = async () => {
+      try {
+        const settings = await api.getSettings();
+        if (!settings.dailyCompletionEnabled) return;
+        const now = new Date();
+        const today = now.toLocaleDateString("sv-SE");
+        const time = now.toTimeString().slice(0, 5);
+        const key = "gittracker.daily-completion.last-run";
+        if (time < settings.dailyCompletionTime || localStorage.getItem(key) === today) return;
+        localStorage.setItem(key, today);
+        openAiSession({ kind: "dailyCompletion", period: "today", automatic: true });
+      } catch { /* 下次轮询重试；不打断主界面 */ }
+    };
+    void checkSchedule();
+    const timer = window.setInterval(() => void checkSchedule(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [openAiSession]);
 
   const goNav = (next: NavView) => {
     setSelectedProjectId(null);
@@ -125,18 +145,20 @@ function App() {
     <ProjectCard
       key={p.id}
       project={p}
+      hideTitle={view === "project"}
       busy={busyIds[p.id]}
       onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
       onOneClick={() => onOneClick(p.id)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
       onRemove={() => void onRemove(p.id, p.name)}
-      onOpenDoc={(relativePath, title) =>
+      onOpenDoc={(relativePath, title, libraryFile = false) =>
         setDialog({
           type: "doc",
           id: p.id,
           relativePath,
           title,
+          libraryFile,
         })
       }
       onConfigureRun={(mode) =>
@@ -252,6 +274,10 @@ function App() {
               </div>
             )}
 
+            {view === "dailyCompletion" && (
+              <div className="main-heading"><h2>每日完成</h2><p>从 commit message 整理可分享的工作总结</p></div>
+            )}
+
             {view === "settings" && (
               <div className="main-heading">
                 <h2>设置</h2>
@@ -332,6 +358,15 @@ function App() {
               />
             )}
 
+            {view === "dailyCompletion" && (
+              <DailyCompletionPage
+                onToast={showToast}
+                onGenerate={(period, onResult) =>
+                  openAiSession({ kind: "dailyCompletion", period, onResult })
+                }
+              />
+            )}
+
             {view === "settings" && (
               <SettingsPage onSaved={showToast} openAiSession={openAiSession} />
             )}
@@ -389,6 +424,7 @@ function App() {
           projectId={dialog.id}
           relativePath={dialog.relativePath}
           title={dialog.title}
+          libraryFile={dialog.libraryFile}
           onClose={() => setDialog(null)}
           onSaved={() => showToast("文档已保存")}
         />

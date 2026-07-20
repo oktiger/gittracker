@@ -8,6 +8,8 @@ import type {
   RunTarget,
 } from "../types";
 import { HelpTip } from "./HelpTip";
+import { DocumentLibraryTab } from "./DocumentLibraryTab";
+import { EvolutionPage } from "./EvolutionPage";
 import "./ProjectCard.css";
 
 interface Props {
@@ -20,7 +22,7 @@ interface Props {
   onDiscard: () => void;
   onViewChanges: () => void;
   onRemove: () => void;
-  onOpenDoc: (relativePath: string, title: string) => void;
+  onOpenDoc: (relativePath: string, title: string, libraryFile?: boolean) => void;
   onConfigureRun: (mode: "identify" | "config") => void;
   onGenerateTasks: () => void;
   onImplementTask: (task: DocsTaskItem) => void;
@@ -72,6 +74,7 @@ export function ProjectCard({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [runMenuOpen, setRunMenuOpen] = useState(false);
   const [runBusy, setRunBusy] = useState(false);
+  const [detailTab, setDetailTab] = useState<"run" | "code" | "docs" | "evolution">("run");
   const docsRef = useRef<HTMLElement>(null);
   const runRef = useRef<HTMLDivElement>(null);
   const targets: RunTarget[] = project.runTargets ?? [];
@@ -214,6 +217,23 @@ export function ProjectCard({
 
   return (
     <article className={`project-card ${project.clean ? "is-clean" : "is-dirty"}`}>
+      {hideTitle && (
+        <nav className="detail-tabs" aria-label="项目详情">
+          <button type="button" className={detailTab === "run" ? "is-active" : ""} onClick={() => setDetailTab("run")}>运行</button>
+          <button type="button" className={detailTab === "code" ? "is-active" : ""} onClick={() => setDetailTab("code")}>代码</button>
+          <button type="button" className={detailTab === "docs" ? "is-active" : ""} onClick={() => setDetailTab("docs")}>文档</button>
+          <button type="button" className={detailTab === "evolution" ? "is-active" : ""} onClick={() => setDetailTab("evolution")}>进化</button>
+        </nav>
+      )}
+      {hideTitle && detailTab === "run" && (
+        <section className="run-tab" aria-label="运行">
+          <div className="docs-head"><span className="docs-label">可运行命令</span><button type="button" className="btn btn-ghost btn-sm" onClick={() => onConfigureRun("config")} disabled={locked}>配置</button></div>
+          {hasTargets ? <ul className="run-target-list">{targets.map((target) => <li key={target.id}><button type="button" disabled={locked} onClick={() => void onRunTarget(target.id)}><span>{target.name}{target.isDefault ? " ★" : ""}</span><code>{target.cwd} · {target.command}</code>{target.description && <small>{target.description}</small>}</button></li>)}</ul> : <div className="docs-empty"><p>还没有可运行的命令</p><button type="button" className="btn btn-primary btn-sm" disabled={locked} onClick={onIdentify}>识别启动方式</button></div>}
+        </section>
+      )}
+      {hideTitle && detailTab === "docs" && <DocumentLibraryTab projectId={project.id} projectPath={project.path} epoch={docsEpoch} onOpenFile={(relativePath, title) => onOpenDoc(relativePath, title, true)} onError={onError} onToast={onToast} />}
+      {hideTitle && detailTab === "evolution" && <EvolutionPage overview={docs} busy={locked} onInitialize={() => void onCreateDocs()} onOpenGoal={(relativePath, title) => onOpenDoc(relativePath, title)} />}
+      {(!hideTitle || detailTab === "code") && <>
       <header className="card-header">
         <div className={`card-title-row${hideTitle ? " is-meta-only" : ""}`}>
           {!hideTitle && (
@@ -281,7 +301,7 @@ export function ProjectCard({
         </button>
       </div>
 
-      <section className="docs-block" ref={docsRef} aria-label="DOCS">
+      {!hideTitle && <section className="docs-block" ref={docsRef} aria-label="DOCS">
         <div className="docs-head">
           <span className="docs-label">
             DOCS <HelpTip text="Goal 写目标；生成任务拆成 Task；⋯ 可打开或实现" />
@@ -404,7 +424,7 @@ export function ProjectCard({
             )}
           </>
         )}
-      </section>
+      </section>}
 
       <section className="commits">
         <div className="commits-label">
@@ -433,7 +453,7 @@ export function ProjectCard({
             {busy || docsBusy || (runBusy ? "正在打开终端…" : null)}
           </span>
         )}
-        <div className="run-wrap" ref={runRef}>
+        {!hideTitle && <div className="run-wrap" ref={runRef}>
           <button
             type="button"
             className="btn btn-run"
@@ -524,7 +544,7 @@ export function ProjectCard({
               )}
             </div>
           )}
-        </div>
+        </div>}
         <button
           type="button"
           className="btn btn-secondary"
@@ -551,6 +571,7 @@ export function ProjectCard({
           Discard
         </button>
       </footer>
+      </>}
     </article>
   );
 }

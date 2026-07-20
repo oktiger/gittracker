@@ -5,6 +5,7 @@ import type {
   DiscardPreview,
   DiscardResult,
   DocsOverview,
+  DocumentLibrary,
   GenerateTasksResult,
   LogDiaryEntry,
   NewLogDiaryEntry,
@@ -60,6 +61,14 @@ export const api = {
     }),
   listDocs: (id: string) => invoke<DocsOverview>("list_docs", { id }),
   ensureDocs: (id: string) => invoke<DocsOverview>("ensure_docs", { id }),
+  listDocumentLibrary: (id: string) =>
+    invoke<DocumentLibrary>("list_document_library", { id }),
+  setDocumentLibrary: (id: string, root: string) =>
+    invoke<DocumentLibrary>("set_document_library", { id, root }),
+  readDocumentLibraryFile: (id: string, relativePath: string) =>
+    invoke<string>("read_document_library_file", { id, relativePath }),
+  writeDocumentLibraryFile: (id: string, relativePath: string, content: string) =>
+    invoke<void>("write_document_library_file", { id, relativePath, content }),
   readDocFile: (id: string, relativePath: string) =>
     invoke<string>("read_doc_file", { id, relativePath }),
   writeDocFile: (id: string, relativePath: string, content: string) =>
@@ -86,4 +95,6 @@ export const api = {
   appendLogDiary: (entry: NewLogDiaryEntry) =>
     invoke<LogDiaryEntry>("append_log_diary", { entry }),
   clearLogDiary: () => invoke<void>("clear_log_diary"),
+  generateDailyCompletion: (period: "today" | "week" | "sevenDays", sessionId: string) =>
+    invoke<string>("generate_daily_completion", { period, sessionId }),
 };

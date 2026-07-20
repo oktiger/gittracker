@@ -106,6 +106,8 @@ function formatAiRunForCopy(opts: {
 function bootLine(session: AiPanelSession): AiTranscriptLine {
   const text = (() => {
     switch (session.kind) {
+      case "dailyCompletion":
+        return `开始整理${session.period === "week" ? "本周" : session.period === "sevenDays" ? "过去 7 天" : "本日"}的完成事项…`;
       case "identify":
         return `开始识别「${session.projectName}」的启动方式…`;
       case "testConnection":
@@ -226,6 +228,22 @@ export function AiSidePanel({
 
       try {
         switch (session.kind) {
+          case "dailyCompletion": {
+            const result = await api.generateDailyCompletion(session.period, sessionId);
+            if (cancelled) return;
+            const periodLabel = session.period === "week" ? "本周" : session.period === "sevenDays" ? "过去 7 天" : "本日";
+            onLog({
+              kind: "dailyCompletion",
+              status: "ok",
+              title: `${session.automatic ? "自动" : "手动"}总结每日完成 · ${periodLabel}`,
+              detail: result,
+            });
+            setResultSummary(result);
+            session.onResult?.(result);
+            onToast?.(session.automatic ? "已自动生成每日完成" : "每日完成已生成");
+            setPhase("done");
+            break;
+          }
           case "identify": {
             const result = await api.suggestRunTargets(session.projectId, sessionId);
             if (cancelled) return;
@@ -354,6 +372,16 @@ export function AiSidePanel({
         const err = String(e);
         setError(err);
         switch (session.kind) {
+          case "dailyCompletion":
+            onLog({
+              kind: "dailyCompletion",
+              status: "error",
+              title: "每日完成总结失败",
+              detail: "根据各项目 commit message，经统一 AI 通道生成总结。",
+              error: err,
+            });
+            setPhase("done");
+            break;
           case "identify":
             onLog({
               kind: "suggestRunTargets",

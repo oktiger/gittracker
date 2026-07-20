@@ -5,8 +5,8 @@ use crate::git;
 use crate::log_diary;
 use crate::models::{
     AiConnectionTestResult, AiProvider, AppSettings, DiscardPreview, DiscardResult, DocsOverview,
-    GenerateTasksResult, LogDiaryEntry, NewLogDiaryEntry, OneClickResult, ProjectRecord,
-    ProjectStatus, RunTarget, RunTaskResult, SuggestRunTargetsResult,
+    DocumentLibrary, GenerateTasksResult, LogDiaryEntry, NewLogDiaryEntry, OneClickResult,
+    ProjectRecord, ProjectStatus, RunTarget, RunTaskResult, SuggestRunTargetsResult,
 };
 use crate::run;
 use crate::store;
@@ -160,9 +160,7 @@ pub async fn one_click_commit(
 pub fn preview_discard(id: String) -> AppResult<DiscardPreview> {
     let project = store::find_project(&id)?;
     let files = git::list_changed_files(Path::new(&project.path))?;
-    let recovery_dir = store::recovery_dir(&id)?
-        .to_string_lossy()
-        .to_string();
+    let recovery_dir = store::recovery_dir(&id)?.to_string_lossy().to_string();
     Ok(DiscardPreview {
         files,
         recovery_dir,
@@ -218,6 +216,59 @@ pub fn list_docs(id: String) -> AppResult<DocsOverview> {
 pub fn ensure_docs(id: String) -> AppResult<DocsOverview> {
     let project = store::find_project(&id)?;
     docs::ensure_docs(Path::new(&project.path))
+}
+
+#[tauri::command]
+pub fn list_document_library(id: String) -> AppResult<DocumentLibrary> {
+    let project = store::find_project(&id)?;
+    let detected_root =
+        if project.docs_root.is_none() && Path::new(&project.path).join("DOCS").is_dir() {
+            store::set_docs_root(&id, "DOCS".into())?;
+            Some("DOCS".to_string())
+        } else {
+            project.docs_root
+        };
+    docs::list_document_library(Path::new(&project.path), detected_root.as_deref())
+}
+
+#[tauri::command]
+pub fn set_document_library(id: String, root: String) -> AppResult<DocumentLibrary> {
+    let project = store::find_project(&id)?;
+    let root = root.trim().trim_matches('/').to_string();
+    let library = docs::ensure_document_library(Path::new(&project.path), &root)?;
+    store::set_docs_root(&id, root)?;
+    Ok(library)
+}
+
+#[tauri::command]
+pub fn read_document_library_file(id: String, relative_path: String) -> AppResult<String> {
+    let project = store::find_project(&id)?;
+    let root = project
+        .docs_root
+        .ok_or_else(|| AppError::msg("尚未设置文档库"))?;
+    let path = docs::resolve_library_path(Path::new(&project.path), &root, &relative_path)?;
+    if !path.is_file() {
+        return Err(AppError::msg("只能打开文件"));
+    }
+    Ok(std::fs::read_to_string(path)?)
+}
+
+#[tauri::command]
+pub fn write_document_library_file(
+    id: String,
+    relative_path: String,
+    content: String,
+) -> AppResult<()> {
+    let project = store::find_project(&id)?;
+    let root = project
+        .docs_root
+        .ok_or_else(|| AppError::msg("尚未设置文档库"))?;
+    let path = docs::resolve_library_path(Path::new(&project.path), &root, &relative_path)?;
+    if !path.is_file() {
+        return Err(AppError::msg("只能保存文件"));
+    }
+    std::fs::write(path, content)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -455,4 +506,36 @@ pub fn append_log_diary(entry: NewLogDiaryEntry) -> AppResult<LogDiaryEntry> {
 #[tauri::command]
 pub fn clear_log_diary() -> AppResult<()> {
     log_diary::clear_logs()
+}
+
+#[tauri::command]
+pub async fn generate_daily_completion(
+    app: AppHandle,
+    period: String,
+    session_id: String,
+) -> AppResult<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        let (period_label, since) = match period.as_str() {
+            "today" => ("今天", "midnight"),
+            "week" => ("本周", "monday"),
+            "sevenDays" => ("过去 7 天", "7 days ago"),
+            _ => return Err(AppError::msg("不支持的总结时间范围")),
+        };
+        progress("status", "正在收集各项目的 commit message…");
+        let mut lines = Vec::new();
+        for project in store::list_projects()? {
+            match git::commit_subjects_since(Path::new(&project.path), since) {
+                Ok(subjects) => lines.extend(
+                    subjects
+                        .into_iter()
+                        .map(|subject| format!("[{}] {subject}", project.name)),
+                ),
+                Err(err) => progress("log", &format!("跳过 {}：{err}", project.name)),
+            }
+        }
+        ai::summarize_daily_completion(period_label, &lines.join("\n"), Some(&progress))
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("总结任务中断：{e}")))?
 }

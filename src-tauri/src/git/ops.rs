@@ -35,6 +35,17 @@ pub fn push(repo: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// 读取指定时间之后的提交主题。`since` 使用 git 支持的日期表达式，例如 "midnight"、"7 days ago"。
+pub fn commit_subjects_since(repo: &Path, since: &str) -> AppResult<Vec<String>> {
+    let output = run_git(repo, &["log", "--no-merges", "--format=%s", "--since", since])?;
+    Ok(output
+        .lines()
+        .map(str::trim)
+        .filter(|subject| !subject.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
 pub fn create_recovery_patch(
     repo: &Path,
     project_id: &str,

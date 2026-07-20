@@ -6,6 +6,7 @@ interface Props {
   projectId: string;
   relativePath: string;
   title: string;
+  libraryFile?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -14,6 +15,7 @@ export function MarkdownEditorDialog({
   projectId,
   relativePath,
   title,
+  libraryFile = false,
   onClose,
   onSaved,
 }: Props) {
@@ -27,7 +29,9 @@ export function MarkdownEditorDialog({
       setLoading(true);
       setError(null);
       try {
-        setContent(await api.readDocFile(projectId, relativePath));
+        setContent(libraryFile
+          ? await api.readDocumentLibraryFile(projectId, relativePath)
+          : await api.readDocFile(projectId, relativePath));
       } catch (e) {
         setError(String(e));
       } finally {
@@ -40,7 +44,8 @@ export function MarkdownEditorDialog({
     setSaving(true);
     setError(null);
     try {
-      await api.writeDocFile(projectId, relativePath, content);
+      if (libraryFile) await api.writeDocumentLibraryFile(projectId, relativePath, content);
+      else await api.writeDocFile(projectId, relativePath, content);
       onSaved();
       onClose();
     } catch (e) {

@@ -1,7 +1,7 @@
 import type { ProjectStatus } from "../types";
 import "./AppSidebar.css";
 
-export type NavView = "board" | "logDiary" | "settings";
+export type NavView = "board" | "dailyCompletion" | "logDiary" | "settings";
 
 interface Props {
   view: NavView | "project";
@@ -28,6 +28,13 @@ export function AppSidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="主视图">
+        <button
+          type="button"
+          className={`sidebar-nav-item${view === "dailyCompletion" ? " is-active" : ""}`}
+          onClick={() => onNavigate("dailyCompletion")}
+        >
+          <span className="sidebar-nav-label">每日完成</span>
+        </button>
         <button
           type="button"
           className={`sidebar-nav-item${view === "board" ? " is-active" : ""}`}

@@ -21,6 +21,8 @@ export type AiProvider = "codex" | "cursorAgent";
 
 export interface AppSettings {
   aiProvider: AiProvider;
+  dailyCompletionEnabled: boolean;
+  dailyCompletionTime: string;
   goalPromptTemplate: string;
   taskPromptTemplate: string;
 }
@@ -90,6 +92,18 @@ export interface DocsOverview {
   needsInit?: boolean;
   goalRelativePath?: string | null;
   tasks: DocsTaskItem[];
+}
+
+export interface DocumentNode {
+  name: string;
+  relativePath: string;
+  isDirectory: boolean;
+  children: DocumentNode[];
+}
+
+export interface DocumentLibrary {
+  root?: string | null;
+  entries: DocumentNode[];
 }
 
 export interface GenerateTasksResult {

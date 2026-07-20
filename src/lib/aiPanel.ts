@@ -3,6 +3,12 @@ import type { AiProvider, RunTarget } from "../types";
 /** AI 右侧栏会话：所有需要调用 AI 的入口统一打开此会话。 */
 export type AiPanelSession =
   | {
+      kind: "dailyCompletion";
+      period: "today" | "week" | "sevenDays";
+      automatic?: boolean;
+      onResult?: (summary: string) => void;
+    }
+  | {
       kind: "identify";
       projectId: string;
       projectName: string;
@@ -61,6 +67,8 @@ export function waitForPaint(): Promise<void> {
 
 export function aiSessionTitle(session: AiPanelSession): string {
   switch (session.kind) {
+    case "dailyCompletion":
+      return session.automatic ? "每日完成自动生成" : "AI 总结每日完成";
     case "identify":
       return "AI 识别启动方式";
     case "config":
@@ -82,6 +90,12 @@ export function aiSessionTitle(session: AiPanelSession): string {
 
 export function aiSessionSubtitle(session: AiPanelSession): string {
   switch (session.kind) {
+    case "dailyCompletion":
+      return session.period === "week"
+        ? "本周 commit message"
+        : session.period === "sevenDays"
+          ? "过去 7 天 commit message"
+          : "本日 commit message";
     case "identify":
     case "config":
     case "generateCommit":

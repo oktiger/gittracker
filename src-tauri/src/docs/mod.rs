@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{DocsOverview, DocsTaskItem};
+use crate::models::{DocsOverview, DocsTaskItem, DocumentLibrary, DocumentNode};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -10,6 +10,107 @@ const GOAL_FILE: &str = "goal.md";
 
 pub fn docs_root(project_path: &Path) -> PathBuf {
     project_path.join(DOCS_DIR)
+}
+
+pub fn resolve_library_root(project_path: &Path, root: &str) -> AppResult<PathBuf> {
+    let relative = root.trim().trim_matches('/');
+    if relative.is_empty() || Path::new(relative).is_absolute() {
+        return Err(AppError::msg("文档库路径必须是项目内的相对路径"));
+    }
+    let path = project_path.join(relative);
+    if Path::new(relative)
+        .components()
+        .any(|c| matches!(c, Component::ParentDir))
+    {
+        return Err(AppError::msg("文档库路径不允许包含 .."));
+    }
+    Ok(path)
+}
+
+pub fn list_document_library(
+    project_path: &Path,
+    root: Option<&str>,
+) -> AppResult<DocumentLibrary> {
+    let Some(root) = root else {
+        return Ok(DocumentLibrary {
+            root: None,
+            entries: Vec::new(),
+        });
+    };
+    let path = resolve_library_root(project_path, root)?;
+    if !path.is_dir() {
+        return Ok(DocumentLibrary {
+            root: Some(root.to_string()),
+            entries: Vec::new(),
+        });
+    }
+    Ok(DocumentLibrary {
+        root: Some(root.to_string()),
+        entries: list_document_nodes(&path, "")?,
+    })
+}
+
+fn list_document_nodes(dir: &Path, prefix: &str) -> AppResult<Vec<DocumentNode>> {
+    let mut nodes = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        let relative_path = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{prefix}/{name}")
+        };
+        let is_directory = entry.file_type()?.is_dir();
+        let children = if is_directory {
+            list_document_nodes(&entry.path(), &relative_path)?
+        } else {
+            Vec::new()
+        };
+        nodes.push(DocumentNode {
+            name,
+            relative_path,
+            is_directory,
+            children,
+        });
+    }
+    nodes.sort_by(|a, b| {
+        b.is_directory
+            .cmp(&a.is_directory)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(nodes)
+}
+
+pub fn ensure_document_library(project_path: &Path, root: &str) -> AppResult<DocumentLibrary> {
+    let path = resolve_library_root(project_path, root)?;
+    fs::create_dir_all(path)?;
+    list_document_library(project_path, Some(root))
+}
+
+pub fn resolve_library_path(project_path: &Path, root: &str, relative: &str) -> AppResult<PathBuf> {
+    let library = resolve_library_root(project_path, root)?;
+    let rel = relative.trim().trim_start_matches('/');
+    if rel.is_empty()
+        || Path::new(rel)
+            .components()
+            .any(|c| matches!(c, Component::ParentDir))
+    {
+        return Err(AppError::msg("无效文档路径"));
+    }
+    let path = library.join(rel);
+    let resolved = path
+        .canonicalize()
+        .map_err(|e| AppError::msg(format!("无法解析路径：{e}")))?;
+    let library = library
+        .canonicalize()
+        .map_err(|e| AppError::msg(format!("无法解析文档库：{e}")))?;
+    if !resolved.starts_with(library) {
+        return Err(AppError::msg("路径必须位于文档库内"));
+    }
+    Ok(resolved)
 }
 
 pub fn goal_path(project_path: &Path) -> PathBuf {
@@ -135,7 +236,7 @@ pub fn ensure_docs(project_path: &Path) -> AppResult<DocsOverview> {
     if !goal.exists() {
         fs::write(
             &goal,
-            "# 项目目标\n\n在此描述本项目要达成的目标。\n",
+            "# 项目目标\n\n## 这个项目要达成什么？\n\n请在这里清晰描述项目的长期目标、要解决的问题，以及成功的标准。\n\n## 示例\n\n> 为团队打造一个统一的 Git 项目看板：能够快速了解各项目的变更状态，并通过 AI 协助完成提交、任务拆解和实现，让日常开发流程更清晰、更高效。\n\n你可以直接将以上示例替换为自己的项目目标。\n",
         )?;
     }
     list_docs(project_path)

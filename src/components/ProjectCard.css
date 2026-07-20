@@ -429,6 +429,64 @@ button.count-btn:disabled {
   margin-top: 0.5rem;
 }
 
+.detail-tabs {
+  display: flex;
+  gap: 0.2rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-tabs button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.42rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.detail-tabs button:hover,
+.detail-tabs button.is-active {
+  background: rgba(36, 110, 150, 0.1);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.run-tab,
+.document-library {
+  min-height: 12rem;
+}
+
+.run-target-list,
+.document-tree,
+.document-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.run-target-list { display: flex; flex-direction: column; gap: 0.45rem; }
+.run-target-list button {
+  width: 100%; text-align: left; padding: 0.65rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--ink); cursor: pointer;
+}
+.run-target-list button:hover:not(:disabled) { border-color: var(--accent); background: var(--surface); }
+.run-target-list span, .run-target-list code, .run-target-list small { display: block; }
+.run-target-list span { font-weight: 650; font-size: 0.84rem; }
+.run-target-list code { margin-top: 0.22rem; color: var(--muted); font-size: 0.72rem; }
+.run-target-list small { margin-top: 0.2rem; color: var(--muted); font-size: 0.74rem; }
+
+.document-root { color: var(--muted); font: 0.72rem var(--font-mono); }
+.document-tree { display: flex; flex-direction: column; gap: 0.18rem; }
+.document-children { margin-left: 1rem; border-left: 1px solid var(--border); padding-left: 0.55rem; }
+.document-row { display: flex; align-items: center; gap: 0.35rem; min-height: 2rem; padding: 0 0.25rem; border-radius: 7px; }
+.document-row:hover { background: var(--surface-2); }
+.document-name { flex: 1; min-width: 0; display: flex; gap: 0.45rem; border: 0; background: transparent; padding: 0.3rem; text-align: left; color: var(--ink); font: inherit; font-size: 0.8rem; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-name.is-folder { cursor: default; font-weight: 650; }
+.document-create { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
+.document-create input { width: 11rem; border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.5rem; font: inherit; font-size: 0.76rem; }
+
 .btn-sm {
   padding: 0.28rem 0.55rem;
   font-size: 0.75rem;
@@ -525,4 +583,3 @@ button.count-btn:disabled {
   background: var(--border);
   margin: 0.25rem 0;
 }
-

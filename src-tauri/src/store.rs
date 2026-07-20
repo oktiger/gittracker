@@ -82,10 +82,23 @@ pub fn add_project(path: String, name: Option<String>) -> AppResult<ProjectRecor
         path,
         order,
         run_targets: Vec::new(),
+        docs_root: None,
     };
     store.projects.push(record.clone());
     save_store(&store)?;
     Ok(record)
+}
+
+pub fn set_docs_root(id: &str, docs_root: String) -> AppResult<String> {
+    let mut store = load_store()?;
+    let project = store
+        .projects
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| AppError::msg("未找到该项目"))?;
+    project.docs_root = Some(docs_root.clone());
+    save_store(&store)?;
+    Ok(docs_root)
 }
 
 pub fn set_run_targets(id: &str, targets: Vec<RunTarget>) -> AppResult<Vec<RunTarget>> {

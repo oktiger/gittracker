@@ -33,6 +33,19 @@
 2. 内部按 `AiProvider` 分支实现两种 CLI 调用
 3. 业务层（`commands.rs` 等）只调用该统一入口
 
+## AI 运行过程侧边栏（强制）
+
+凡是会实际调用 AI 的用户操作，必须复用 `AiSidePanel` 展示运行过程；不得在业务页面自行发起 AI 调用后静默等待，也不得另建重复的进度 UI。
+
+实现要求：
+
+1. 在 `src/lib/aiPanel.ts` 为新能力增加一个 `AiPanelSession` 类型、标题和副标题
+2. 由入口页面打开该 Session；`AiSidePanel` 统一生成 session ID、订阅 `ai-progress`、调用 API、展示过程、结果与错误，并写入操作日志
+3. 后端 AI 能力持续通过 `ai::make_progress_sink` 发出 `ai-progress` 事件
+4. 自动触发的 AI 任务也应打开该侧边栏，让用户能看到当前运行状态
+
+当前已接入侧边栏的 AI 能力包括：Commit message、 一键提交、任务生成与实现、启动方式识别、Provider 测试、每日完成总结。
+
 ## 当前走统一通道的功能
 
 - 手动提交对话框的 AI Generate Commit Message

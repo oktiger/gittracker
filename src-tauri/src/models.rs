@@ -30,6 +30,9 @@ pub struct ProjectRecord {
     pub order: i32,
     #[serde(default)]
     pub run_targets: Vec<RunTarget>,
+    /// 项目内文档库的相对路径；未设置时不展示文档树。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_root: Option<String>,
 }
 
 /// 全局 AI 调用通道。项目内所有 AI 能力都必须经此设置统一路由。
@@ -76,16 +79,28 @@ pub fn default_task_prompt_template() -> String {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub ai_provider: AiProvider,
+    /// 每日完成自动生成开关；默认关闭。
+    #[serde(default)]
+    pub daily_completion_enabled: bool,
+    /// 本地时间，格式 HH:MM。
+    #[serde(default = "default_daily_completion_time")]
+    pub daily_completion_time: String,
     #[serde(default = "default_goal_prompt_template")]
     pub goal_prompt_template: String,
     #[serde(default = "default_task_prompt_template")]
     pub task_prompt_template: String,
 }
 
+fn default_daily_completion_time() -> String {
+    "18:00".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             ai_provider: AiProvider::Codex,
+            daily_completion_enabled: false,
+            daily_completion_time: default_daily_completion_time(),
             goal_prompt_template: default_goal_prompt_template(),
             task_prompt_template: default_task_prompt_template(),
         }
@@ -179,6 +194,24 @@ pub struct DocsOverview {
     pub needs_init: bool,
     pub goal_relative_path: Option<String>,
     pub tasks: Vec<DocsTaskItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentNode {
+    pub name: String,
+    pub relative_path: String,
+    pub is_directory: bool,
+    #[serde(default)]
+    pub children: Vec<DocumentNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentLibrary {
+    pub root: Option<String>,
+    #[serde(default)]
+    pub entries: Vec<DocumentNode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

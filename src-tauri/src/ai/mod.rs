@@ -127,6 +127,30 @@ pub fn generate_commit_message(
     run_readonly(&prompt, None, progress)
 }
 
+/// 根据多个仓库的 commit message 生成面向用户的工作总结。
+/// 与其它 AI 功能一样，始终经 `run_readonly` 按当前 Provider 路由。
+pub fn summarize_daily_completion(
+    period_label: &str,
+    commits: &str,
+    progress: Option<&ProgressSink>,
+) -> AppResult<String> {
+    if commits.trim().is_empty() {
+        return Ok("这段时间还没有新的提交。".to_string());
+    }
+    let label = provider_label().unwrap_or("AI");
+    emit(progress, "status", &format!("使用 {label} 整理{period_label}完成事项…"));
+    let prompt = format!(
+        "你是 Git 工作总结助手。仅依据下方 commit message，总结用户{period_label}做了什么。\n\
+         要求：\n\
+         1. 使用简体中文，输出 3-6 条简短要点；若工作不足 3 项则按实际输出\n\
+         2. 合并同类提交，写清完成的功能、修复或改进，不要臆测\n\
+         3. 不要标题、前言、代码块、项目名或 commit hash\n\
+         4. 每条以「- 」开头，适合放入手机分享卡片\n\n\
+         Commit messages:\n{commits}"
+    );
+    run_readonly(&truncate_prompt(&prompt), None, progress)
+}
+
 /// 根据目标拆分任务（只读 / 分析，不改业务代码）。
 pub fn run_goal(
     project_path: &Path,

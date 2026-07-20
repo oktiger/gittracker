@@ -46,6 +46,10 @@ pub fn run() {
             commands::test_ai_connection,
             commands::list_docs,
             commands::ensure_docs,
+            commands::list_document_library,
+            commands::set_document_library,
+            commands::read_document_library_file,
+            commands::write_document_library_file,
             commands::read_doc_file,
             commands::write_doc_file,
             commands::open_doc_external,
@@ -57,6 +61,7 @@ pub fn run() {
             commands::list_log_diary,
             commands::append_log_diary,
             commands::clear_log_diary,
+            commands::generate_daily_completion,
         ])
         .setup(|app| {
             setup_tray(app)?;

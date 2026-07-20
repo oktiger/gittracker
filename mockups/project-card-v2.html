@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GitTracker · 项目卡片 v2（项目 → 代码区 / 文档区）</title>
+<style>
+  :root {
+    --ink: #1a2229;
+    --ink-soft: #2f3b46;
+    --muted: #6b7782;
+    --surface: rgba(255, 255, 255, 0.96);
+    --surface-2: #f1f4f6;
+    --border: #d7dee4;
+    --border-strong: #b8c3cd;
+    --accent: #246e96;
+    --accent-soft: rgba(36, 110, 150, 0.1);
+    --green: #2ea062;
+    --amber: #c48a1a;
+    --danger: #c44836;
+    --font-display: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+    --font-body: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink);
+    background:
+      radial-gradient(900px 480px at 8% -10%, rgba(36, 110, 150, 0.16), transparent 60%),
+      radial-gradient(700px 420px at 100% 0%, rgba(46, 160, 98, 0.1), transparent 55%),
+      linear-gradient(180deg, #edf2f5 0%, #e4ebf0 100%);
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1.5rem 3.5rem;
+  }
+
+  .banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    background: #fff8e8;
+    border: 1px solid #e8d4a8;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 1.25rem;
+    font-size: 13px;
+    color: #6a5320;
+  }
+
+  .banner strong { color: #4a3a14; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.35rem;
+    flex-wrap: wrap;
+  }
+
+  .brand h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    letter-spacing: -0.02em;
+  }
+
+  .brand p {
+    margin: 0.3rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    max-width: 40rem;
+    line-height: 1.45;
+  }
+
+  .hierarchy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    min-width: 14rem;
+  }
+
+  .hierarchy strong { color: var(--ink); font-weight: 650; }
+  .hierarchy code {
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    background: var(--surface-2);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.1rem;
+  }
+
+  /* ========== 项目卡片 ========== */
+  .project-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.05rem 1.05rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .project-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+
+  .project-card.is-dirty { border-left: 3px solid var(--amber); }
+  .project-card.is-clean { border-left: 3px solid var(--green); }
+
+  /* —— 项目层：只放身份 —— */
+  .project-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .project-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .project-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.12rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-icon {
+    width: 1.7rem;
+    height: 1.7rem;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-icon:hover {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
+  .project-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.55rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  .branch {
+    font-family: var(--font-mono);
+    color: var(--ink-soft);
+    background: var(--surface-2);
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+  }
+
+  .badge {
+    font-size: 0.7rem;
+    font-weight: 650;
+    padding: 0.16rem 0.48rem;
+    border-radius: 999px;
+  }
+
+  .badge-clean {
+    color: #1f6b45;
+    background: rgba(46, 160, 98, 0.14);
+  }
+
+  .badge-dirty {
+    color: #8a5a12;
+    background: rgba(214, 158, 46, 0.18);
+  }
+
+  .ahead-behind {
+    font-family: var(--font-mono);
+    display: inline-flex;
+    gap: 0.35rem;
+  }
+
+  /* —— 两个子区：拆开、各自带操作 —— */
+  .zone {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.75rem 0.8rem 0.8rem;
+    border-radius: 11px;
+    border: 1px solid var(--border);
+  }
+
+  .zone-code {
+    background: var(--surface-2);
+    border-color: #cfd7de;
+  }
+
+  .zone-docs {
+    background: rgba(36, 110, 150, 0.05);
+    border-color: rgba(36, 110, 150, 0.22);
+  }
+
+  .zone-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .zone-title {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .zone-code .zone-title { color: var(--ink-soft); }
+  .zone-docs .zone-title { color: var(--accent); }
+
+  .zone-summary {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .zone-summary em {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  .zone-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .block-label {
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid transparent;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+  }
+
+  button.metric.is-clickable { cursor: pointer; }
+
+  button.metric.is-clickable:hover {
+    border-color: var(--border-strong);
+  }
+
+  .metric-num {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 650;
+  }
+
+  .metric-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .commit-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .commit-list li {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 0.4rem;
+    align-items: baseline;
+    font-size: 0.76rem;
+  }
+
+  .hash {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 0.7rem;
+  }
+
+  .when { color: var(--muted); white-space: nowrap; }
+
+  .subject {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink-soft);
+  }
+
+  .empty {
+    margin: 0;
+    padding: 0.7rem 0.65rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    line-height: 1.45;
+  }
+
+  .empty strong {
+    display: block;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+  }
+
+  .task-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .task-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.45rem;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .task-num {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    min-width: 1.55rem;
+  }
+
+  .task-title {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 0;
+    text-align: left;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-title:hover { color: var(--accent); }
+
+  .task-status {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    background: #e8edf1;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .task-status.done {
+    background: rgba(46, 160, 98, 0.14);
+    color: #1f6b45;
+  }
+
+  .task-actions {
+    display: flex;
+    gap: 0.2rem;
+  }
+
+  .task-act {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: 0.66rem;
+    font-weight: 650;
+    padding: 0.16rem 0.38rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .task-act:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .task-act.primary {
+    border-color: rgba(36, 110, 150, 0.35);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* 操作挂在各自 zone 底部，不是卡片底 */
+  .zone-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed rgba(20, 24, 28, 0.12);
+  }
+
+  .zone-docs .zone-actions {
+    border-top-color: rgba(36, 110, 150, 0.18);
+  }
+
+  .btn {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.38rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .btn:hover { border-color: var(--ink-soft); }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #1a5676;
+    border-color: #1a5676;
+  }
+
+  .btn-run {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+  }
+
+  .btn-run:hover:not(:disabled) {
+    background: var(--ink-soft);
+    border-color: var(--ink-soft);
+  }
+
+  .btn-danger {
+    background: transparent;
+    border-color: rgba(196, 72, 54, 0.45);
+    color: var(--danger);
+    margin-left: auto;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(196, 72, 54, 0.08);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--accent);
+  }
+
+  .btn-ghost:hover { background: var(--accent-soft); }
+
+  .btn-sm {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.74rem;
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%) translateY(120%);
+    background: var(--ink);
+    color: #fff;
+    font-size: 0.82rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    box-shadow: 0 10px 28px rgba(20, 24, 28, 0.22);
+    transition: transform 0.2s ease;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .note {
+    margin-top: 1.75rem;
+    padding: 1rem 1.1rem;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+
+  .note h2 {
+    margin: 0 0 0.55rem;
+    font-size: 0.95rem;
+    color: var(--ink);
+  }
+
+  .note-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+  }
+
+  @media (max-width: 640px) {
+    .note-grid { grid-template-columns: 1fr; }
+  }
+
+  .note-col h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .note-col.code h3 { color: var(--ink-soft); }
+  .note-col.docs h3 { color: var(--accent); }
+
+  .note-col ul {
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+
+  .note-col li + li { margin-top: 0.25rem; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    background: var(--surface-2);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="banner">
+      <div>
+        <strong>Mockup · 操作归属分区</strong>
+        — 卡片 = 项目。其下拆成「代码区」「文档区」。运行 / 提交 / 丢弃只属于代码区；初始化 / 生成任务 / 打开 / 实现只属于文档区。
+      </div>
+      <div>文件：<code>mockups/project-card-v2.html</code></div>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <h1>项目卡片 v2</h1>
+        <p>层级：项目 → 代码区 / 文档区。每个区自带内容与操作，卡片底部不再放跨区按钮。</p>
+      </div>
+      <div class="hierarchy">
+        <div><strong>项目</strong> · 身份 / 分支 / 状态</div>
+        <div>↳ <code>代码区</code> · 工作区 · 提交 · 运行</div>
+        <div>↳ <code>文档区</code> · Goal · Task · 实现</div>
+      </div>
+    </header>
+
+    <div class="grid">
+
+      <!-- ========== 有改动 + 有任务 ========== -->
+      <article class="project-card is-dirty" aria-label="项目 hero-base">
+        <header class="project-header">
+          <div class="project-title-row">
+            <h2 class="project-title" title="/Users/me/projects/hero-base">hero-base</h2>
+            <button type="button" class="btn-icon" title="从看板移除项目" data-toast="移除项目（演示）">×</button>
+          </div>
+          <div class="project-meta">
+            <span class="branch">main</span>
+            <span class="badge badge-dirty">Changed</span>
+            <span class="ahead-behind"><span>↑2</span></span>
+          </div>
+        </header>
+
+        <!-- 代码区 -->
+        <section class="zone zone-code" aria-label="代码区">
+          <div class="zone-head">
+            <h3 class="zone-title">代码</h3>
+            <span class="zone-summary"><em>3</em> 处改动 · 可提交</span>
+          </div>
+
+          <div class="zone-body">
+            <div>
+              <div class="block-label">工作区</div>
+              <div class="metrics">
+                <div class="metric">
+                  <span class="metric-num">1</span>
+                  <span class="metric-label">已暂存</span>
+                </div>
+                <button type="button" class="metric is-clickable" data-toast="代码区 · 查看变更">
+                  <span class="metric-num">2</span>
+                  <span class="metric-label">未暂存 / 新文件</span>
+                </button>
+              </div>
+            </div>
+            <div>
+              <div class="block-label">最近提交</div>
+              <ul class="commit-list">
+                <li>
+                  <code class="hash">a3f91c2</code>
+                  <span class="when">2 小时前</span>
+                  <span class="subject">42.feat: 侧栏增加项目搜索</span>
+                </li>
+                <li>
+                  <code class="hash">9bc01e4</code>
+                  <span class="when">昨天</span>
+                  <span class="subject">41.fix: 修复一键提交超时</span>
+                </li>
+                <li>
+                  <code class="hash">71d2aa0</code>
+                  <span class="when">3 天前</span>
+                  <span class="subject">40.docs: 补充 DOCS 约定</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="zone-actions" aria-label="代码区操作">
+            <button type="button" class="btn btn-run" data-toast="代码区 · 运行">运行 ▾</button>
+            <button type="button" class="btn" data-toast="代码区 · 手动提交">手动提交</button>
+            <button type="button" class="btn btn-primary" data-toast="代码区 · 一键提交">一键提交</button>
+            <button type="button" class="btn btn-danger" data-toast="代码区 · 丢弃改动">丢弃改动</button>
+          </div>
+        </section>
+
+        <!-- 文档区 -->
+        <section class="zone zone-docs" aria-label="文档区">
+          <div class="zone-head">
+            <h3 class="zone-title">文档</h3>
+            <span class="zone-summary"><em>2</em> 项待做</span>
+          </div>
+
+          <div class="zone-body">
+            <ul class="task-list">
+              <li class="task-row">
+                <span class="task-num">001</span>
+                <button type="button" class="task-title" data-toast="文档区 · 打开任务">完善看板空态引导</button>
+                <span class="task-status">待做</span>
+                <div class="task-actions">
+                  <button type="button" class="task-act" data-toast="文档区 · 打开">打开</button>
+                  <button type="button" class="task-act primary" data-toast="文档区 · 实现（会改代码）">实现</button>
+                </div>
+              </li>
+              <li class="task-row">
+                <span class="task-num">002</span>
+                <button type="button" class="task-title" data-toast="文档区 · 打开任务">日志按类型筛选</button>
+                <span class="task-status">待做</span>
+                <div class="task-actions">
+                  <button type="button" class="task-act" data-toast="文档区 · 打开">打开</button>
+                  <button type="button" class="task-act primary" data-toast="文档区 · 实现（会改代码）">实现</button>
+                </div>
+              </li>
+              <li class="task-row">
+                <span class="task-num">003</span>
+                <button type="button" class="task-title" data-toast="文档区 · 打开任务">设置页连接测试</button>
+                <span class="task-status done">已完成</span>
+                <div class="task-actions">
+                  <button type="button" class="task-act" data-toast="文档区 · 打开">打开</button>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="zone-actions" aria-label="文档区操作">
+            <button type="button" class="btn btn-ghost btn-sm" data-toast="文档区 · 打开 Goal">打开 Goal</button>
+            <button type="button" class="btn btn-primary btn-sm" data-toast="文档区 · 生成任务">生成任务</button>
+          </div>
+        </section>
+      </article>
+
+      <!-- ========== 干净 + 无任务 ========== -->
+      <article class="project-card is-clean" aria-label="项目 docs-site">
+        <header class="project-header">
+          <div class="project-title-row">
+            <h2 class="project-title">docs-site</h2>
+            <button type="button" class="btn-icon" title="从看板移除项目" data-toast="移除项目（演示）">×</button>
+          </div>
+          <div class="project-meta">
+            <span class="branch">main</span>
+            <span class="badge badge-clean">Clean</span>
+          </div>
+        </header>
+
+        <section class="zone zone-code" aria-label="代码区">
+          <div class="zone-head">
+            <h3 class="zone-title">代码</h3>
+            <span class="zone-summary">工作区干净</span>
+          </div>
+          <div class="zone-body">
+            <div>
+              <div class="block-label">工作区</div>
+              <div class="metrics">
+                <div class="metric">
+                  <span class="metric-num">0</span>
+                  <span class="metric-label">已暂存</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-num">0</span>
+                  <span class="metric-label">未暂存 / 新文件</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="block-label">最近提交</div>
+              <ul class="commit-list">
+                <li>
+                  <code class="hash">c8e2201</code>
+                  <span class="when">5 天前</span>
+                  <span class="subject">12.chore: 更新依赖</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="zone-actions" aria-label="代码区操作">
+            <button type="button" class="btn btn-run" data-toast="代码区 · 运行">运行 ▾</button>
+            <button type="button" class="btn" disabled>手动提交</button>
+            <button type="button" class="btn btn-primary" disabled>一键提交</button>
+            <button type="button" class="btn btn-danger" disabled>丢弃改动</button>
+          </div>
+        </section>
+
+        <section class="zone zone-docs" aria-label="文档区">
+          <div class="zone-head">
+            <h3 class="zone-title">文档</h3>
+            <span class="zone-summary">暂无任务</span>
+          </div>
+          <div class="zone-body">
+            <p class="empty">
+              <strong>暂无 Task</strong>
+              已有 goal.md。写好目标后生成任务。
+            </p>
+          </div>
+          <div class="zone-actions" aria-label="文档区操作">
+            <button type="button" class="btn btn-ghost btn-sm" data-toast="文档区 · 打开 Goal">打开 Goal</button>
+            <button type="button" class="btn btn-primary btn-sm" data-toast="文档区 · 生成任务">生成任务</button>
+          </div>
+        </section>
+      </article>
+
+      <!-- ========== 文档未初始化 ========== -->
+      <article class="project-card is-clean" aria-label="项目 legacy-cli">
+        <header class="project-header">
+          <div class="project-title-row">
+            <h2 class="project-title">legacy-cli</h2>
+            <button type="button" class="btn-icon" title="从看板移除项目" data-toast="移除项目（演示）">×</button>
+          </div>
+          <div class="project-meta">
+            <span class="branch">develop</span>
+            <span class="badge badge-clean">Clean</span>
+            <span class="ahead-behind"><span>↓1</span></span>
+          </div>
+        </header>
+
+        <section class="zone zone-code" aria-label="代码区">
+          <div class="zone-head">
+            <h3 class="zone-title">代码</h3>
+            <span class="zone-summary">工作区干净</span>
+          </div>
+          <div class="zone-body">
+            <div>
+              <div class="block-label">工作区</div>
+              <div class="metrics">
+                <div class="metric">
+                  <span class="metric-num">0</span>
+                  <span class="metric-label">已暂存</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-num">0</span>
+                  <span class="metric-label">未暂存 / 新文件</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="block-label">最近提交</div>
+              <p class="empty">暂无提交</p>
+            </div>
+          </div>
+          <div class="zone-actions" aria-label="代码区操作">
+            <button type="button" class="btn btn-run" data-toast="代码区 · 识别启动方式">运行 ▾</button>
+            <button type="button" class="btn" disabled>手动提交</button>
+            <button type="button" class="btn btn-primary" disabled>一键提交</button>
+            <button type="button" class="btn btn-danger" disabled>丢弃改动</button>
+          </div>
+        </section>
+
+        <section class="zone zone-docs" aria-label="文档区">
+          <div class="zone-head">
+            <h3 class="zone-title">文档</h3>
+            <span class="zone-summary">待初始化</span>
+          </div>
+          <div class="zone-body">
+            <p class="empty">
+              <strong>尚未初始化 DOCS</strong>
+              创建 Goal / Task 与 goal.md 后即可拆任务。
+            </p>
+          </div>
+          <div class="zone-actions" aria-label="文档区操作">
+            <button type="button" class="btn btn-primary btn-sm" data-toast="文档区 · 初始化">初始化文档</button>
+          </div>
+        </section>
+      </article>
+
+    </div>
+
+    <section class="note">
+      <h2>操作归属（按区拆开）</h2>
+      <div class="note-grid">
+        <div class="note-col code">
+          <h3>代码区</h3>
+          <ul>
+            <li>查看工作区（已暂存 / 未暂存）</li>
+            <li>查看最近提交</li>
+            <li><strong>运行</strong>（启动目标）</li>
+            <li><strong>手动提交</strong></li>
+            <li><strong>一键提交</strong></li>
+            <li><strong>丢弃改动</strong></li>
+          </ul>
+        </div>
+        <div class="note-col docs">
+          <h3>文档区</h3>
+          <ul>
+            <li><strong>初始化文档</strong>（无 DOCS 时）</li>
+            <li><strong>打开 Goal</strong></li>
+            <li><strong>生成任务</strong></li>
+            <li>Task：<strong>打开</strong> / <strong>实现</strong></li>
+            <li>「实现」入口在文档区，结果会让代码区变 dirty</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const toastEl = document.getElementById("toast");
+    let toastTimer;
+
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
+    }
+
+    document.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-toast]");
+      if (!t) return;
+      e.preventDefault();
+      showToast(t.getAttribute("data-toast"));
+    });
+  </script>
+</body>
+</html>
