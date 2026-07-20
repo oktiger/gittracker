@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import type { NewLogDiaryEntry } from "../types";
 import { HelpTip } from "./HelpTip";
 import "./Dialog.css";
 
@@ -8,9 +9,16 @@ interface Props {
   projectName: string;
   onClose: () => void;
   onDone: () => void;
+  onLog: (entry: NewLogDiaryEntry) => void;
 }
 
-export function CommitDialog({ projectId, projectName, onClose, onDone }: Props) {
+export function CommitDialog({
+  projectId,
+  projectName,
+  onClose,
+  onDone,
+  onLog,
+}: Props) {
   const [message, setMessage] = useState("");
   const [alsoPush, setAlsoPush] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -41,8 +49,26 @@ export function CommitDialog({ projectId, projectName, onClose, onDone }: Props)
     try {
       const msg = await api.generateCommitMessage(projectId);
       setMessage(msg);
+      onLog({
+        kind: "generateCommit",
+        status: "ok",
+        title: `AI Generate · ${projectName}`,
+        projectId,
+        projectName,
+        detail: `生成的 Commit message:\n${msg}`,
+      });
     } catch (e) {
-      setError(String(e));
+      const err = String(e);
+      onLog({
+        kind: "generateCommit",
+        status: "error",
+        title: `AI Generate 失败 · ${projectName}`,
+        projectId,
+        projectName,
+        detail: "根据 Staged Diff，经统一 AI 通道生成 Commit message。",
+        error: err,
+      });
+      setError(err);
     } finally {
       setGenerating(false);
     }
@@ -55,16 +81,35 @@ export function CommitDialog({ projectId, projectName, onClose, onDone }: Props)
     }
     setSubmitting(true);
     setError(null);
+    const trimmed = message.trim();
     try {
       if (alsoPush) {
-        await api.commitAndPush(projectId, message.trim());
+        await api.commitAndPush(projectId, trimmed);
       } else {
-        await api.commitProject(projectId, message.trim());
+        await api.commitProject(projectId, trimmed);
       }
+      onLog({
+        kind: "commit",
+        status: "ok",
+        title: `${alsoPush ? "Commit & Push" : "Commit"} · ${projectName}`,
+        projectId,
+        projectName,
+        detail: `Message:\n${trimmed}`,
+      });
       onDone();
       onClose();
     } catch (e) {
-      setError(String(e));
+      const err = String(e);
+      onLog({
+        kind: "commit",
+        status: "error",
+        title: `${alsoPush ? "Commit & Push" : "Commit"} 失败 · ${projectName}`,
+        projectId,
+        projectName,
+        detail: `Message:\n${trimmed}`,
+        error: err,
+      });
+      setError(err);
     } finally {
       setSubmitting(false);
     }

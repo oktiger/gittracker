@@ -19,6 +19,7 @@ pub fn fetch_project_status(project: &ProjectRecord) -> ProjectStatus {
             behind: 0,
             commits: vec![],
             error: Some(err.to_string()),
+            run_targets: project.run_targets.clone(),
         },
     }
 }
@@ -43,6 +44,7 @@ fn fetch_project_status_inner(project: &ProjectRecord) -> AppResult<ProjectStatu
         behind,
         commits,
         error: None,
+        run_targets: project.run_targets.clone(),
     })
 }
 

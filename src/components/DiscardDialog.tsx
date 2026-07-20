@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { HelpTip } from "./HelpTip";
-import type { FileChange } from "../types";
+import type { FileChange, NewLogDiaryEntry } from "../types";
 import "./Dialog.css";
 
 interface Props {
@@ -9,9 +9,16 @@ interface Props {
   projectName: string;
   onClose: () => void;
   onDone: () => void;
+  onLog: (entry: NewLogDiaryEntry) => void;
 }
 
-export function DiscardDialog({ projectId, projectName, onClose, onDone }: Props) {
+export function DiscardDialog({
+  projectId,
+  projectName,
+  onClose,
+  onDone,
+  onLog,
+}: Props) {
   const [files, setFiles] = useState<FileChange[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [includeUntracked, setIncludeUntracked] = useState(false);
@@ -77,17 +84,34 @@ export function DiscardDialog({ projectId, projectName, onClose, onDone }: Props
     setError(null);
     try {
       const result = await api.discardChanges(projectId, paths, includeUntracked);
-      if (result.recoveryPatch) {
-        setResultNote(`已创建恢复补丁：${result.recoveryPatch}`);
-      } else {
-        setResultNote("未生成恢复补丁（可能无可用 diff），更改仍已丢弃");
-      }
+      const note = result.recoveryPatch
+        ? `已创建恢复补丁：${result.recoveryPatch}`
+        : "未生成恢复补丁（可能无可用 diff），更改仍已丢弃";
+      setResultNote(note);
+      onLog({
+        kind: "discard",
+        status: "ok",
+        title: `Discard · ${projectName}`,
+        projectId,
+        projectName,
+        detail: `丢弃文件 (${result.discarded.length}):\n${result.discarded.map((p) => `- ${p}`).join("\n")}\n\n${note}`,
+      });
       setTimeout(() => {
         onDone();
         onClose();
       }, 900);
     } catch (e) {
-      setError(String(e));
+      const err = String(e);
+      onLog({
+        kind: "discard",
+        status: "error",
+        title: `Discard 失败 · ${projectName}`,
+        projectId,
+        projectName,
+        detail: `拟丢弃:\n${paths.map((p) => `- ${p}`).join("\n")}`,
+        error: err,
+      });
+      setError(err);
     } finally {
       setSubmitting(false);
     }

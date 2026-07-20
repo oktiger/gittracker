@@ -1,5 +1,13 @@
+import { useEffect, useRef, useState } from "react";
+import { api } from "../api";
+import type {
+  DocsOverview,
+  DocsTaskItem,
+  NewLogDiaryEntry,
+  ProjectStatus,
+  RunTarget,
+} from "../types";
 import { HelpTip } from "./HelpTip";
-import type { ProjectStatus } from "../types";
 import "./ProjectCard.css";
 
 interface Props {
@@ -10,6 +18,12 @@ interface Props {
   onDiscard: () => void;
   onViewChanges: () => void;
   onRemove: () => void;
+  onOpenDoc: (relativePath: string, title: string) => void;
+  onConfigureRun: (mode: "identify" | "config") => void;
+  onError: (msg: string) => void;
+  onToast: (msg: string) => void;
+  onLog: (entry: NewLogDiaryEntry) => void;
+  onRefreshProject: () => void;
 }
 
 function relativeTime(ts: number): string {
@@ -22,6 +36,11 @@ function relativeTime(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString("zh-CN");
 }
 
+function statusLabel(status: string): { text: string; cls: string } {
+  if (status === "done") return { text: "已完成", cls: "done" };
+  return { text: "待做", cls: "" };
+}
+
 export function ProjectCard({
   project,
   busy,
@@ -30,10 +49,218 @@ export function ProjectCard({
   onDiscard,
   onViewChanges,
   onRemove,
+  onOpenDoc,
+  onConfigureRun,
+  onError,
+  onToast,
+  onLog,
+  onRefreshProject,
 }: Props) {
   const disabled = Boolean(busy);
   const hasChanges = !project.clean;
   const workingChanges = project.unstaged + project.untracked;
+  const [docs, setDocs] = useState<DocsOverview | null>(null);
+  const [docsBusy, setDocsBusy] = useState<string | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [runMenuOpen, setRunMenuOpen] = useState(false);
+  const [runBusy, setRunBusy] = useState(false);
+  const docsRef = useRef<HTMLElement>(null);
+  const runRef = useRef<HTMLDivElement>(null);
+  const targets: RunTarget[] = project.runTargets ?? [];
+  const hasTargets = targets.length > 0;
+
+  const loadDocs = async () => {
+    try {
+      const overview = await api.listDocs(project.id);
+      setDocs(overview);
+    } catch (e) {
+      setDocs(null);
+      onError(String(e));
+    }
+  };
+
+  useEffect(() => {
+    void loadDocs();
+  }, [project.id, project.path]);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (!docsRef.current?.contains(target)) {
+        setMenuId(null);
+      }
+      if (!runRef.current?.contains(target)) {
+        setRunMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
+  const locked = disabled || Boolean(docsBusy) || runBusy;
+  const needsInit =
+    docs != null && (docs.needsInit ?? (!docs.hasDocs || !docs.goalExists));
+
+  const onRunTarget = async (targetId: string) => {
+    setRunMenuOpen(false);
+    setRunBusy(true);
+    const t = targets.find((x) => x.id === targetId);
+    try {
+      await api.runProjectTarget(project.id, targetId);
+      onLog({
+        kind: "runTarget",
+        status: "ok",
+        title: `运行 · ${t?.name ?? targetId}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: t
+          ? `cwd: ${t.cwd}\ncommand: ${t.command}\n\n已在系统终端启动（终端输出不回传到本应用）。`
+          : "已在系统终端启动。",
+      });
+      onToast(t ? `已在终端启动：${t.name}` : "已在终端启动");
+    } catch (e) {
+      const msg = String(e);
+      onLog({
+        kind: "runTarget",
+        status: "error",
+        title: `运行失败 · ${t?.name ?? targetId}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: t ? `cwd: ${t.cwd}\ncommand: ${t.command}` : undefined,
+        error: msg,
+      });
+      onError(msg);
+    } finally {
+      setRunBusy(false);
+    }
+  };
+
+  const onIdentify = () => {
+    setRunMenuOpen(false);
+    if (hasTargets) {
+      if (
+        !window.confirm(
+          "将用新的识别结果替换当前启动目标，是否继续？",
+        )
+      ) {
+        return;
+      }
+    }
+    onConfigureRun("identify");
+  };
+
+  const onCreateDocs = async () => {
+    setDocsBusy("正在初始化…");
+    try {
+      const overview = await api.ensureDocs(project.id);
+      setDocs(overview);
+      onLog({
+        kind: "ensureDocs",
+        status: "ok",
+        title: `初始化 DOCS · ${project.name}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: `Goal: ${overview.goalExists ? "已有" : "未检测到"}\nTasks: ${overview.tasks.length}`,
+      });
+      onToast("已初始化 Goal / Task 与 goal.md");
+    } catch (e) {
+      const msg = String(e);
+      onLog({
+        kind: "ensureDocs",
+        status: "error",
+        title: `初始化 DOCS 失败 · ${project.name}`,
+        projectId: project.id,
+        projectName: project.name,
+        error: msg,
+      });
+      onError(msg);
+    } finally {
+      setDocsBusy(null);
+    }
+  };
+
+  const onGenerate = async () => {
+    setDocsBusy("正在生成任务…");
+    setMenuId(null);
+    try {
+      const result = await api.generateTasksFromGoal(project.id);
+      setDocs(result.overview);
+      onLog({
+        kind: "generateTasks",
+        status: "ok",
+        title: `生成任务 · ${project.name}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: `新建 ${result.created} 条任务\n当前共 ${result.overview.tasks.length} 条`,
+      });
+      onToast(`已生成 ${result.created} 条任务`);
+      onRefreshProject();
+    } catch (e) {
+      const msg = String(e);
+      onLog({
+        kind: "generateTasks",
+        status: "error",
+        title: `生成任务失败 · ${project.name}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。",
+        error: msg,
+      });
+      onError(msg);
+      await loadDocs();
+    } finally {
+      setDocsBusy(null);
+    }
+  };
+
+  const openTask = async (task: DocsTaskItem) => {
+    setMenuId(null);
+    if (task.kind === "html") {
+      try {
+        await api.openDocExternal(project.id, task.relativePath);
+        onToast("已用系统应用打开 HTML");
+      } catch (e) {
+        onError(String(e));
+      }
+      return;
+    }
+    onOpenDoc(task.relativePath, `${String(task.number).padStart(3, "0")} ${task.title}`);
+  };
+
+  const implementTask = async (task: DocsTaskItem) => {
+    setMenuId(null);
+    const num = String(task.number).padStart(3, "0");
+    setDocsBusy(`正在实现 ${num}…`);
+    try {
+      const result = await api.runDocsTask(project.id, task.relativePath);
+      setDocs(result.overview);
+      onLog({
+        kind: "runTask",
+        status: "ok",
+        title: `实现任务 ${num} · ${task.title}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: `路径: ${task.relativePath}\n\n实现摘要:\n${result.summary || "（无摘要）"}`,
+      });
+      onToast(`已实现 ${num}`);
+      onRefreshProject();
+    } catch (e) {
+      const msg = String(e);
+      onLog({
+        kind: "runTask",
+        status: "error",
+        title: `实现任务失败 ${num} · ${task.title}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: `路径: ${task.relativePath}`,
+        error: msg,
+      });
+      onError(msg);
+      await loadDocs();
+    } finally {
+      setDocsBusy(null);
+    }
+  };
 
   return (
     <article className={`project-card ${project.clean ? "is-clean" : "is-dirty"}`}>
@@ -47,7 +274,7 @@ export function ProjectCard({
             className="btn-ghost btn-icon"
             onClick={onRemove}
             title="从看板移除"
-            disabled={disabled}
+            disabled={locked}
           >
             ×
           </button>
@@ -57,7 +284,7 @@ export function ProjectCard({
             {project.branch || "—"}
           </span>
           <span className={`badge ${project.clean ? "badge-clean" : "badge-dirty"}`}>
-            {project.clean ? "Clean" : "Changed"}
+            {docsBusy ? "AI 工作中" : project.clean ? "Clean" : "Changed"}
           </span>
           {(project.ahead > 0 || project.behind > 0) && (
             <span className="ahead-behind">
@@ -81,7 +308,7 @@ export function ProjectCard({
         <button
           type="button"
           className={`count count-btn${workingChanges > 0 ? " is-clickable" : ""}`}
-          disabled={workingChanges === 0 || disabled}
+          disabled={workingChanges === 0 || locked}
           onClick={onViewChanges}
           title={
             workingChanges > 0
@@ -101,6 +328,131 @@ export function ProjectCard({
           </span>
         </button>
       </div>
+
+      <section className="docs-block" ref={docsRef} aria-label="DOCS">
+        <div className="docs-head">
+          <span className="docs-label">
+            DOCS <HelpTip text="Goal 写目标；生成任务拆成 Task；⋯ 可打开或实现" />
+          </span>
+          {docs == null ? null : needsInit ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={locked}
+              onClick={() => void onCreateDocs()}
+            >
+              初始化
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={locked || !docs.goalExists}
+              onClick={() => void onGenerate()}
+            >
+              生成任务
+            </button>
+          )}
+        </div>
+
+        {docsBusy && <p className="docs-busy">{docsBusy}</p>}
+
+        {!docs ? (
+          <p className="docs-empty">加载中…</p>
+        ) : needsInit ? (
+          <div className="docs-empty">
+            <p>未检测到 Goal / Task 或 goal.md</p>
+            <p className="docs-empty-hint">点击「初始化」自动创建文件夹与 goal.md</p>
+          </div>
+        ) : docs.tasks.length === 0 ? (
+          <div className="docs-empty">
+            <p>暂无 Task · {docs.goalExists ? "已有 goal.md" : "请先写 goal.md"}</p>
+            {docs.goalRelativePath && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={locked}
+                onClick={() => onOpenDoc(docs.goalRelativePath!, "goal.md")}
+              >
+                打开 goal.md
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <ul className="task-list">
+              {docs.tasks.map((task) => {
+                const st =
+                  docsBusy?.includes(String(task.number).padStart(3, "0")) &&
+                  docsBusy.startsWith("正在实现")
+                    ? { text: "实现中…", cls: "busy" }
+                    : statusLabel(task.status);
+                const key = task.relativePath;
+                const open = menuId === key;
+                return (
+                  <li key={key} className={`task-row${open ? " is-open" : ""}`}>
+                    <span className="task-num">
+                      {String(task.number).padStart(3, "0")}
+                    </span>
+                    <button
+                      type="button"
+                      className="task-title"
+                      disabled={locked}
+                      onClick={() => void openTask(task)}
+                      title={task.relativePath}
+                    >
+                      {task.title}
+                    </button>
+                    <span className={`task-status ${st.cls}`}>{st.text}</span>
+                    <div className="more-wrap">
+                      <button
+                        type="button"
+                        className={`more-btn${open ? " is-open" : ""}`}
+                        disabled={locked}
+                        aria-label="更多"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuId(open ? null : key);
+                        }}
+                      >
+                        ⋯
+                      </button>
+                      {open && (
+                        <div className="more-menu" role="menu">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => void openTask(task)}
+                          >
+                            打开
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => void implementTask(task)}
+                          >
+                            实现
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {docs.goalRelativePath && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm docs-goal-link"
+                disabled={locked}
+                onClick={() => onOpenDoc(docs.goalRelativePath!, "goal.md")}
+              >
+                打开 goal.md
+              </button>
+            )}
+          </>
+        )}
+      </section>
 
       <section className="commits">
         <div className="commits-label">
@@ -124,11 +476,107 @@ export function ProjectCard({
       </section>
 
       <footer className="card-actions">
-        {busy && <span className="busy-label">{busy}</span>}
+        {(busy || docsBusy || runBusy) && (
+          <span className="busy-label">
+            {busy || docsBusy || (runBusy ? "正在打开终端…" : null)}
+          </span>
+        )}
+        <div className="run-wrap" ref={runRef}>
+          <button
+            type="button"
+            className="btn btn-run"
+            disabled={locked}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRunMenuOpen((v) => !v);
+              setMenuId(null);
+            }}
+          >
+            运行 ▾
+          </button>
+          {runMenuOpen && (
+            <div className="run-menu" role="menu">
+              {hasTargets ? (
+                <>
+                  {targets.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="menuitem"
+                      className="run-menu-item"
+                      onClick={() => void onRunTarget(t.id)}
+                    >
+                      <span className="run-menu-name">
+                        {t.name}
+                        {t.isDefault ? <span className="run-star"> ★</span> : null}
+                      </span>
+                      <span
+                        className={
+                          t.description?.trim() ? "run-menu-desc" : "run-menu-cmd"
+                        }
+                        title={
+                          t.description?.trim()
+                            ? `${t.cwd} · ${t.command}`
+                            : undefined
+                        }
+                      >
+                        {t.description?.trim() || `${t.cwd} · ${t.command}`}
+                      </span>
+                    </button>
+                  ))}
+                  <div className="run-menu-sep" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="run-menu-item muted"
+                    onClick={() => {
+                      setRunMenuOpen(false);
+                      onConfigureRun("config");
+                    }}
+                  >
+                    配置启动方式…
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="run-menu-item muted"
+                    onClick={onIdentify}
+                  >
+                    重新用 AI 识别…
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="run-menu-item"
+                    onClick={onIdentify}
+                  >
+                    <span className="run-menu-name">识别启动方式…</span>
+                    <span className="run-menu-cmd">用 AI 分析本项目</span>
+                  </button>
+                  <div className="run-menu-sep" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="run-menu-item muted"
+                    onClick={() => {
+                      setRunMenuOpen(false);
+                      onConfigureRun("config");
+                    }}
+                  >
+                    手动添加一条…
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         <button
           type="button"
           className="btn btn-secondary"
-          disabled={disabled || !hasChanges}
+          disabled={locked || !hasChanges}
           onClick={onManualCommit}
         >
           手动提交
@@ -136,7 +584,7 @@ export function ProjectCard({
         <button
           type="button"
           className="btn btn-primary"
-          disabled={disabled || !hasChanges}
+          disabled={locked || !hasChanges}
           onClick={onOneClick}
         >
           一键提交
@@ -145,7 +593,7 @@ export function ProjectCard({
         <button
           type="button"
           className="btn btn-danger"
-          disabled={disabled || !hasChanges}
+          disabled={locked || !hasChanges}
           onClick={onDiscard}
         >
           Discard

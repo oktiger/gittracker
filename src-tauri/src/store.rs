@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{AppSettings, AppStore, ProjectRecord};
+use crate::models::{AppSettings, AppStore, ProjectRecord, RunTarget};
 use std::fs;
 use std::path::PathBuf;
 
@@ -81,10 +81,54 @@ pub fn add_project(path: String, name: Option<String>) -> AppResult<ProjectRecor
         name: display_name,
         path,
         order,
+        run_targets: Vec::new(),
     };
     store.projects.push(record.clone());
     save_store(&store)?;
     Ok(record)
+}
+
+pub fn set_run_targets(id: &str, targets: Vec<RunTarget>) -> AppResult<Vec<RunTarget>> {
+    let mut store = load_store()?;
+    let project = store
+        .projects
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| AppError::msg("未找到该项目"))?;
+
+    let mut normalized = Vec::new();
+    for mut t in targets {
+        let name = t.name.trim().to_string();
+        let cwd = t.cwd.trim().to_string();
+        let command = t.command.trim().to_string();
+        if name.is_empty() || command.is_empty() {
+            return Err(AppError::msg("启动目标的名称和命令不能为空"));
+        }
+        if cwd.is_empty() {
+            t.cwd = ".".into();
+        } else {
+            t.cwd = cwd;
+        }
+        t.name = name;
+        t.command = command;
+        t.description = t
+            .description
+            .as_ref()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        if t.id.trim().is_empty() {
+            t.id = uuid::Uuid::new_v4().to_string();
+        }
+        normalized.push(t);
+    }
+
+    if !normalized.is_empty() && !normalized.iter().any(|t| t.is_default) {
+        normalized[0].is_default = true;
+    }
+
+    project.run_targets = normalized.clone();
+    save_store(&store)?;
+    Ok(normalized)
 }
 
 pub fn remove_project(id: &str) -> AppResult<()> {

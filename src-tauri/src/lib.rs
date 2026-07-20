@@ -1,8 +1,11 @@
 mod ai;
 mod commands;
+mod docs;
 mod error;
 mod git;
+mod log_diary;
 mod models;
+mod run;
 mod store;
 mod watch;
 
@@ -40,6 +43,20 @@ pub fn run() {
             commands::sync_file_watchers,
             commands::get_settings,
             commands::update_settings,
+            commands::test_ai_connection,
+            commands::list_docs,
+            commands::ensure_docs,
+            commands::read_doc_file,
+            commands::write_doc_file,
+            commands::open_doc_external,
+            commands::generate_tasks_from_goal,
+            commands::run_docs_task,
+            commands::set_run_targets,
+            commands::suggest_run_targets,
+            commands::run_project_target,
+            commands::list_log_diary,
+            commands::append_log_diary,
+            commands::clear_log_diary,
         ])
         .setup(|app| {
             setup_tray(app)?;
