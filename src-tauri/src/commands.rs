@@ -69,9 +69,17 @@ pub fn get_staged_diff(id: String) -> AppResult<String> {
 }
 
 #[tauri::command]
+pub fn stage_all_changes(id: String) -> AppResult<()> {
+    let project = store::find_project(&id)?;
+    git::stage_all(Path::new(&project.path))
+}
+
+#[tauri::command]
 pub fn generate_commit_message(id: String) -> AppResult<String> {
     let project = store::find_project(&id)?;
-    let diff = git::staged_diff(Path::new(&project.path))?;
+    let repo = Path::new(&project.path);
+    git::stage_all(repo)?;
+    let diff = git::staged_diff(repo)?;
     ai::generate_commit_message(&diff)
 }
 
@@ -101,6 +109,8 @@ pub fn one_click_commit(id: String) -> AppResult<OneClickResult> {
     let project = store::find_project(&id)?;
     let repo = Path::new(&project.path);
 
+    // 自动暂存全部改动后再生成 message / commit / push
+    git::stage_all(repo)?;
     let diff = git::staged_diff(repo)?;
     let message = ai::generate_commit_message(&diff)?;
     git::commit(repo, &message)?;

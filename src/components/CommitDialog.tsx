@@ -21,11 +21,13 @@ export function CommitDialog({ projectId, projectName, onClose, onDone }: Props)
   useEffect(() => {
     void (async () => {
       try {
+        // 打开对话框即自动暂存全部改动（Unstaged + Untracked）
+        await api.stageAllChanges(projectId);
         const diff = await api.getStagedDiff(projectId);
         setStagedHint(
           diff.trim()
-            ? `已暂存 diff 约 ${diff.length} 字符`
-            : "当前没有 staged 更改",
+            ? `已自动暂存全部改动，diff 约 ${diff.length} 字符`
+            : "当前没有可提交的更改",
         );
       } catch {
         setStagedHint("");
@@ -86,7 +88,7 @@ export function CommitDialog({ projectId, projectName, onClose, onDone }: Props)
 
         <p className="dialog-hint">
           {stagedHint}{" "}
-          <HelpTip text="AI 仅根据 Staged Diff 生成文案，不会修改文件或执行 Git 命令。具体走 Codex 还是 Cursor Agent，在设置中选择。" />
+          <HelpTip text="打开本对话框或点 AI Generate / Commit 时，会自动 git add -A（含 Unstaged 与 Untracked）。AI 根据暂存区 Diff 生成文案；具体走 Codex 还是 Cursor Agent，在设置中选择。" />
         </p>
 
         <label className="field">

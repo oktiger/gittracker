@@ -23,6 +23,7 @@ export const api = {
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
   getStagedDiff: (id: string) => invoke<string>("get_staged_diff", { id }),
+  stageAllChanges: (id: string) => invoke<void>("stage_all_changes", { id }),
   generateCommitMessage: (id: string) =>
     invoke<string>("generate_commit_message", { id }),
   commitProject: (id: string, message: string) =>

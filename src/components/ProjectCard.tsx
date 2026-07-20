@@ -84,7 +84,8 @@ export function ProjectCard({
         <div className="count">
           <span className="count-num">{project.untracked}</span>
           <span className="count-label">
-            Untracked <HelpTip text="尚未被 Git 跟踪的新文件数" />
+            Untracked{" "}
+            <HelpTip text="全新文件：从未被 Git 跟踪过（例如新建的源码/文档）。与 Unstaged 不同：Unstaged 是「已跟踪文件被改了但还没暂存」。提交时会一并自动暂存。" />
           </span>
         </div>
       </div>
@@ -115,7 +116,7 @@ export function ProjectCard({
         <button
           type="button"
           className="btn btn-secondary"
-          disabled={disabled || project.staged === 0}
+          disabled={disabled || !hasChanges}
           onClick={onManualCommit}
         >
           手动提交
@@ -123,12 +124,12 @@ export function ProjectCard({
         <button
           type="button"
           className="btn btn-primary"
-          disabled={disabled || project.staged === 0}
+          disabled={disabled || !hasChanges}
           onClick={onOneClick}
         >
           一键提交
         </button>
-        <HelpTip text="AI 生成 message → Commit → Push；任一步失败即停止" />
+        <HelpTip text="点击后自动暂存全部改动（含 Unstaged / Untracked），再 AI 生成 message → Commit → Push；任一步失败即停止" />
         <button
           type="button"
           className="btn btn-danger"

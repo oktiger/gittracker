@@ -7,15 +7,23 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+/// 将工作区全部改动（Unstaged + Untracked）加入暂存区，便于一键/手动提交无需手动 stage。
+pub fn stage_all(repo: &Path) -> AppResult<()> {
+    run_git(repo, &["add", "-A"])?;
+    Ok(())
+}
+
 pub fn commit(repo: &Path, message: &str) -> AppResult<()> {
     let msg = message.trim();
     if msg.is_empty() {
         return Err(AppError::msg("Commit message 不能为空"));
     }
 
+    stage_all(repo)?;
+
     let staged = run_git(repo, &["diff", "--cached", "--name-only"])?;
     if staged.trim().is_empty() {
-        return Err(AppError::msg("没有已暂存的更改，请先 stage 文件"));
+        return Err(AppError::msg("没有可提交的更改"));
     }
 
     run_git(repo, &["commit", "-m", msg])?;

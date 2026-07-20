@@ -29,6 +29,7 @@ pub fn run() {
             commands::list_changed_files,
             commands::get_file_diff,
             commands::get_staged_diff,
+            commands::stage_all_changes,
             commands::generate_commit_message,
             commands::commit_project,
             commands::push_project,
