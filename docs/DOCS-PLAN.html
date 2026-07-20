@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitTracker · DOCS 功能计划</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --paper: #f7f9fb;
+      --card: #ffffff;
+      --accent: #0d7a6f;
+      --accent-soft: #e6f4f2;
+      --warm: #c45c26;
+      --warm-soft: #fef3ec;
+      --ok: #2a7a3a;
+      --ok-soft: #eaf5ec;
+      --radius: 12px;
+      --font: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SF Mono", "Menlo", "Consolas", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 36px 20px 72px;
+    }
+
+    header.hero { margin-bottom: 8px; }
+    header.hero .brand {
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    header.hero h1 {
+      margin: 0 0 8px;
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header.hero .lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    /* 目录：编号清晰，方便口述「做 1.3、别做 3.2」 */
+    .toc {
+      margin: 22px 0 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px 12px;
+    }
+    .toc-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .toc ol {
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+    }
+    .toc > ol > li {
+      margin: 6px 0;
+      font-weight: 700;
+      font-size: 13.5px;
+    }
+    .toc > ol > li > a {
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .toc > ol > li > a:hover { color: var(--accent); }
+    .toc ol ol {
+      margin: 4px 0 8px 0;
+      padding-left: 0;
+      font-weight: 500;
+    }
+    .toc ol ol li {
+      margin: 3px 0;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .toc ol ol a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .toc ol ol a:hover { color: var(--accent); }
+    .toc .id {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--accent);
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    section {
+      margin-top: 44px;
+      scroll-margin-top: 16px;
+    }
+    section > h2 {
+      margin: 0 0 6px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sec-id {
+      font-family: var(--mono);
+      font-size: 1rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .sec-lead {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* 小节 1.1 / 2.3 */
+    .item {
+      margin: 0 0 28px;
+      scroll-margin-top: 16px;
+      padding: 14px 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .item-h {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin: 0 0 10px;
+      flex-wrap: wrap;
+    }
+    .item-id {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 2px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .item-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0;
+    }
+    .item-do {
+      margin: 0 0 12px;
+      font-size: 13.5px;
+      color: var(--ink);
+      padding: 8px 10px;
+      background: #f4f8f7;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .item-do strong {
+      color: var(--accent);
+    }
+    .item p.note {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .item p.note em {
+      font-style: normal;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* 卡片示意 */
+    .card-mock {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: visible;
+      background: #fff;
+      max-width: 420px;
+      position: relative;
+    }
+    .cm-head {
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cm-name { font-weight: 700; font-size: 14px; }
+    .cm-badge {
+      font-size: 11px;
+      background: var(--ok-soft);
+      color: var(--ok);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .cm-badge.warn {
+      background: var(--warm-soft);
+      color: var(--warm);
+    }
+    .cm-docs {
+      padding: 12px 14px;
+      background: #f8fbfa;
+      border-bottom: 1px dashed var(--line);
+    }
+    .cm-docs-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+    .btn-main {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+    .btn-main.busy { background: #8aa8a4; }
+    .btn-main.ghost {
+      background: #fff;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .empty-hint {
+      font-size: 12.5px;
+      color: var(--muted);
+      padding: 8px;
+      background: #fff;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      text-align: center;
+    }
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid var(--line);
+      margin-bottom: 6px;
+      font-size: 13px;
+      position: relative;
+    }
+    .task-row:last-child { margin-bottom: 0; }
+    .task-row.highlight {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .task-row .num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 28px;
+    }
+    .task-row .title { flex: 1; }
+    .task-row .status {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: var(--muted);
+    }
+    .task-row .status.done {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+    .task-row .status.busy {
+      background: var(--warm-soft);
+      color: var(--warm);
+    }
+    .more-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--muted);
+      background: #fff;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .more-btn.open {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .menu-pop {
+      position: absolute;
+      right: 0;
+      top: 28px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(26, 35, 50, 0.14);
+      min-width: 108px;
+      z-index: 5;
+      padding: 4px;
+      font-size: 12.5px;
+    }
+    .menu-pop div {
+      padding: 7px 10px;
+      border-radius: 5px;
+      color: var(--ink);
+    }
+    .menu-pop div.hi {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .cm-foot {
+      padding: 10px 14px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .cm-foot span {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .panel-mock {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+      max-width: 420px;
+    }
+    .panel-bar {
+      padding: 8px 12px;
+      background: #eef2f7;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-bar .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c5ced8;
+      margin-right: 4px;
+    }
+    .panel-body {
+      padding: 14px;
+      font-size: 13px;
+      min-height: 80px;
+    }
+    .panel-body .md-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .panel-body p {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .panel-actions {
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .panel-actions span {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .panel-actions span.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .settings-mock {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+      max-width: 440px;
+    }
+    .settings-mock .sm-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .settings-mock .sm-body { padding: 14px; }
+    .settings-mock .sm-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 6px;
+    }
+    .settings-mock .sm-hint {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .settings-mock textarea,
+    .prompt-sample {
+      width: 100%;
+      min-height: 140px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--ink);
+      background: #f8fafb;
+      resize: none;
+      display: block;
+      white-space: pre-wrap;
+      box-sizing: border-box;
+    }
+    .settings-mock .sm-foot {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .settings-mock .sm-foot .link {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .settings-mock .sm-foot .save {
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      padding: 5px 12px;
+      border-radius: 6px;
+    }
+    .formula {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .formula .box {
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+    }
+    .formula .op { color: var(--muted); font-weight: 700; }
+    .browser-mock .panel-bar {
+      background: #f3f4f6;
+      font-family: var(--mono);
+      font-weight: 500;
+      font-size: 11px;
+    }
+    .browser-mock .panel-body {
+      background: #fffaf5;
+      text-align: center;
+      padding: 24px 14px;
+    }
+    .browser-mock .html-label {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--warm);
+      margin-bottom: 6px;
+    }
+
+    .tree-box {
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.75;
+      max-width: 420px;
+    }
+    .tree-box .folder { color: var(--accent); font-weight: 600; }
+    .tree-box .hint {
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 12px;
+    }
+
+    .callout {
+      background: var(--warm-soft);
+      border-left: 3px solid var(--warm);
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13.5px;
+      color: #5a3a22;
+      margin: 10px 0 0;
+      max-width: 420px;
+    }
+
+    .brief-list {
+      margin: 0;
+      padding-left: 1.25em;
+    }
+    .brief-list li { margin: 8px 0; }
+
+    .tip {
+      margin-top: 16px;
+      padding: 10px 12px;
+      background: var(--accent-soft);
+      border-radius: 8px;
+      font-size: 13px;
+      color: #1e4f49;
+    }
+    .tip code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #fff;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="brand">GitTracker · 功能计划</div>
+      <h1>项目目标 → 拆任务 → AI 实现</h1>
+      <p class="lede">
+        全文按 <strong>1 / 1.1 / 1.2…</strong> 编号。跟我说「做 1.3、别做 3.2」即可定位。
+        最重要的是 <strong>§1 卡片上你会看到什么</strong>——多数时候记住这一章就够了。
+      </p>
+
+      <nav class="toc" aria-label="目录">
+        <div class="toc-title">目录（可口述编号）</div>
+        <ol>
+          <li>
+            <a href="#s1"><span class="id">1</span>卡片上你会看到什么</a>
+            <ol>
+              <li><a href="#s1-1"><span class="id">1.1</span>还没有 DOCS</a></li>
+              <li><a href="#s1-2"><span class="id">1.2</span>有目标，准备生成任务</a></li>
+              <li><a href="#s1-3"><span class="id">1.3</span>已有任务列表</a></li>
+              <li><a href="#s1-4"><span class="id">1.4</span>点开「更多」</a></li>
+              <li><a href="#s1-5"><span class="id">1.5</span>打开 Markdown</a></li>
+              <li><a href="#s1-6"><span class="id">1.6</span>打开 HTML</a></li>
+              <li><a href="#s1-7"><span class="id">1.7</span>正在实现</a></li>
+              <li><a href="#s1-8"><span class="id">1.8</span>设置里编辑提示词</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#s2"><span class="id">2</span>文件夹约定</a>
+            <ol>
+              <li><a href="#s2-1"><span class="id">2.1</span>目录结构</a></li>
+              <li><a href="#s2-2"><span class="id">2.2</span>没有 DOCS 时怎么办</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#s3"><span class="id">3</span>你怎么用（操作顺序）</a>
+            <ol>
+              <li><a href="#s3-1"><span class="id">3.1</span>写目标</a></li>
+              <li><a href="#s3-2"><span class="id">3.2</span>生成任务</a></li>
+              <li><a href="#s3-3"><span class="id">3.3</span>打开某条任务</a></li>
+              <li><a href="#s3-4"><span class="id">3.4</span>实现某条任务</a></li>
+              <li><a href="#s3-5"><span class="id">3.5</span>提交代码</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#s4"><span class="id">4</span>我们怎么做出来</a>
+            <ol>
+              <li><a href="#s4-1"><span class="id">4.1</span>认目录、读写文件</a></li>
+              <li><a href="#s4-2"><span class="id">4.2</span>提示词模板（实现）</a></li>
+              <li><a href="#s4-3"><span class="id">4.3</span>接 AI 通道</a></li>
+              <li><a href="#s4-4"><span class="id">4.4</span>卡片 UI</a></li>
+              <li><a href="#s4-5"><span class="id">4.5</span>编辑器与打开 HTML</a></li>
+              <li><a href="#s4-6"><span class="id">4.6</span>短文档</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#s5"><span class="id">5</span>补充说明</a>
+            <ol>
+              <li><a href="#s5-1"><span class="id">5.1</span>「生成任务」默认提示词长什么样</a></li>
+              <li><a href="#s5-2"><span class="id">5.2</span>会不会自动提交</a></li>
+              <li><a href="#s5-3"><span class="id">5.3</span>AI 用哪家</a></li>
+            </ol>
+          </li>
+        </ol>
+      </nav>
+    </header>
+
+    <!-- ========== 1 ========== -->
+    <section id="s1">
+      <h2><span class="sec-id">1</span> 卡片上你会看到什么</h2>
+      <p class="sec-lead">这一章是主入口。DOCS 加在现有项目卡片中间。下面每条都写清「要做什么」。</p>
+
+      <article class="item" id="s1-1">
+        <div class="item-h">
+          <span class="item-id">1.1</span>
+          <h3 class="item-title">还没有 DOCS</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>卡片显示「未检测到」；提供按钮「创建 DOCS」。</p>
+        <div class="card-mock">
+          <div class="cm-head">
+            <span class="cm-name">my-app</span>
+            <span class="cm-badge">Clean</span>
+          </div>
+          <div class="cm-docs">
+            <div class="cm-docs-title">
+              <span>DOCS</span>
+              <button class="btn-main ghost" type="button">创建 DOCS</button>
+            </div>
+            <div class="empty-hint">未检测到 Goal / Task 目录</div>
+          </div>
+          <div class="cm-foot">
+            <span>手动提交</span>
+            <span>一键提交</span>
+            <span>Discard</span>
+          </div>
+        </div>
+        <p class="note">点 <em>创建 DOCS</em> → 建好文件夹 + 空的 goal.md。</p>
+      </article>
+
+      <article class="item" id="s1-2">
+        <div class="item-h">
+          <span class="item-id">1.2</span>
+          <h3 class="item-title">有目标，准备生成任务</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>已有 goal.md、暂无 Task 时，显示主按钮「生成任务」。</p>
+        <div class="card-mock">
+          <div class="cm-head">
+            <span class="cm-name">my-app</span>
+            <span class="cm-badge">Clean</span>
+          </div>
+          <div class="cm-docs">
+            <div class="cm-docs-title">
+              <span>DOCS</span>
+              <button class="btn-main" type="button">生成任务</button>
+            </div>
+            <div class="empty-hint">暂无 Task · 已有 goal.md</div>
+          </div>
+          <div class="cm-foot">
+            <span>手动提交</span>
+            <span>一键提交</span>
+            <span>Discard</span>
+          </div>
+        </div>
+        <p class="note"><em>生成任务</em> = 提示词模板 + goal.md → AI → 写出多条编号 Task 文件。</p>
+      </article>
+
+      <article class="item" id="s1-3">
+        <div class="item-h">
+          <span class="item-id">1.3</span>
+          <h3 class="item-title">已有任务列表</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>列出 Task（编号 + 标题 + 状态）；每条右侧有「⋯」。</p>
+        <div class="card-mock">
+          <div class="cm-head">
+            <span class="cm-name">my-app</span>
+            <span class="cm-badge">Clean</span>
+          </div>
+          <div class="cm-docs">
+            <div class="cm-docs-title">
+              <span>DOCS</span>
+              <button class="btn-main" type="button">生成任务</button>
+            </div>
+            <div class="task-row">
+              <span class="num">001</span>
+              <span class="title">调研竞品与需求</span>
+              <span class="status">待做</span>
+              <span class="more-btn">⋯</span>
+            </div>
+            <div class="task-row">
+              <span class="num">002</span>
+              <span class="title">搭建页面骨架</span>
+              <span class="status">待做</span>
+              <span class="more-btn">⋯</span>
+            </div>
+            <div class="task-row">
+              <span class="num">003</span>
+              <span class="title">输出报告 HTML</span>
+              <span class="status">待做</span>
+              <span class="more-btn">⋯</span>
+            </div>
+          </div>
+          <div class="cm-foot">
+            <span>手动提交</span>
+            <span>一键提交</span>
+            <span>Discard</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="item" id="s1-4">
+        <div class="item-h">
+          <span class="item-id">1.4</span>
+          <h3 class="item-title">点开「更多」</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>「⋯」菜单两项：打开、实现。</p>
+        <div class="card-mock">
+          <div class="cm-head">
+            <span class="cm-name">my-app</span>
+            <span class="cm-badge">Clean</span>
+          </div>
+          <div class="cm-docs">
+            <div class="cm-docs-title">
+              <span>DOCS</span>
+              <button class="btn-main" type="button">生成任务</button>
+            </div>
+            <div class="task-row highlight">
+              <span class="num">002</span>
+              <span class="title">搭建页面骨架</span>
+              <span class="status">待做</span>
+              <span class="more-btn open">⋯
+                <div class="menu-pop">
+                  <div class="hi">打开</div>
+                  <div>实现</div>
+                </div>
+              </span>
+            </div>
+            <div class="task-row">
+              <span class="num">003</span>
+              <span class="title">输出报告 HTML</span>
+              <span class="status">待做</span>
+              <span class="more-btn">⋯</span>
+            </div>
+          </div>
+          <div class="cm-foot">
+            <span>手动提交</span>
+            <span>一键提交</span>
+            <span>Discard</span>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>打开</strong>：看 / 改这条文档<br />
+          <strong>实现</strong>：AI 改代码，并把摘要写回这条 Task
+        </div>
+      </article>
+
+      <article class="item" id="s1-5">
+        <div class="item-h">
+          <span class="item-id">1.5</span>
+          <h3 class="item-title">打开 Markdown</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>.md 在应用内编辑器打开，可查看、编辑、保存。</p>
+        <div class="panel-mock">
+          <div class="panel-bar">
+            <span><span class="dot"></span><span class="dot"></span><span class="dot"></span> 002-搭建页面骨架.md</span>
+            <span>可编辑</span>
+          </div>
+          <div class="panel-body">
+            <div class="md-title">搭建页面骨架</div>
+            <p>## 目标</p>
+            <p>搭出首页布局和路由…</p>
+            <p>## 验收</p>
+            <p>本地能打开空白框架页…</p>
+          </div>
+          <div class="panel-actions">
+            <span>取消</span>
+            <span class="primary">保存</span>
+          </div>
+        </div>
+        <p class="note">编辑器选用开源 <em>Vditor</em>。</p>
+      </article>
+
+      <article class="item" id="s1-6">
+        <div class="item-h">
+          <span class="item-id">1.6</span>
+          <h3 class="item-title">打开 HTML</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>.html 用电脑默认浏览器打开（不进应用内编辑器）。</p>
+        <div class="panel-mock browser-mock">
+          <div class="panel-bar">
+            <span>Safari / Chrome · file:///…/003-报告.html</span>
+          </div>
+          <div class="panel-body">
+            <div class="html-label">报告预览</div>
+            <p>系统默认浏览器打开</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="item" id="s1-7">
+        <div class="item-h">
+          <span class="item-id">1.7</span>
+          <h3 class="item-title">正在实现</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>显示「实现中…」；锁定相关按钮，避免连点；结束后可标「已完成」并写回摘要。</p>
+        <div class="card-mock">
+          <div class="cm-head">
+            <span class="cm-name">my-app</span>
+            <span class="cm-badge warn">AI 工作中</span>
+          </div>
+          <div class="cm-docs">
+            <div class="cm-docs-title">
+              <span>DOCS</span>
+              <button class="btn-main busy" type="button">生成任务</button>
+            </div>
+            <div class="task-row highlight">
+              <span class="num">002</span>
+              <span class="title">搭建页面骨架</span>
+              <span class="status busy">实现中…</span>
+              <span class="more-btn">⋯</span>
+            </div>
+            <div class="task-row">
+              <span class="num">003</span>
+              <span class="title">输出报告 HTML</span>
+              <span class="status">待做</span>
+              <span class="more-btn">⋯</span>
+            </div>
+          </div>
+          <div class="cm-foot">
+            <span>手动提交</span>
+            <span>一键提交</span>
+            <span>Discard</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="item" id="s1-8">
+        <div class="item-h">
+          <span class="item-id">1.8</span>
+          <h3 class="item-title">设置里编辑提示词</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>提示词不写在 goal.md 里；在 GitTracker 顶栏「设置」里编辑（和选 AI 通道同一面板）。两套：生成任务 / 实现任务。</p>
+        <div class="settings-mock">
+          <div class="sm-head">设置</div>
+          <div class="sm-body">
+            <p class="sm-label">AI 调用通道</p>
+            <p class="sm-hint">Codex CLI / Cursor Agent CLI（现有）</p>
+            <p class="sm-label" style="margin-top:14px">生成任务 · 提示词模板</p>
+            <p class="sm-hint">点「生成任务」时使用：模板 + goal.md → AI</p>
+            <div class="prompt-sample">你是项目规划助手。根据下方【项目目标】和【项目现状】，拆成可执行的任务列表。
+要求：
+1. 可参考公开网上信息做补充，但以目标与仓库现状为准
+2. 每条任务足够小、可独立实现
+3. 按下面格式输出（不要解释）：
+
+### Task
+title: 简短标题
+body: |
+  任务说明与验收标准…</div>
+            <p class="sm-label" style="margin-top:14px">实现任务 · 提示词模板</p>
+            <p class="sm-hint">点「⋯ → 实现」时用另一套（完整默认文案见 5.1）</p>
+            <div class="sm-foot">
+              <span class="link">恢复默认</span>
+              <span class="save">保存</span>
+            </div>
+          </div>
+        </div>
+        <p class="note">完整默认文案见 <em>5.1</em>。改完保存后，下次点「生成任务」就用新模板。</p>
+      </article>
+
+      <div class="tip">跟我说修改时可以直接写：例如「1.4 菜单里加一项删除」「1.8 提示词改成英文」。</div>
+    </section>
+
+    <!-- ========== 2 ========== -->
+    <section id="s2">
+      <h2><span class="sec-id">2</span> 文件夹约定</h2>
+      <p class="sec-lead">项目根目录下的文件结构。</p>
+
+      <article class="item" id="s2-1">
+        <div class="item-h">
+          <span class="item-id">2.1</span>
+          <h3 class="item-title">目录结构</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>识别并使用以下约定路径。</p>
+        <div class="tree-box">
+          <div>你的项目/</div>
+          <div>└── <span class="folder">DOCS/</span></div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="folder">Goal/</span></div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── goal.md <span class="hint">← 总目标</span></div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="folder">Task/</span></div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 001-….md <span class="hint">← 一条任务一个文件</span></div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 002-….md</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 003-….md</div>
+        </div>
+      </article>
+
+      <article class="item" id="s2-2">
+        <div class="item-h">
+          <span class="item-id">2.2</span>
+          <h3 class="item-title">没有 DOCS 时怎么办</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>卡片提示缺失；一键创建空目录 + 空 goal.md（见 1.1）。</p>
+      </article>
+    </section>
+
+    <!-- ========== 3 ========== -->
+    <section id="s3">
+      <h2><span class="sec-id">3</span> 你怎么用（操作顺序）</h2>
+      <p class="sec-lead">把 §1 的状态串成一次完整使用。界面以 §1 为准，这里只记步骤。</p>
+
+      <article class="item" id="s3-1">
+        <div class="item-h">
+          <span class="item-id">3.1</span>
+          <h3 class="item-title">写目标</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>用户在 goal.md 写清项目目标（可先 1.1 创建，再编辑）。</p>
+      </article>
+
+      <article class="item" id="s3-2">
+        <div class="item-h">
+          <span class="item-id">3.2</span>
+          <h3 class="item-title">生成任务</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>用户点「生成任务」→ AI 拆成 001、002、003… 写入 Task 文件夹（界面见 1.2 → 1.3）。</p>
+      </article>
+
+      <article class="item" id="s3-3">
+        <div class="item-h">
+          <span class="item-id">3.3</span>
+          <h3 class="item-title">打开某条任务</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>⋯ → 打开；.md 见 1.5，.html 见 1.6。</p>
+      </article>
+
+      <article class="item" id="s3-4">
+        <div class="item-h">
+          <span class="item-id">3.4</span>
+          <h3 class="item-title">实现某条任务</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>⋯ → 实现 → AI 改代码 + 摘要写回 Task；过程中显示 1.7。</p>
+      </article>
+
+      <article class="item" id="s3-5">
+        <div class="item-h">
+          <span class="item-id">3.5</span>
+          <h3 class="item-title">提交代码</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>不自动提交；用户用卡片原有的「手动提交 / 一键提交」。</p>
+      </article>
+    </section>
+
+    <!-- ========== 4 ========== -->
+    <section id="s4">
+      <h2><span class="sec-id">4</span> 我们怎么做出来</h2>
+      <p class="sec-lead">开发实现顺序。可说「4.3 先别做」来砍范围。</p>
+
+      <article class="item" id="s4-1">
+        <div class="item-h">
+          <span class="item-id">4.1</span>
+          <h3 class="item-title">认目录、读写文件</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>扫描 DOCS、安全读写 Goal/Task 文件、支持创建空目录。</p>
+      </article>
+
+      <article class="item" id="s4-2">
+        <div class="item-h">
+          <span class="item-id">4.2</span>
+          <h3 class="item-title">提示词模板（实现）</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>在设置里落地 1.8：两套可编辑模板 + 恢复默认；保存进应用配置（与 aiProvider 一起）。</p>
+      </article>
+
+      <article class="item" id="s4-3">
+        <div class="item-h">
+          <span class="item-id">4.3</span>
+          <h3 class="item-title">接 AI 通道</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>生成任务 / 实现 都走现有 Codex 或 Cursor Agent 统一通道，不混用。</p>
+      </article>
+
+      <article class="item" id="s4-4">
+        <div class="item-h">
+          <span class="item-id">4.4</span>
+          <h3 class="item-title">卡片 UI</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>实现 §1 的全部卡片状态与更多菜单。</p>
+      </article>
+
+      <article class="item" id="s4-5">
+        <div class="item-h">
+          <span class="item-id">4.5</span>
+          <h3 class="item-title">编辑器与打开 HTML</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>接入 Vditor（对应 1.5）；HTML 用系统打开（对应 1.6）。</p>
+      </article>
+
+      <article class="item" id="s4-6">
+        <div class="item-h">
+          <span class="item-id">4.6</span>
+          <h3 class="item-title">短文档</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>补两份短说明：提示词约定 + 功能说明。</p>
+      </article>
+    </section>
+
+    <!-- ========== 5 ========== -->
+    <section id="s5">
+      <h2><span class="sec-id">5</span> 补充说明</h2>
+      <p class="sec-lead">默认不用记；有疑问再看。</p>
+
+      <article class="item" id="s5-1">
+        <div class="item-h">
+          <span class="item-id">5.1</span>
+          <h3 class="item-title">「生成任务」默认提示词长什么样</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>点「生成任务」时，实际发给 AI 的内容 = 模板 + goal.md + 项目现状。</p>
+        <div class="formula">
+          <span class="box">设置里的模板</span>
+          <span class="op">+</span>
+          <span class="box">goal.md</span>
+          <span class="op">+</span>
+          <span class="box">项目现状</span>
+          <span class="op">→</span>
+          <span class="box">AI → Task 文件</span>
+        </div>
+        <p class="sm-label" style="font-size:12px;font-weight:700;color:var(--accent);margin:0 0 6px">默认「生成任务」模板（可在 1.8 里改）</p>
+        <div class="prompt-sample" style="max-width:440px">你是项目规划助手。请根据下方【项目目标】与【项目现状】，把目标拆成一组可执行任务。
+
+你可以查阅公开网上资料作补充，但必须以目标与当前仓库情况为准，不要编造仓库里不存在的模块。
+
+输出要求：
+1. 只输出任务列表，不要开场白、不要总结
+2. 每条任务足够小，一个人（或一次 AI 实现）能做完
+3. 严格按下面格式重复多条：
+
+### Task
+title: 不超过 20 字的标题
+body: |
+  - 要做什么
+  - 验收标准是什么
+  - 涉及哪些路径/模块（若已知）
+
+【项目目标】
+{{goal.md 全文}}
+
+【项目现状】
+项目路径：…
+当前分支：…
+工作区：干净 / 有未提交改动</div>
+        <p class="note" style="margin-top:10px">「实现任务」另有一套模板（大意：按该 Task 正文在项目里改代码，做完用中文写摘要）。你在设置里也能改。</p>
+      </article>
+
+      <article class="item" id="s5-2">
+        <div class="item-h">
+          <span class="item-id">5.2</span>
+          <h3 class="item-title">会不会自动提交</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>会改代码、写回摘要；不会自动 Commit / Push（见 3.5）。</p>
+      </article>
+
+      <article class="item" id="s5-3">
+        <div class="item-h">
+          <span class="item-id">5.3</span>
+          <h3 class="item-title">AI 用哪家</h3>
+        </div>
+        <p class="item-do"><strong>要做：</strong>设置里选 Codex CLI 或 Cursor Agent CLI；全部能力同一通道。</p>
+      </article>
+    </section>
+
+    <footer>
+      按钮文案：创建 DOCS · 生成任务 · 打开 · 实现<br />
+      反馈示例：「1.4 加删除」「别做 4.6」「3.2 改成必须确认」
+    </footer>
+  </div>
+</body>
+</html>

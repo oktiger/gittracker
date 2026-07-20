@@ -271,87 +271,92 @@ pub fn set_run_targets(id: String, targets: Vec<RunTarget>) -> AppResult<Vec<Run
 }
 
 #[tauri::command]
-pub fn suggest_run_targets(
+pub async fn suggest_run_targets(
     app: AppHandle,
     id: String,
     session_id: String,
 ) -> AppResult<SuggestRunTargetsResult> {
-    let progress = ai::make_progress_sink(app, session_id);
-    let emit = |kind: &str, text: &str| progress(kind, text);
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        let emit = |kind: &str, text: &str| progress(kind, text);
 
-    emit("status", "正在读取项目信息…");
-    let project = store::find_project(&id)?;
-    let repo = Path::new(&project.path);
+        emit("status", "正在读取项目信息…");
+        let project = store::find_project(&id)?;
+        let project_name = project.name.clone();
+        let repo_path = project.path.clone();
 
-    emit(
-        "status",
-        &format!("正在扫描「{}」的仓库结构与脚本…", project.name),
-    );
-    let context = run::gather_context(repo)?;
-    emit(
-        "log",
-        &format!(
-            "已收集约 {} 字上下文，准备交给 AI…",
-            context.chars().count()
-        ),
-    );
+        emit(
+            "status",
+            &format!("正在扫描「{project_name}」的仓库结构与脚本…"),
+        );
+        let context = run::gather_context(Path::new(&repo_path))?;
+        emit(
+            "log",
+            &format!(
+                "已收集约 {} 字上下文，准备交给 AI…",
+                context.chars().count()
+            ),
+        );
 
-    match ai::suggest_run_targets(repo, &context, Some(&progress)) {
-        Ok(raw) => {
-            emit("status", "正在解析 AI 返回的启动目标…");
-            match run::parse_suggested_targets(&raw) {
-                Ok(targets) => {
-                    emit(
-                        "status",
-                        &format!("识别完成，共建议 {} 条启动目标", targets.len()),
-                    );
-                    Ok(SuggestRunTargetsResult {
-                        targets,
-                        source: "ai".into(),
-                        warning: None,
-                    })
-                }
-                Err(parse_err) => {
-                    emit(
-                        "log",
-                        &format!("AI 返回无法解析（{parse_err}），改用本地扫描…"),
-                    );
-                    let targets = run::suggest_from_fs(repo)?;
-                    emit(
-                        "status",
-                        &format!("已用本地扫描得到 {} 条建议", targets.len()),
-                    );
-                    Ok(SuggestRunTargetsResult {
-                        targets,
-                        source: "heuristic".into(),
-                        warning: Some(format!(
-                            "AI 返回无法解析（{parse_err}），已改用本地 package.json 扫描结果"
-                        )),
-                    })
+        match ai::suggest_run_targets(Path::new(&repo_path), &context, Some(&progress)) {
+            Ok(raw) => {
+                emit("status", "正在解析 AI 返回的启动目标…");
+                match run::parse_suggested_targets(&raw) {
+                    Ok(targets) => {
+                        emit(
+                            "status",
+                            &format!("识别完成，共建议 {} 条启动目标", targets.len()),
+                        );
+                        Ok(SuggestRunTargetsResult {
+                            targets,
+                            source: "ai".into(),
+                            warning: None,
+                        })
+                    }
+                    Err(parse_err) => {
+                        emit(
+                            "log",
+                            &format!("AI 返回无法解析（{parse_err}），改用本地扫描…"),
+                        );
+                        let targets = run::suggest_from_fs(Path::new(&repo_path))?;
+                        emit(
+                            "status",
+                            &format!("已用本地扫描得到 {} 条建议", targets.len()),
+                        );
+                        Ok(SuggestRunTargetsResult {
+                            targets,
+                            source: "heuristic".into(),
+                            warning: Some(format!(
+                                "AI 返回无法解析（{parse_err}），已改用本地 package.json 扫描结果"
+                            )),
+                        })
+                    }
                 }
             }
+            Err(ai_err) => {
+                emit("error", &format!("AI 不可用：{ai_err}"));
+                emit("status", "正在回退到本地 package.json 扫描…");
+                let targets = run::suggest_from_fs(Path::new(&repo_path)).map_err(|scan_err| {
+                    AppError::msg(format!(
+                        "{ai_err}\n\n本地扫描也失败：{scan_err}\n\n可在设置中切换 AI 通道，或运行 agent login / codex login 后重试；也可点「手动添加一条」。"
+                    ))
+                })?;
+                emit(
+                    "status",
+                    &format!("已用本地扫描得到 {} 条建议", targets.len()),
+                );
+                Ok(SuggestRunTargetsResult {
+                    targets,
+                    source: "heuristic".into(),
+                    warning: Some(format!(
+                        "AI 不可用（{ai_err}）。已改用本地 package.json 扫描；可在「设置」登录对应 CLI 或切换通道后再识别。"
+                    )),
+                })
+            }
         }
-        Err(ai_err) => {
-            emit("error", &format!("AI 不可用：{ai_err}"));
-            emit("status", "正在回退到本地 package.json 扫描…");
-            let targets = run::suggest_from_fs(repo).map_err(|scan_err| {
-                AppError::msg(format!(
-                    "{ai_err}\n\n本地扫描也失败：{scan_err}\n\n可在设置中切换 AI 通道，或运行 agent login / codex login 后重试；也可点「手动添加一条」。"
-                ))
-            })?;
-            emit(
-                "status",
-                &format!("已用本地扫描得到 {} 条建议", targets.len()),
-            );
-            Ok(SuggestRunTargetsResult {
-                targets,
-                source: "heuristic".into(),
-                warning: Some(format!(
-                    "AI 不可用（{ai_err}）。已改用本地 package.json 扫描；可在「设置」登录对应 CLI 或切换通道后再识别。"
-                )),
-            })
-        }
-    }
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("识别任务中断：{e}")))?
 }
 
 #[tauri::command]

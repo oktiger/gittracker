@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitTracker · DOCS 可点击 Mockup</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --paper: #eef2f6;
+      --card: #ffffff;
+      --accent: #0d7a6f;
+      --accent-soft: #e6f4f2;
+      --warm: #c45c26;
+      --warm-soft: #fef3ec;
+      --ok: #2a7a3a;
+      --ok-soft: #eaf5ec;
+      --danger: #b42318;
+      --radius: 12px;
+      --font: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SF Mono", "Menlo", "Consolas", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--paper);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* —— App shell —— */
+    .app-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .app-brand {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+    .app-brand span {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 8px;
+      background: var(--accent-soft);
+      padding: 2px 8px;
+      border-radius: 999px;
+      vertical-align: middle;
+    }
+    .app-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.05);
+      color: #fff;
+    }
+    .btn-ghost {
+      background: #fff;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-danger {
+      border-color: #f0c4c0;
+      color: var(--danger);
+      background: #fff8f7;
+    }
+
+    .banner {
+      max-width: 960px;
+      margin: 16px auto 0;
+      padding: 0 20px;
+    }
+    .banner-inner {
+      background: var(--warm-soft);
+      border: 1px solid #f0d4c0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #5a3a22;
+    }
+    .banner-inner strong { color: var(--warm); }
+
+    .board {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 800px) {
+      .board {
+        grid-template-columns: 1fr 280px;
+        align-items: start;
+      }
+    }
+
+    /* —— Project card —— */
+    .project-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--ok);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset;
+    }
+    .project-card.is-busy { border-left-color: var(--warm); }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .card-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .branch {
+      font-family: var(--mono);
+      background: #f0f3f7;
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: var(--ink);
+    }
+    .badge {
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .badge-clean { background: var(--ok-soft); color: var(--ok); }
+    .badge-busy { background: var(--warm-soft); color: var(--warm); }
+
+    .counts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 14px 0;
+    }
+    .count {
+      background: #f7f9fb;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .count-num { display: block; font-size: 20px; font-weight: 700; }
+    .count-label { font-size: 11px; color: var(--muted); }
+
+    /* DOCS block */
+    .docs {
+      margin: 4px 0 14px;
+      padding: 12px;
+      background: #f8fbfa;
+      border: 1px dashed #c5ddd8;
+      border-radius: 10px;
+    }
+    .docs-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .docs-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+    }
+    .docs-busy {
+      font-size: 12px;
+      color: var(--warm);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .empty-hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12.5px;
+      padding: 12px;
+      background: #fff;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+    }
+    .task-list { display: flex; flex-direction: column; gap: 6px; }
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      position: relative;
+    }
+    .task-row.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .task-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 28px;
+    }
+    .task-title {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--ink);
+    }
+    .task-title:hover { color: var(--accent); }
+    .task-status {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: var(--muted);
+    }
+    .task-status.done { background: var(--ok-soft); color: var(--ok); }
+    .task-status.busy { background: var(--warm-soft); color: var(--warm); }
+    .more-wrap { position: relative; }
+    .more-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .more-btn.open, .more-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .menu {
+      position: absolute;
+      right: 0;
+      top: 32px;
+      min-width: 120px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 12px 32px rgba(26,35,50,0.14);
+      padding: 4px;
+      z-index: 20;
+    }
+    .menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: none;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .menu button:hover { background: var(--accent-soft); color: var(--accent); }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding-top: 4px;
+      border-top: 1px solid var(--line);
+    }
+    .card-actions .hint {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* side panel */
+    .side {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .side h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .side p {
+      margin: 0 0 10px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .side ol {
+      margin: 0;
+      padding-left: 1.2em;
+      font-size: 12.5px;
+      color: var(--ink);
+    }
+    .side li { margin: 6px 0; }
+    .log {
+      margin-top: 12px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      max-height: 220px;
+      overflow: auto;
+    }
+    .log-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .log-item {
+      font-size: 12px;
+      color: var(--ink);
+      padding: 4px 0;
+      border-bottom: 1px dashed var(--line);
+      font-family: var(--mono);
+    }
+
+    /* modal */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 35, 50, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+    .overlay.show { display: flex; }
+    .dialog {
+      background: #fff;
+      border-radius: 14px;
+      width: min(560px, 100%);
+      max-height: min(86vh, 720px);
+      overflow: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+    }
+    .dialog-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 1;
+    }
+    .dialog-head h3 { margin: 0; font-size: 15px; }
+    .dialog-body { padding: 16px; }
+    .dialog-foot {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      position: sticky;
+      bottom: 0;
+      background: #fff;
+    }
+    .field-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 6px;
+    }
+    .field-hint {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--ink);
+      background: #f8fafb;
+    }
+    textarea.md-editor { min-height: 220px; font-size: 13px; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 200;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .browser-fake {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .browser-fake .url {
+      background: #f3f4f6;
+      padding: 8px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .browser-fake .page {
+      padding: 28px 16px;
+      text-align: center;
+      background: #fffaf5;
+    }
+    .browser-fake .page h4 {
+      margin: 0 0 8px;
+      color: var(--warm);
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <div class="app-brand">GitTracker <span>Mockup · 可点不可真跑</span></div>
+    <div class="app-actions">
+      <button type="button" class="btn" id="btnReset">重置演示</button>
+      <button type="button" class="btn" id="btnSettings">设置</button>
+    </div>
+  </header>
+
+  <div class="banner">
+    <div class="banner-inner">
+      <strong>前端模拟：</strong>点击会切换界面状态，AI / 读写 / 浏览器均为假动作，不会改你电脑上的真实文件。
+    </div>
+  </div>
+
+  <main class="board">
+    <article class="project-card" id="projectCard">
+      <div class="card-title-row">
+        <h1 class="card-title">my-app</h1>
+        <button type="button" class="btn" style="padding:2px 8px;font-size:16px;line-height:1" title="演示用，无动作">×</button>
+      </div>
+      <div class="card-meta">
+        <span class="branch">main</span>
+        <span class="badge badge-clean" id="statusBadge">Clean</span>
+      </div>
+
+      <div class="counts">
+        <div class="count"><span class="count-num">0</span><span class="count-label">Staged</span></div>
+        <div class="count"><span class="count-num">0</span><span class="count-label">Unstaged</span></div>
+        <div class="count"><span class="count-num">0</span><span class="count-label">Untracked</span></div>
+      </div>
+
+      <section class="docs" id="docsBlock" aria-label="DOCS">
+        <!-- rendered by JS -->
+      </section>
+
+      <footer class="card-actions">
+        <button type="button" class="btn" disabled>手动提交</button>
+        <button type="button" class="btn btn-primary" disabled>一键提交</button>
+        <button type="button" class="btn btn-danger" disabled>Discard</button>
+        <span class="hint">底部 Git 按钮保持禁用（本 Mock 只演示 DOCS）</span>
+      </footer>
+    </article>
+
+    <aside class="side">
+      <h2>怎么点</h2>
+      <p>建议按这个顺序试一遍：</p>
+      <ol>
+        <li>创建 DOCS</li>
+        <li>打开 goal（可选）→ 生成任务</li>
+        <li>某条 ⋯ → 打开 / 实现</li>
+        <li>顶栏「设置」看提示词</li>
+      </ol>
+      <div class="log">
+        <div class="log-title">模拟事件日志</div>
+        <div id="eventLog"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Settings -->
+  <div class="overlay" id="overlaySettings" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>设置</h3>
+        <button type="button" class="btn" data-close="overlaySettings">关闭</button>
+      </div>
+      <div class="dialog-body">
+        <p class="field-label">AI 调用通道</p>
+        <p class="field-hint">Mock：仅展示，不真正调用 CLI</p>
+        <label style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:13px">
+          <input type="radio" name="provider" value="codex" checked /> Codex CLI
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px;font-size:13px">
+          <input type="radio" name="provider" value="cursor" /> Cursor Agent CLI
+        </label>
+
+        <p class="field-label">生成任务 · 提示词模板</p>
+        <p class="field-hint">点「生成任务」时使用（Mock 只保存到本页内存）</p>
+        <textarea id="tplGoal"></textarea>
+
+        <p class="field-label" style="margin-top:14px">实现任务 · 提示词模板</p>
+        <p class="field-hint">点「⋯ → 实现」时使用</p>
+        <textarea id="tplTask"></textarea>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn" id="btnRestoreTpl">恢复默认</button>
+        <button type="button" class="btn btn-primary" id="btnSaveSettings">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Markdown editor -->
+  <div class="overlay" id="overlayEditor" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3 id="editorTitle">文档</h3>
+        <button type="button" class="btn" data-close="overlayEditor">关闭</button>
+      </div>
+      <div class="dialog-body">
+        <p class="field-hint" id="editorPath"></p>
+        <textarea class="md-editor" id="editorBody"></textarea>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn" data-close="overlayEditor">取消</button>
+        <button type="button" class="btn btn-primary" id="btnSaveDoc">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HTML preview fake browser -->
+  <div class="overlay" id="overlayBrowser" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>系统浏览器（模拟）</h3>
+        <button type="button" class="btn" data-close="overlayBrowser">关闭</button>
+      </div>
+      <div class="dialog-body">
+        <div class="browser-fake">
+          <div class="url" id="browserUrl">file:///…/report.html</div>
+          <div class="page">
+            <h4 id="browserHeading">报告预览</h4>
+            <p style="margin:0;color:var(--muted);font-size:13px">真实产品里会调起默认浏览器；这里只弹这个假窗口。</p>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-primary" data-close="overlayBrowser">知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const DEFAULT_TPL_GOAL = `你是项目规划助手。根据【项目目标】和【项目现状】拆成可执行任务。
+可参考公开网上信息，但以目标与仓库为准。
+按 ### Task / title / body 格式输出多条。`;
+
+    const DEFAULT_TPL_TASK = `你是实现助手。按该 Task 文档在项目目录中改代码。
+做完后用简体中文写实现摘要，不要自动 git commit。`;
+
+    const SAMPLE_TASKS = [
+      {
+        id: "001",
+        title: "调研竞品与需求",
+        status: "pending",
+        kind: "md",
+        body: `# 调研竞品与需求\n\n## 目标\n梳理 3 个竞品与核心需求。\n\n## 验收\n- 有一份简要结论写在本文件\n`,
+      },
+      {
+        id: "002",
+        title: "搭建页面骨架",
+        status: "pending",
+        kind: "md",
+        body: `# 搭建页面骨架\n\n## 目标\n搭出首页布局和路由。\n\n## 验收\n本地能打开空白框架页。\n`,
+      },
+      {
+        id: "003",
+        title: "输出报告 HTML",
+        status: "pending",
+        kind: "html",
+        body: `<!DOCTYPE html><html><body><h1>报告</h1><p>示例 HTML 产物</p></body></html>`,
+      },
+    ];
+
+    const state = {
+      hasDocs: false,
+      goalExists: false,
+      goalBody: `# 项目目标\n\n做一个能汇总竞品信息并输出 HTML 报告的小工具。\n`,
+      tasks: [],
+      busy: null, // null | 'generate' | taskId
+      openMenuId: null,
+      editing: null, // { type: 'goal'|'task', id? }
+      tplGoal: DEFAULT_TPL_GOAL,
+      tplTask: DEFAULT_TPL_TASK,
+    };
+
+    const el = {
+      docs: document.getElementById("docsBlock"),
+      card: document.getElementById("projectCard"),
+      badge: document.getElementById("statusBadge"),
+      log: document.getElementById("eventLog"),
+      toast: document.getElementById("toast"),
+      tplGoal: document.getElementById("tplGoal"),
+      tplTask: document.getElementById("tplTask"),
+      editorTitle: document.getElementById("editorTitle"),
+      editorPath: document.getElementById("editorPath"),
+      editorBody: document.getElementById("editorBody"),
+      browserUrl: document.getElementById("browserUrl"),
+      browserHeading: document.getElementById("browserHeading"),
+    };
+
+    function log(msg) {
+      const row = document.createElement("div");
+      row.className = "log-item";
+      const t = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      row.textContent = `${t}  ${msg}`;
+      el.log.prepend(row);
+    }
+
+    function toast(msg) {
+      el.toast.textContent = msg;
+      el.toast.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.toast.classList.remove("show"), 2200);
+    }
+
+    function openOverlay(id) {
+      document.getElementById(id).classList.add("show");
+    }
+    function closeOverlay(id) {
+      document.getElementById(id).classList.remove("show");
+    }
+
+    function statusLabel(s) {
+      if (s === "done") return ["已完成", "done"];
+      if (s === "busy") return ["实现中…", "busy"];
+      return ["待做", ""];
+    }
+
+    function render() {
+      const busy = Boolean(state.busy);
+      el.card.classList.toggle("is-busy", busy);
+      if (busy) {
+        el.badge.textContent = "AI 工作中";
+        el.badge.className = "badge badge-busy";
+      } else {
+        el.badge.textContent = "Clean";
+        el.badge.className = "badge badge-clean";
+      }
+
+      let html = `
+        <div class="docs-head">
+          <span class="docs-label">DOCS</span>
+          ${
+            !state.hasDocs
+              ? `<button type="button" class="btn btn-ghost" id="btnCreateDocs" ${busy ? "disabled" : ""}>创建 DOCS</button>`
+              : `<button type="button" class="btn btn-primary" id="btnGenerate" ${busy || !state.goalExists ? "disabled" : ""}>生成任务</button>`
+          }
+        </div>
+      `;
+
+      if (state.busy === "generate") {
+        html += `<div class="docs-busy">正在根据 goal.md 生成任务…（模拟）</div>`;
+      } else if (state.busy) {
+        html += `<div class="docs-busy">正在实现 ${state.busy}…（模拟）</div>`;
+      }
+
+      if (!state.hasDocs) {
+        html += `<div class="empty-hint">未检测到 Goal / Task 目录</div>`;
+      } else if (!state.tasks.length) {
+        html += `
+          <div class="empty-hint">
+            暂无 Task · 已有 goal.md
+            <div style="margin-top:8px">
+              <button type="button" class="btn" id="btnOpenGoal" ${busy ? "disabled" : ""}>打开 goal.md</button>
+            </div>
+          </div>`;
+      } else {
+        html += `<div class="task-list">`;
+        for (const task of state.tasks) {
+          const st = state.busy === task.id ? "busy" : task.status;
+          const [label, cls] = statusLabel(st);
+          const menuOpen = state.openMenuId === task.id;
+          html += `
+            <div class="task-row ${menuOpen ? "active" : ""}">
+              <span class="task-num">${task.id}</span>
+              <button type="button" class="task-title" data-open-task="${task.id}">${escapeHtml(task.title)}</button>
+              <span class="task-status ${cls}">${label}</span>
+              <div class="more-wrap">
+                <button type="button" class="more-btn ${menuOpen ? "open" : ""}" data-more="${task.id}" ${busy ? "disabled" : ""} aria-label="更多">⋯</button>
+                ${
+                  menuOpen
+                    ? `<div class="menu">
+                        <button type="button" data-action="open" data-id="${task.id}">打开</button>
+                        <button type="button" data-action="impl" data-id="${task.id}">实现</button>
+                      </div>`
+                    : ""
+                }
+              </div>
+            </div>`;
+        }
+        html += `</div>
+          <div style="margin-top:10px">
+            <button type="button" class="btn" id="btnOpenGoal" ${busy ? "disabled" : ""}>打开 goal.md</button>
+          </div>`;
+      }
+
+      el.docs.innerHTML = html;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function createDocs() {
+      state.hasDocs = true;
+      state.goalExists = true;
+      state.tasks = [];
+      log("创建 DOCS / Goal / Task + 空 goal.md（模拟）");
+      toast("已创建 DOCS（模拟）");
+      render();
+    }
+
+    function generateTasks() {
+      state.busy = "generate";
+      state.openMenuId = null;
+      render();
+      log("生成任务：模板 + goal.md → AI（模拟中）");
+      setTimeout(() => {
+        state.tasks = SAMPLE_TASKS.map((t) => ({ ...t }));
+        state.busy = null;
+        log("已写入 001 / 002 / 003（模拟）");
+        toast("已生成 3 条任务（模拟）");
+        render();
+      }, 1200);
+    }
+
+    function openGoal() {
+      state.editing = { type: "goal" };
+      el.editorTitle.textContent = "goal.md";
+      el.editorPath.textContent = "DOCS/Goal/goal.md · 可编辑（模拟）";
+      el.editorBody.value = state.goalBody;
+      openOverlay("overlayEditor");
+      log("打开 goal.md（模拟编辑器）");
+    }
+
+    function openTask(id) {
+      const task = state.tasks.find((t) => t.id === id);
+      if (!task) return;
+      state.openMenuId = null;
+
+      if (task.kind === "html") {
+        el.browserUrl.textContent = `file:///…/my-app/DOCS/Task/${id}-报告.html`;
+        el.browserHeading.textContent = task.title;
+        openOverlay("overlayBrowser");
+        log(`打开 ${id} HTML → 系统浏览器（模拟）`);
+        render();
+        return;
+      }
+
+      state.editing = { type: "task", id };
+      el.editorTitle.textContent = `${id}-${task.title}.md`;
+      el.editorPath.textContent = `DOCS/Task/${id}-….md · 可编辑（模拟）`;
+      el.editorBody.value = task.body;
+      openOverlay("overlayEditor");
+      log(`打开 ${id} Markdown（模拟编辑器）`);
+      render();
+    }
+
+    function implementTask(id) {
+      const task = state.tasks.find((t) => t.id === id);
+      if (!task) return;
+      state.openMenuId = null;
+      state.busy = id;
+      render();
+      log(`实现 ${id}：AI 改代码中（模拟）`);
+      setTimeout(() => {
+        task.status = "done";
+        if (task.kind === "md") {
+          task.body += `\n\n## 实现结果（模拟）\n- 已在项目中完成相关改动（假）\n- 摘要：完成「${task.title}」\n`;
+        }
+        state.busy = null;
+        log(`实现 ${id} 完成，摘要已写回 Task（模拟）`);
+        toast(`${id} 已实现（模拟）`);
+        render();
+      }, 1500);
+    }
+
+    function saveDoc() {
+      if (!state.editing) return;
+      if (state.editing.type === "goal") {
+        state.goalBody = el.editorBody.value;
+        log("已保存 goal.md（模拟）");
+        toast("goal.md 已保存（模拟）");
+      } else {
+        const task = state.tasks.find((t) => t.id === state.editing.id);
+        if (task) {
+          task.body = el.editorBody.value;
+          log(`已保存 Task ${task.id}（模拟）`);
+          toast("任务文档已保存（模拟）");
+        }
+      }
+      closeOverlay("overlayEditor");
+      state.editing = null;
+    }
+
+    function resetDemo() {
+      state.hasDocs = false;
+      state.goalExists = false;
+      state.goalBody = `# 项目目标\n\n做一个能汇总竞品信息并输出 HTML 报告的小工具。\n`;
+      state.tasks = [];
+      state.busy = null;
+      state.openMenuId = null;
+      state.editing = null;
+      el.log.innerHTML = "";
+      log("演示已重置");
+      toast("已重置");
+      render();
+    }
+
+    // events
+    el.docs.addEventListener("click", (e) => {
+      const t = e.target.closest("button");
+      if (!t) return;
+
+      if (t.id === "btnCreateDocs") return createDocs();
+      if (t.id === "btnGenerate") return generateTasks();
+      if (t.id === "btnOpenGoal") return openGoal();
+
+      if (t.dataset.more) {
+        const id = t.dataset.more;
+        state.openMenuId = state.openMenuId === id ? null : id;
+        render();
+        return;
+      }
+      if (t.dataset.openTask) {
+        openTask(t.dataset.openTask);
+        return;
+      }
+      if (t.dataset.action === "open") {
+        openTask(t.dataset.id);
+        return;
+      }
+      if (t.dataset.action === "impl") {
+        implementTask(t.dataset.id);
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".more-wrap") && state.openMenuId) {
+        state.openMenuId = null;
+        render();
+      }
+    });
+
+    document.querySelectorAll("[data-close]").forEach((btn) => {
+      btn.addEventListener("click", () => closeOverlay(btn.dataset.close));
+    });
+    document.querySelectorAll(".overlay").forEach((ov) => {
+      ov.addEventListener("click", (e) => {
+        if (e.target === ov) ov.classList.remove("show");
+      });
+    });
+
+    document.getElementById("btnSettings").addEventListener("click", () => {
+      el.tplGoal.value = state.tplGoal;
+      el.tplTask.value = state.tplTask;
+      openOverlay("overlaySettings");
+      log("打开设置");
+    });
+    document.getElementById("btnSaveSettings").addEventListener("click", () => {
+      state.tplGoal = el.tplGoal.value;
+      state.tplTask = el.tplTask.value;
+      closeOverlay("overlaySettings");
+      log("设置已保存（仅本页内存）");
+      toast("设置已保存（模拟）");
+    });
+    document.getElementById("btnRestoreTpl").addEventListener("click", () => {
+      el.tplGoal.value = DEFAULT_TPL_GOAL;
+      el.tplTask.value = DEFAULT_TPL_TASK;
+      toast("已恢复默认文案（未保存）");
+    });
+    document.getElementById("btnSaveDoc").addEventListener("click", saveDoc);
+    document.getElementById("btnReset").addEventListener("click", resetDemo);
+
+    // init
+    el.tplGoal.value = DEFAULT_TPL_GOAL;
+    el.tplTask.value = DEFAULT_TPL_TASK;
+    log("Mockup 就绪 · 从「创建 DOCS」开始");
+    render();
+  </script>
+</body>
+</html>

@@ -8,7 +8,7 @@ import { HelpTip } from "./components/HelpTip";
 import { LogDiaryPage } from "./components/LogDiaryPage";
 import { MarkdownEditorDialog } from "./components/MarkdownEditorDialog";
 import { ProjectCard } from "./components/ProjectCard";
-import { RunTargetsDialog } from "./components/RunTargetsDialog";
+import { AiSidePanel } from "./components/AiSidePanel";
 import { SettingsPage } from "./components/SettingsPage";
 import { useLogDiary } from "./hooks/useLogDiary";
 import { useProjects } from "./hooks/useProjects";
@@ -22,14 +22,14 @@ type DialogState =
   | { type: "discard"; id: string; name: string }
   | { type: "changes"; id: string; name: string }
   | { type: "doc"; id: string; relativePath: string; title: string }
-  | {
-      type: "runTargets";
-      id: string;
-      name: string;
-      mode: "identify" | "config";
-      initialTargets?: RunTarget[];
-    }
   | null;
+
+type SidePanelState = {
+  id: string;
+  name: string;
+  mode: "identify" | "config";
+  initialTargets?: RunTarget[];
+} | null;
 
 function App() {
   const {
@@ -45,6 +45,7 @@ function App() {
   const logDiary = useLogDiary();
   const [view, setView] = useState<AppView>("board");
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [sidePanel, setSidePanel] = useState<SidePanelState>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -121,7 +122,7 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app${sidePanel ? " has-ai-side" : ""}`}>
       <div className="app-bg" aria-hidden="true" />
 
       <header className="topbar">
@@ -223,8 +224,7 @@ function App() {
                     })
                   }
                   onConfigureRun={(mode) =>
-                    setDialog({
-                      type: "runTargets",
+                    setSidePanel({
                       id: p.id,
                       name: p.name,
                       mode,
@@ -297,16 +297,16 @@ function App() {
         />
       )}
 
-      {dialog?.type === "runTargets" && (
-        <RunTargetsDialog
-          projectId={dialog.id}
-          projectName={dialog.name}
-          mode={dialog.mode}
-          initialTargets={dialog.initialTargets}
-          onClose={() => setDialog(null)}
+      {sidePanel && (
+        <AiSidePanel
+          projectId={sidePanel.id}
+          projectName={sidePanel.name}
+          mode={sidePanel.mode}
+          initialTargets={sidePanel.initialTargets}
+          onClose={() => setSidePanel(null)}
           onSaved={(targets) => {
             showToast(`已保存 ${targets.length} 个启动目标`);
-            void refreshOne(dialog.id);
+            void refreshOne(sidePanel.id);
           }}
           onLog={appendLog}
         />
