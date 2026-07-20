@@ -8,6 +8,7 @@ interface Props {
   onManualCommit: () => void;
   onOneClick: () => void;
   onDiscard: () => void;
+  onViewChanges: () => void;
   onRemove: () => void;
 }
 
@@ -27,10 +28,12 @@ export function ProjectCard({
   onManualCommit,
   onOneClick,
   onDiscard,
+  onViewChanges,
   onRemove,
 }: Props) {
   const disabled = Boolean(busy);
   const hasChanges = !project.clean;
+  const workingChanges = project.unstaged + project.untracked;
 
   return (
     <article className={`project-card ${project.clean ? "is-clean" : "is-dirty"}`}>
@@ -68,26 +71,35 @@ export function ProjectCard({
 
       {project.error && <p className="card-error">{project.error}</p>}
 
-      <div className="counts">
+      <div className="counts counts-2">
         <div className="count">
           <span className="count-num">{project.staged}</span>
           <span className="count-label">
             Staged <HelpTip text="已暂存、等待提交的文件数" />
           </span>
         </div>
-        <div className="count">
-          <span className="count-num">{project.unstaged}</span>
+        <button
+          type="button"
+          className={`count count-btn${workingChanges > 0 ? " is-clickable" : ""}`}
+          disabled={workingChanges === 0 || disabled}
+          onClick={onViewChanges}
+          title={
+            workingChanges > 0
+              ? "查看 Unstaged / Untracked 文件列表"
+              : "没有未暂存改动"
+          }
+        >
+          <span className="count-num">{workingChanges}</span>
           <span className="count-label">
-            Unstaged <HelpTip text="已修改但尚未暂存的文件数" />
+            Changes{" "}
+            <span
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <HelpTip text="合并 Unstaged（已跟踪但未暂存的改动）与 Untracked（新文件）。点击查看文件名及 M/U/D 等状态标识。" />
+            </span>
           </span>
-        </div>
-        <div className="count">
-          <span className="count-num">{project.untracked}</span>
-          <span className="count-label">
-            Untracked{" "}
-            <HelpTip text="全新文件：从未被 Git 跟踪过（例如新建的源码/文档）。与 Unstaged 不同：Unstaged 是「已跟踪文件被改了但还没暂存」。提交时会一并自动暂存。" />
-          </span>
-        </div>
+        </button>
       </div>
 
       <section className="commits">

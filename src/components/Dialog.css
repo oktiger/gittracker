@@ -237,6 +237,81 @@
   color: var(--amber);
 }
 
+.changes-file-list {
+  max-height: min(52vh, 420px);
+}
+
+.changes-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.changes-file-row .file-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.git-badge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.git-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.2rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* VS Code / GitHub Desktop 配色：U/A 绿、M 琥珀、D 红、R 紫 */
+.git-badge-untracked,
+.git-badge-added {
+  color: #1f6b45;
+  background: rgba(46, 160, 98, 0.16);
+}
+
+.git-badge-modified,
+.git-badge-other {
+  color: #8a5a12;
+  background: rgba(210, 153, 34, 0.18);
+}
+
+.git-badge-deleted {
+  color: #9b2c2c;
+  background: rgba(196, 72, 54, 0.14);
+}
+
+.git-badge-renamed,
+.git-badge-copied {
+  color: #5b4bb7;
+  background: rgba(110, 86, 207, 0.14);
+}
+
+.git-badge-conflict {
+  color: #9b2c2c;
+  background: rgba(196, 72, 54, 0.18);
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

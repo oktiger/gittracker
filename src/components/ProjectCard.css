@@ -105,6 +105,10 @@
   gap: 0.5rem;
 }
 
+.counts-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .count {
   display: flex;
   flex-direction: column;
@@ -112,6 +116,29 @@
   padding: 0.45rem 0.5rem;
   border-radius: 8px;
   background: var(--surface-2);
+  border: 1px solid transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+button.count-btn {
+  cursor: default;
+}
+
+button.count-btn.is-clickable:not(:disabled) {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+button.count-btn.is-clickable:not(:disabled):hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+button.count-btn:disabled {
+  opacity: 0.72;
+  cursor: default;
 }
 
 .count-num {

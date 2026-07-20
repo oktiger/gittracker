@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "./api";
+import { ChangesDialog } from "./components/ChangesDialog";
 import { CommitDialog } from "./components/CommitDialog";
 import { DiscardDialog } from "./components/DiscardDialog";
 import { HelpTip } from "./components/HelpTip";
@@ -12,6 +13,7 @@ import "./App.css";
 type DialogState =
   | { type: "commit"; id: string; name: string }
   | { type: "discard"; id: string; name: string }
+  | { type: "changes"; id: string; name: string }
   | { type: "settings" }
   | null;
 
@@ -138,6 +140,9 @@ function App() {
                 onDiscard={() =>
                   setDialog({ type: "discard", id: p.id, name: p.name })
                 }
+                onViewChanges={() =>
+                  setDialog({ type: "changes", id: p.id, name: p.name })
+                }
                 onRemove={() => void onRemove(p.id, p.name)}
               />
             ))}
@@ -166,6 +171,14 @@ function App() {
             void refreshOne(dialog.id);
             showToast("已 Discard");
           }}
+        />
+      )}
+
+      {dialog?.type === "changes" && (
+        <ChangesDialog
+          projectId={dialog.id}
+          projectName={dialog.name}
+          onClose={() => setDialog(null)}
         />
       )}
 
