@@ -89,13 +89,6 @@
     .btn:disabled { opacity: .45; cursor: not-allowed; }
     .icon-btn { width: 34px; height: 34px; padding: 0; }
 
-    .summary-strip {
-      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;
-    }
-    .metric { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.65); }
-    .metric strong { display: block; font-size: 21px; letter-spacing: -.4px; }
-    .metric span { color: var(--muted); font-size: 12px; }
-
     .project-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 14px; }
     .project-card {
       position: relative; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius);
@@ -110,14 +103,29 @@
     .pill.clean { color: var(--green); background: #eaf6ef; }
     .pill.changed { color: #8c5b0d; background: #fbf1dc; }
     .pill.error { color: var(--red); background: #fff0ed; }
-    .branch-row { display: flex; align-items: center; gap: 8px; margin-top: 13px; color: var(--muted); font-size: 12px; }
+    .branch-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 12px; }
     .branch { padding: 3px 7px; background: var(--panel-soft); border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #38444d; }
-    .card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0; }
-    .mini-stat { padding: 10px; border-radius: 10px; background: var(--panel-soft); }
-    .mini-stat strong { display: block; font-size: 16px; }
-    .mini-stat span { color: var(--muted); font-size: 11px; }
-    .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 13px; }
-    .last-commit { min-width: 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-modules { display: grid; gap: 10px; margin-top: 14px; }
+    .card-module { border: 1px solid var(--line); border-radius: 11px; background: #fbfcfc; overflow: hidden; }
+    .module-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #e7ebed; }
+    .module-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 750; }
+    .module-icon { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: #e9eef0; color: #43515a; font-size: 11px; }
+    .module-icon.docs { background: var(--accent-soft); color: var(--accent); }
+    .micro-meta { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .commit-preview-list { list-style: none; margin: 0; padding: 3px 12px; }
+    .commit-preview-list li { display: grid; grid-template-columns: 58px 1fr auto; gap: 8px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #edf0f2; font-size: 11px; }
+    .commit-preview-list li:last-child { border-bottom: 0; }
+    .commit-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #35414a; }
+    .commit-when { color: var(--muted); white-space: nowrap; font-size: 10px; }
+    .doc-summary { padding: 10px 12px 8px; }
+    .doc-goal { margin: 0; color: #43505a; font-size: 11px; line-height: 1.45; }
+    .doc-progress { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 10px; }
+    .progress-track { flex: 1; height: 5px; border-radius: 999px; background: #e4e9eb; overflow: hidden; }
+    .progress-bar { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+    .doc-mini-tasks { display: flex; gap: 6px; margin-top: 8px; overflow: hidden; }
+    .doc-mini-task { min-width: 0; padding: 4px 7px; border-radius: 6px; background: var(--panel); border: 1px solid #e2e7e9; color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .module-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-top: 1px solid #e7ebed; background: var(--panel); }
+    .module-actions .inline-actions { gap: 6px; }
 
     .project-hero {
       display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
@@ -224,7 +232,6 @@
       .brand span, .nav-label, .nav-badge, .side-label, .project-link span:not(.status-dot), .sidebar-foot { display: none; }
       .nav-btn, .project-link { justify-content: center; }
       .main { padding: 20px 16px 40px; }
-      .summary-strip { grid-template-columns: 1fr 1fr; }
       .project-grid { grid-template-columns: 1fr; }
       .page-head, .project-hero { align-items: flex-start; flex-direction: column; }
       .changes-layout { grid-template-columns: 1fr; }
@@ -252,21 +259,15 @@
         <button class="project-link" data-project="english-hero"><span class="status-dot dirty"></span><span>English Hero</span></button>
         <button class="project-link" data-project="gittracker"><span class="status-dot dirty"></span><span>gittracker</span></button>
       </div>
-      <div class="sidebar-foot">4 个项目 · 3 个有变更<br />状态刚刚更新</div>
+      <div class="sidebar-foot">项目状态刚刚更新</div>
     </aside>
 
     <main class="main">
       <section class="page active" id="page-board">
         <header class="page-head">
-          <div><div class="eyebrow">Workspace overview</div><h1>看板</h1><p class="sub">只展示需要你做决定的信息，详细内容进入项目页。</p></div>
+          <div><div class="eyebrow">Workspace</div><h1>看板</h1><p class="sub">每个项目直接呈现代码与文档，两块工作各自拥有清晰入口。</p></div>
           <div class="head-actions"><button class="btn soft" data-toast="已刷新全部项目">↻ 刷新</button><button class="btn primary" data-toast="这是 Mockup：不会打开目录">＋ 添加项目</button></div>
         </header>
-        <div class="summary-strip">
-          <div class="metric"><strong>4</strong><span>项目</span></div>
-          <div class="metric"><strong>3</strong><span>有本地变更</span></div>
-          <div class="metric"><strong>1</strong><span>落后远程</span></div>
-          <div class="metric"><strong>8</strong><span>待处理文件</span></div>
-        </div>
         <div class="project-grid" id="projectGrid"></div>
       </section>
 
@@ -338,10 +339,10 @@
 
   <script>
     const projects = [
-      { id:'dailysync', name:'dailysync', path:'/Users/biem/Documents/dailysync', branch:'main', state:'changed', staged:2, changes:4, sync:'↓1', commit:'修复日记同步冲突 · 21 分钟前' },
-      { id:'ob-super-copy', name:'ob-super-copy', path:'/Users/biem/Documents/ob-super-copy', branch:'main', state:'clean', staged:0, changes:0, sync:'已同步', commit:'发布 1.2.1 · 2 天前' },
-      { id:'english-hero', name:'English Hero', path:'/Users/biem/Documents/EnglishHero/eh', branch:'feature/words', state:'changed', staged:1, changes:2, sync:'↑3', commit:'增加双语字幕 · 1 天前' },
-      { id:'gittracker', name:'gittracker', path:'/Users/biem/Documents/GitTracker/gittracker', branch:'main', state:'changed', staged:0, changes:5, sync:'↑2', commit:'统一 AI 侧栏 · 11 分钟前' }
+      { id:'dailysync', name:'dailysync', path:'/Users/biem/Documents/dailysync', branch:'main', state:'changed', staged:2, changes:4, sync:'↓1', docs:{ done:4, total:6, goal:'让 Obsidian 日记同步更稳定，并减少人工处理冲突。', tasks:['修复同步冲突','补充恢复流程'] }, commits:[['1e2e9ec','修复启动后自动打开控制面板','21 分钟前'],['84e4a14','降低 Master 常驻内存','15 小时前'],['b360323','合并 Git 项目列表与未提交区','15 小时前']] },
+      { id:'ob-super-copy', name:'ob-super-copy', path:'/Users/biem/Documents/ob-super-copy', branch:'main', state:'clean', staged:0, changes:0, sync:'已同步', docs:{ done:3, total:3, goal:'提供稳定、轻量的多格式复制体验。', tasks:['发布检查已完成','整理使用说明'] }, commits:[['c230e48','发布 1.2.1','2 天前'],['d129293','发布 1.2.0','2 天前'],['14451f5','增加文件浏览器操作入口','3 天前']] },
+      { id:'english-hero', name:'English Hero', path:'/Users/biem/Documents/EnglishHero/eh', branch:'feature/words', state:'changed', staged:1, changes:2, sync:'↑3', docs:{ done:2, total:5, goal:'构建更顺畅的英语视频学习与生词复习流程。', tasks:['优化字幕双语切换','增加生词复习'] }, commits:[['7fd79ac','统一字幕分析边界','1 天前'],['3f7db6a','增加管理员字幕双表','1 天前'],['e62fcbe','修复视频字幕重复','1 天前']] },
+      { id:'gittracker', name:'gittracker', path:'/Users/biem/Documents/GitTracker/gittracker', branch:'main', state:'changed', staged:0, changes:5, sync:'↑2', docs:{ done:1, total:3, goal:'提升多项目 Git 管理的信息层级、操作安全与响应速度。', tasks:['重构看板信息架构','并行加载项目状态'] }, commits:[['ec1624e','修复 nvm 下找不到 Codex','4 分钟前'],['4ddab71','统一 AI 右侧栏实时过程','11 分钟前'],['859a65e','去掉页面重复标题','13 分钟前']] }
     ];
     const files = [
       { name:'src/App.tsx', status:'M', diff:'@@ -118,14 +118,18 @@\\n export function App() {\\n-  return <ProjectCard project={project} />\\n+  return <ProjectDetailPage project={project} />\\n+\\n+  // Board cards now render summaries only\\n+  const summary = toProjectSummary(project);' },
@@ -358,7 +359,21 @@
     ];
 
     const grid = document.getElementById('projectGrid');
-    grid.innerHTML = projects.map(p => `<article class="project-card"><div class="card-top"><div style="min-width:0"><h2 class="card-name">${p.name}</h2><div class="path">${p.path}</div></div><span class="pill ${p.state}">${p.state === 'clean' ? 'Clean' : 'Changed'}</span></div><div class="branch-row"><span class="branch">${p.branch}</span><span>${p.sync}</span></div><div class="card-stats"><div class="mini-stat"><strong>${p.staged}</strong><span>Staged</span></div><div class="mini-stat"><strong>${p.changes}</strong><span>Changes</span></div><div class="mini-stat"><strong>${p.state === 'clean' ? '—' : '需处理'}</strong><span>状态</span></div></div><div class="card-foot"><span class="last-commit">${p.commit}</span><div class="inline-actions"><button class="btn small soft" data-run="${p.id}">▶ 运行</button><button class="btn small primary" data-open="${p.id}">查看项目</button></div></div></article>`).join('');
+    grid.innerHTML = projects.map(p => `<article class="project-card">
+      <div class="card-top"><div style="min-width:0"><h2 class="card-name">${p.name}</h2><div class="path">${p.path}</div><div class="branch-row"><span class="branch">${p.branch}</span><span>${p.sync}</span></div></div><span class="pill ${p.state}">${p.state === 'clean' ? 'Clean' : 'Changed'}</span></div>
+      <div class="card-modules">
+        <section class="card-module">
+          <div class="module-head"><span class="module-title"><span class="module-icon">&lt;/&gt;</span>代码</span><span class="micro-meta">${p.staged} Staged · ${p.changes} Changes</span></div>
+          <ul class="commit-preview-list">${p.commits.map(c => `<li><span class="hash">${c[0]}</span><span class="commit-desc" title="${c[1]}">${c[1]}</span><span class="commit-when">${c[2]}</span></li>`).join('')}</ul>
+          <div class="module-actions"><button class="back-link" data-open="${p.id}">查看代码详情</button><div class="inline-actions"><button class="btn small soft" data-run="${p.id}">▶ 运行</button><button class="btn small primary" data-commit="${p.id}">提交…</button></div></div>
+        </section>
+        <section class="card-module">
+          <div class="module-head"><span class="module-title"><span class="module-icon docs">D</span>文档</span><span class="micro-meta">${p.docs.done} / ${p.docs.total} 任务完成</span></div>
+          <div class="doc-summary"><p class="doc-goal">${p.docs.goal}</p><div class="doc-progress"><span>任务进度</span><span class="progress-track"><span class="progress-bar" style="width:${Math.round(p.docs.done / p.docs.total * 100)}%"></span></span><span>${Math.round(p.docs.done / p.docs.total * 100)}%</span></div><div class="doc-mini-tasks">${p.docs.tasks.map(t => `<span class="doc-mini-task">${t}</span>`).join('')}</div></div>
+          <div class="module-actions"><button class="back-link" data-toast="打开 ${p.name} 的 goal.md">打开项目文档</button><div class="inline-actions"><button class="btn small soft" data-open="${p.id}">查看任务</button><button class="btn small primary" data-drawer="generate">AI 生成任务</button></div></div>
+        </section>
+      </div>
+    </article>`).join('');
 
     const fileList = document.getElementById('fileList');
     const diffView = document.getElementById('diffView');
@@ -402,7 +417,13 @@
       const file = e.target.closest('[data-file]'); if (file) renderFiles(Number(file.dataset.file));
       const task = e.target.closest('.task-title'); if (task) task.closest('.task').classList.toggle('open');
       const log = e.target.closest('.log-summary'); if (log) log.closest('.log-row').classList.toggle('open');
-      const modal = e.target.closest('[data-modal]'); if (modal) document.getElementById('commitModal').classList.add('show');
+      const modal = e.target.closest('[data-modal], [data-commit]');
+      if (modal) {
+        const projectId = modal.dataset.commit;
+        const projectName = projects.find(p => p.id === projectId)?.name || document.getElementById('detailName').textContent;
+        document.getElementById('commitTitle').textContent = `提交 · ${projectName}`;
+        document.getElementById('commitModal').classList.add('show');
+      }
       if (e.target.closest('.close-modal')) document.getElementById('commitModal').classList.remove('show');
       const drawer = e.target.closest('[data-drawer], [data-run]'); if (drawer) openDrawer(drawer.dataset.drawer || 'run');
       const toastTarget = e.target.closest('[data-toast]'); if (toastTarget) { document.getElementById('commitModal').classList.remove('show'); showToast(toastTarget.dataset.toast); }
