@@ -36,6 +36,10 @@
   gap: 0.5rem;
 }
 
+.card-title-row.is-meta-only {
+  justify-content: flex-end;
+}
+
 .card-title {
   margin: 0;
   font-family: var(--font-display);

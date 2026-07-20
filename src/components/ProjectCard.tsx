@@ -13,6 +13,8 @@ import "./ProjectCard.css";
 interface Props {
   project: ProjectStatus;
   busy?: string;
+  /** 详情页已有外层标题时隐藏卡片内项目名，避免重复 */
+  hideTitle?: boolean;
   onManualCommit: () => void;
   onOneClick: () => void;
   onDiscard: () => void;
@@ -44,6 +46,7 @@ function statusLabel(status: string): { text: string; cls: string } {
 export function ProjectCard({
   project,
   busy,
+  hideTitle = false,
   onManualCommit,
   onOneClick,
   onDiscard,
@@ -265,10 +268,12 @@ export function ProjectCard({
   return (
     <article className={`project-card ${project.clean ? "is-clean" : "is-dirty"}`}>
       <header className="card-header">
-        <div className="card-title-row">
-          <h2 className="card-title" title={project.path}>
-            {project.name}
-          </h2>
+        <div className={`card-title-row${hideTitle ? " is-meta-only" : ""}`}>
+          {!hideTitle && (
+            <h2 className="card-title" title={project.path}>
+              {project.name}
+            </h2>
+          )}
           <button
             type="button"
             className="btn-ghost btn-icon"

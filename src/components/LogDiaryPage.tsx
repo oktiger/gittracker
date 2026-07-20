@@ -55,31 +55,22 @@ export function LogDiaryPage({
   return (
     <div className="log-diary">
       <div className="log-diary-toolbar">
-        <div className="log-diary-intro">
-          <h2>日志日记</h2>
-          <p>
-            每次运行（AI、提交、DOCS、启动目标等）会留下一条记录。点右上角「复制」可把日志与错误一并粘贴给
-            AI。
-          </p>
-        </div>
-        <div className="log-diary-actions">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => void onRefresh()}
-            disabled={loading || clearing}
-          >
-            刷新
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={loading || clearing || entries.length === 0}
-          >
-            {clearing ? "清空中…" : "清空"}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => void onRefresh()}
+          disabled={loading || clearing}
+        >
+          刷新
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void handleClear()}
+          disabled={loading || clearing || entries.length === 0}
+        >
+          {clearing ? "清空中…" : "清空"}
+        </button>
       </div>
 
       {loading ? (

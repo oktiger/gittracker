@@ -5,31 +5,10 @@
 
 .settings-page-toolbar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.settings-page-intro h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  letter-spacing: -0.02em;
-}
-
-.settings-page-intro p {
-  margin: 0.35rem 0 0;
-  color: var(--muted);
-  font-size: 0.88rem;
-  max-width: 36rem;
-  line-height: 1.5;
-}
-
-.settings-page-actions {
-  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.45rem;
-  flex-shrink: 0;
+  margin-bottom: 1.25rem;
 }
 
 .settings-section {

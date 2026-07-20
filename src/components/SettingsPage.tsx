@@ -129,20 +129,14 @@ export function SettingsPage({ onSaved }: Props) {
   return (
     <div className="settings-page">
       <div className="settings-page-toolbar">
-        <div className="settings-page-intro">
-          <h2>设置</h2>
-          <p>配置 AI 调用通道与 DOCS 提示词模板。</p>
-        </div>
-        <div className="settings-page-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void onSave()}
-            disabled={!settings || busy}
-          >
-            {saving ? "保存中…" : "保存"}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => void onSave()}
+          disabled={!settings || busy}
+        >
+          {saving ? "保存中…" : "保存"}
+        </button>
       </div>
 
       <section className="settings-section">

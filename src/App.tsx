@@ -143,11 +143,15 @@ function App() {
       ? projects.find((p) => p.id === selectedProjectId) ?? null
       : null;
 
-  const renderProjectCard = (p: (typeof projects)[number]) => (
+  const renderProjectCard = (
+    p: (typeof projects)[number],
+    opts?: { hideTitle?: boolean },
+  ) => (
     <ProjectCard
       key={p.id}
       project={p}
       busy={busyIds[p.id]}
+      hideTitle={opts?.hideTitle}
       onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
       onOneClick={() => void onOneClick(p.id)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
@@ -245,14 +249,17 @@ function App() {
             {view === "logDiary" && (
               <div className="main-heading">
                 <h2>日志</h2>
-                <p>记录一键提交、AI 操作与其它事件</p>
+                <p>
+                  每次运行（AI、提交、DOCS、启动目标等）会留下一条记录；点条目「复制」可粘贴给
+                  AI。
+                </p>
               </div>
             )}
 
             {view === "settings" && (
               <div className="main-heading">
                 <h2>设置</h2>
-                <p>AI Provider 与提示词模板</p>
+                <p>配置 AI 调用通道与 DOCS 提示词模板</p>
               </div>
             )}
           </header>
@@ -316,7 +323,9 @@ function App() {
                   </button>
                 </div>
               ) : (
-                <div className="project-detail">{renderProjectCard(selectedProject)}</div>
+                <div className="project-detail">
+                  {renderProjectCard(selectedProject, { hideTitle: true })}
+                </div>
               ))}
 
             {view === "logDiary" && (
