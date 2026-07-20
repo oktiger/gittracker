@@ -41,17 +41,29 @@ export function DocumentLibraryTab({ projectId, projectPath, epoch = 0, onOpenFi
     if (!chosen.startsWith(prefix)) return onError("请选择当前项目目录内的文件夹");
     await saveRoot(chosen.slice(prefix.length));
   };
+  const openFile = async (node: DocumentNode) => {
+    if (/\.html?$/i.test(node.name)) {
+      try {
+        await api.openDocumentLibraryHtml(projectId, node.relativePath);
+        onToast("已用默认浏览器打开 HTML");
+      } catch (e) {
+        onError(String(e));
+      }
+      return;
+    }
+    onOpenFile(node.relativePath, node.name);
+  };
   const renderNode = (node: DocumentNode) => {
     const opened = menu === node.relativePath;
     return <li key={node.relativePath} className="document-node">
       <div className="document-row">
-        <button type="button" className={`document-name${node.isDirectory ? " is-folder" : ""}`} onClick={() => !node.isDirectory && onOpenFile(node.relativePath, node.name)} title={node.relativePath}>
+        <button type="button" className={`document-name${node.isDirectory ? " is-folder" : ""}`} onClick={() => !node.isDirectory && void openFile(node)} title={node.relativePath}>
           <span>{node.isDirectory ? "▸" : "·"}</span>{node.name}
         </button>
         <div className="more-wrap">
           <button type="button" className={`more-btn${opened ? " is-open" : ""}`} aria-label={`${node.name} 的更多操作`} onClick={(e) => { e.stopPropagation(); setMenu(opened ? null : node.relativePath); }}>⋯</button>
           {opened && <div className="more-menu" role="menu">
-            {!node.isDirectory && <button type="button" role="menuitem" onClick={() => { setMenu(null); onOpenFile(node.relativePath, node.name); }}>打开并编辑</button>}
+            {!node.isDirectory && <button type="button" role="menuitem" onClick={() => { setMenu(null); void openFile(node); }}>{/\.html?$/i.test(node.name) ? "用浏览器打开" : "打开并编辑"}</button>}
             <button type="button" role="menuitem" onClick={() => { void navigator.clipboard.writeText(node.relativePath); setMenu(null); onToast("已复制路径"); }}>复制路径</button>
           </div>}
         </div>

@@ -287,12 +287,41 @@ pub fn write_doc_file(id: String, relative_path: String, content: String) -> App
 pub fn open_doc_external(app: AppHandle, id: String, relative_path: String) -> AppResult<()> {
     let project = store::find_project(&id)?;
     let path = docs::resolve_docs_path(Path::new(&project.path), &relative_path)?;
+    open_html_in_browser(&app, &path)
+}
+
+#[tauri::command]
+pub fn open_document_library_html(
+    app: AppHandle,
+    id: String,
+    relative_path: String,
+) -> AppResult<()> {
+    let project = store::find_project(&id)?;
+    let root = project
+        .docs_root
+        .ok_or_else(|| AppError::msg("尚未设置文档库"))?;
+    let path = docs::resolve_library_path(Path::new(&project.path), &root, &relative_path)?;
+    open_html_in_browser(&app, &path)
+}
+
+fn open_html_in_browser(app: &AppHandle, path: &Path) -> AppResult<()> {
     if !path.is_file() {
         return Err(AppError::msg("文件不存在"));
     }
+    let is_html = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("html") || extension.eq_ignore_ascii_case("htm")
+        });
+    if !is_html {
+        return Err(AppError::msg("只能用浏览器打开 HTML 文档"));
+    }
+    let url =
+        tauri::Url::from_file_path(path).map_err(|_| AppError::msg("无法生成 HTML 文件地址"))?;
     app.opener()
-        .open_path(path.to_string_lossy().as_ref(), None::<&str>)
-        .map_err(|e| AppError::msg(format!("无法打开文件：{e}")))?;
+        .open_url(url.as_str(), None::<&str>)
+        .map_err(|e| AppError::msg(format!("无法用浏览器打开 HTML：{e}")))?;
     Ok(())
 }
 

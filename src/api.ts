@@ -76,6 +76,8 @@ export const api = {
     invoke<void>("write_doc_file", { id, relativePath, content }),
   openDocExternal: (id: string, relativePath: string) =>
     invoke<void>("open_doc_external", { id, relativePath }),
+  openDocumentLibraryHtml: (id: string, relativePath: string) =>
+    invoke<void>("open_document_library_html", { id, relativePath }),
   generateTasksFromGoal: (id: string, sessionId: string) =>
     invoke<GenerateTasksResult>("generate_tasks_from_goal", {
       id,

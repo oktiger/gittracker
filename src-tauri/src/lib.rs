@@ -55,6 +55,7 @@ pub fn run() {
             commands::read_doc_file,
             commands::write_doc_file,
             commands::open_doc_external,
+            commands::open_document_library_html,
             commands::generate_tasks_from_goal,
             commands::run_docs_task,
             commands::set_run_targets,

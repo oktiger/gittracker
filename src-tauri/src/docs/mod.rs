@@ -188,7 +188,11 @@ pub fn list_docs(project_path: &Path) -> AppResult<DocsOverview> {
             .filter(|p| {
                 p.extension()
                     .and_then(|e| e.to_str())
-                    .map(|e| e.eq_ignore_ascii_case("md") || e.eq_ignore_ascii_case("html"))
+                    .map(|e| {
+                        e.eq_ignore_ascii_case("md")
+                            || e.eq_ignore_ascii_case("html")
+                            || e.eq_ignore_ascii_case("htm")
+                    })
                     .unwrap_or(false)
             })
             .collect();
@@ -208,7 +212,9 @@ pub fn list_docs(project_path: &Path) -> AppResult<DocsOverview> {
                 title,
                 relative_path,
                 status,
-                kind: if name.to_lowercase().ends_with(".html") {
+                kind: if name.to_lowercase().ends_with(".html")
+                    || name.to_lowercase().ends_with(".htm")
+                {
                     "html".into()
                 } else {
                     "md".into()
