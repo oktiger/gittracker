@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { HelpTip } from "./HelpTip";
 import type { AiProvider, AppSettings } from "../types";
-import "./Dialog.css";
+import "./SettingsPage.css";
 
 interface Props {
-  onClose: () => void;
   onSaved: (msg: string) => void;
 }
 
@@ -54,14 +53,26 @@ const DEFAULT_TASK = `你是实现助手。请根据下方【任务文档】在�
 type TestStatus =
   | { kind: "idle" }
   | { kind: "running" }
-  | { kind: "ok"; label: string; reply: string }
+  | { kind: "ok" }
   | { kind: "error"; message: string };
 
-export function SettingsDialog({ onClose, onSaved }: Props) {
+type TestStatusMap = Record<AiProvider, TestStatus>;
+
+const IDLE_TESTS: TestStatusMap = {
+  codex: { kind: "idle" },
+  cursorAgent: { kind: "idle" },
+};
+
+function formatTestError(err: unknown): string {
+  const raw = String(err);
+  return raw.replace(/^Error:\s*/i, "").trim() || "未知错误";
+}
+
+export function SettingsPage({ onSaved }: Props) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testStatus, setTestStatus] = useState<TestStatus>({ kind: "idle" });
+  const [testingId, setTestingId] = useState<AiProvider | null>(null);
+  const [testStatus, setTestStatus] = useState<TestStatusMap>(IDLE_TESTS);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,25 +87,23 @@ export function SettingsDialog({ onClose, onSaved }: Props) {
 
   const onSelect = (aiProvider: AiProvider) => {
     setSettings((prev) => (prev ? { ...prev, aiProvider } : prev));
-    setTestStatus({ kind: "idle" });
   };
 
-  const onTest = async () => {
-    if (!settings || testing) return;
-    setTesting(true);
+  const onTest = async (provider: AiProvider) => {
+    if (!settings || testingId) return;
+    setTestingId(provider);
     setError(null);
-    setTestStatus({ kind: "running" });
+    setTestStatus((prev) => ({ ...prev, [provider]: { kind: "running" } }));
     try {
-      const result = await api.testAiConnection(settings.aiProvider);
-      setTestStatus({
-        kind: "ok",
-        label: result.providerLabel,
-        reply: result.reply,
-      });
+      await api.testAiConnection(provider);
+      setTestStatus((prev) => ({ ...prev, [provider]: { kind: "ok" } }));
     } catch (e) {
-      setTestStatus({ kind: "error", message: String(e) });
+      setTestStatus((prev) => ({
+        ...prev,
+        [provider]: { kind: "error", message: formatTestError(e) },
+      }));
     } finally {
-      setTesting(false);
+      setTestingId(null);
     }
   };
 
@@ -108,7 +117,6 @@ export function SettingsDialog({ onClose, onSaved }: Props) {
       const label =
         next.aiProvider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI";
       onSaved(`设置已保存（AI：${label}）`);
-      onClose();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -116,81 +124,101 @@ export function SettingsDialog({ onClose, onSaved }: Props) {
     }
   };
 
-  const busy = saving || testing;
+  const busy = saving || testingId !== null;
 
   return (
-    <div className="dialog-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="dialog dialog-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="dialog-header">
-          <h3 id="settings-title">设置</h3>
-          <button type="button" className="btn-ghost btn-icon" onClick={onClose}>
-            ×
+    <div className="settings-page">
+      <div className="settings-page-toolbar">
+        <div className="settings-page-intro">
+          <h2>设置</h2>
+          <p>配置 AI 调用通道与 DOCS 提示词模板。</p>
+        </div>
+        <div className="settings-page-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void onSave()}
+            disabled={!settings || busy}
+          >
+            {saving ? "保存中…" : "保存"}
           </button>
-        </header>
+        </div>
+      </div>
 
-        <p className="dialog-hint">
+      <section className="settings-section">
+        <h3 className="settings-section-title">
           AI 调用通道
           <HelpTip text="生成 Commit、生成任务、实现任务等所有 AI 能力都会走此处选择的 CLI，不会混用。" />
-        </p>
+        </h3>
 
         <div className="provider-list" role="radiogroup" aria-label="AI 调用通道">
           {PROVIDERS.map((p) => {
             const selected = settings?.aiProvider === p.id;
+            const status = testStatus[p.id];
+            const thisTesting = testingId === p.id;
             return (
-              <label
+              <div
                 key={p.id}
                 className={`provider-option${selected ? " is-selected" : ""}`}
               >
-                <input
-                  type="radio"
-                  name="aiProvider"
-                  value={p.id}
-                  checked={selected}
-                  onChange={() => onSelect(p.id)}
-                  disabled={!settings || busy}
-                />
-                <span className="provider-copy">
-                  <strong>{p.title}</strong>
-                  <span>{p.desc}</span>
-                </span>
-              </label>
+                <label className="provider-option-main">
+                  <input
+                    type="radio"
+                    name="aiProvider"
+                    value={p.id}
+                    checked={selected}
+                    onChange={() => onSelect(p.id)}
+                    disabled={!settings || busy}
+                  />
+                  <span className="provider-copy">
+                    <strong>{p.title}</strong>
+                    <span>{p.desc}</span>
+                  </span>
+                </label>
+
+                <div className="provider-test">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => void onTest(p.id)}
+                    disabled={!settings || busy}
+                  >
+                    {thisTesting ? "测试中…" : "测试"}
+                  </button>
+                  {status.kind === "running" && (
+                    <span className="provider-test-result is-running">测试中…</span>
+                  )}
+                  {status.kind === "ok" && (
+                    <span className="provider-test-result is-ok" role="status">
+                      <span className="provider-test-icon" aria-hidden="true">
+                        ✓
+                      </span>
+                      测试成功
+                    </span>
+                  )}
+                  {status.kind === "error" && (
+                    <span className="provider-test-result is-error" role="alert">
+                      <span className="provider-test-icon" aria-hidden="true">
+                        ✕
+                      </span>
+                      <span className="provider-test-fail-copy">
+                        <span className="provider-test-fail-title">测试失败</span>
+                        <span className="provider-test-fail-reason">{status.message}</span>
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
+      </section>
 
-        <div className="provider-test-row">
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => void onTest()}
-            disabled={!settings || busy}
-          >
-            {testing ? "测试中…" : "测试联通"}
-          </button>
-          <HelpTip text="对当前选中的 CLI 发一条最小只读请求，确认已安装、已登录且能正常返回。" />
-        </div>
-        {testStatus.kind === "running" && (
-          <p className="dialog-hint provider-test-msg">正在调用 CLI，请稍候…</p>
-        )}
-        {testStatus.kind === "ok" && (
-          <p className="dialog-ok provider-test-msg">
-            {testStatus.label} 已联通（回复：{testStatus.reply}）
-          </p>
-        )}
-        {testStatus.kind === "error" && (
-          <p className="dialog-error provider-test-msg">{testStatus.message}</p>
-        )}
-
-        <p className="dialog-hint" style={{ marginTop: "1rem" }}>
+      <section className="settings-section">
+        <h3 className="settings-section-title">
           生成任务 · 提示词模板
           <HelpTip text="点「生成任务」时：模板 + goal.md + 项目现状 → AI" />
-        </p>
+        </h3>
         <textarea
           className="settings-textarea"
           value={settings?.goalPromptTemplate ?? ""}
@@ -205,7 +233,6 @@ export function SettingsDialog({ onClose, onSaved }: Props) {
         <button
           type="button"
           className="btn-link"
-          style={{ marginBottom: "0.75rem" }}
           onClick={() =>
             setSettings((prev) =>
               prev ? { ...prev, goalPromptTemplate: DEFAULT_GOAL } : prev,
@@ -215,11 +242,13 @@ export function SettingsDialog({ onClose, onSaved }: Props) {
         >
           恢复「生成任务」默认模板
         </button>
+      </section>
 
-        <p className="dialog-hint">
+      <section className="settings-section">
+        <h3 className="settings-section-title">
           实现任务 · 提示词模板
           <HelpTip text="点「⋯ → 实现」时使用；AI 会在项目目录改代码" />
-        </p>
+        </h3>
         <textarea
           className="settings-textarea"
           value={settings?.taskPromptTemplate ?? ""}
@@ -243,23 +272,9 @@ export function SettingsDialog({ onClose, onSaved }: Props) {
         >
           恢复「实现任务」默认模板
         </button>
+      </section>
 
-        {error && <p className="dialog-error">{error}</p>}
-
-        <footer className="dialog-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
-            取消
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void onSave()}
-            disabled={!settings || busy}
-          >
-            {saving ? "保存中…" : "保存"}
-          </button>
-        </footer>
-      </div>
+      {error && <p className="settings-error">{error}</p>}
     </div>
   );
 }

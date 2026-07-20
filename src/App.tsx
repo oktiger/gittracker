@@ -9,19 +9,18 @@ import { LogDiaryPage } from "./components/LogDiaryPage";
 import { MarkdownEditorDialog } from "./components/MarkdownEditorDialog";
 import { ProjectCard } from "./components/ProjectCard";
 import { RunTargetsDialog } from "./components/RunTargetsDialog";
-import { SettingsDialog } from "./components/SettingsDialog";
+import { SettingsPage } from "./components/SettingsPage";
 import { useLogDiary } from "./hooks/useLogDiary";
 import { useProjects } from "./hooks/useProjects";
 import type { NewLogDiaryEntry, RunTarget } from "./types";
 import "./App.css";
 
-type AppView = "board" | "logDiary";
+type AppView = "board" | "logDiary" | "settings";
 
 type DialogState =
   | { type: "commit"; id: string; name: string }
   | { type: "discard"; id: string; name: string }
   | { type: "changes"; id: string; name: string }
-  | { type: "settings" }
   | { type: "doc"; id: string; relativePath: string; title: string }
   | {
       type: "runTargets";
@@ -155,32 +154,23 @@ function App() {
                 <span className="view-tab-count">{logDiary.entries.length}</span>
               ) : null}
             </button>
+            <button
+              type="button"
+              className={`view-tab${view === "settings" ? " is-active" : ""}`}
+              onClick={() => setView("settings")}
+            >
+              设置
+            </button>
           </nav>
           {view === "board" && (
             <>
               <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
                 刷新
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setDialog({ type: "settings" })}
-              >
-                设置
-              </button>
               <button type="button" className="btn btn-primary" onClick={() => void onAdd()}>
                 添加项目
               </button>
             </>
-          )}
-          {view === "logDiary" && (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setDialog({ type: "settings" })}
-            >
-              设置
-            </button>
           )}
         </div>
       </header>
@@ -194,9 +184,9 @@ function App() {
         </div>
       )}
 
-      {view === "board" ? (
-        <main className="board">
-          {loading ? (
+      <main className="board">
+        {view === "board" &&
+          (loading ? (
             <div className="empty-state">加载中…</div>
           ) : projects.length === 0 ? (
             <div className="empty-state">
@@ -248,10 +238,9 @@ function App() {
                 />
               ))}
             </div>
-          )}
-        </main>
-      ) : (
-        <main className="board">
+          ))}
+
+        {view === "logDiary" && (
           <LogDiaryPage
             entries={logDiary.entries}
             loading={logDiary.loading}
@@ -259,8 +248,10 @@ function App() {
             onRefresh={logDiary.refresh}
             onToast={showToast}
           />
-        </main>
-      )}
+        )}
+
+        {view === "settings" && <SettingsPage onSaved={showToast} />}
+      </main>
 
       {dialog?.type === "commit" && (
         <CommitDialog
@@ -293,13 +284,6 @@ function App() {
           projectId={dialog.id}
           projectName={dialog.name}
           onClose={() => setDialog(null)}
-        />
-      )}
-
-      {dialog?.type === "settings" && (
-        <SettingsDialog
-          onClose={() => setDialog(null)}
-          onSaved={(msg) => showToast(msg)}
         />
       )}
 

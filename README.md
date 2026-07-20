@@ -10,7 +10,7 @@
 - Discard：二次确认、文件列表、默认保留 Untracked、尽量生成 Recovery Patch
 - 文件监听自动刷新 + 60 秒兜底刷新
 - 关闭窗口后驻留系统托盘
-- 设置面板：统一选择 AI 调用通道（Codex CLI / Cursor Agent CLI）
+- 设置页：统一选择 AI 调用通道（Codex CLI / Cursor Agent CLI），各自可点「测试」验证联通
 
 ## 开发
 
