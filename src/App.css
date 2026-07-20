@@ -54,6 +54,37 @@ body {
     linear-gradient(180deg, #edf2f5 0%, #e4ebf0 100%);
 }
 
+.activity-panel-trigger {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.48rem 0.72rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: 0 5px 18px rgba(20, 24, 28, 0.1);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.activity-panel-trigger:hover {
+  border-color: var(--accent);
+  background: #fff;
+  color: var(--accent-strong);
+}
+
+.activity-panel-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .app-shell {
   display: flex;
   align-items: stretch;

@@ -229,6 +229,18 @@ function App() {
     <div className={`app${activityOpen ? " has-ai-side" : ""}`}>
       <div className="app-bg" aria-hidden="true" />
 
+      {!activityOpen && (
+        <button
+          type="button"
+          className="activity-panel-trigger"
+          onClick={() => setActivityOpen(true)}
+          aria-label="打开运行中心侧边栏"
+        >
+          <span aria-hidden="true">▤</span>
+          运行中心
+        </button>
+      )}
+
       <div className="app-shell">
         <AppSidebar
           view={view}
