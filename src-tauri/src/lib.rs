@@ -9,6 +9,7 @@ mod run;
 mod store;
 mod watch;
 
+use run::RunManager;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -22,6 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(WatchState::new())
+        .manage(RunManager::default())
         .invoke_handler(tauri::generate_handler![
             commands::list_projects,
             commands::add_project,
@@ -58,6 +60,8 @@ pub fn run() {
             commands::set_run_targets,
             commands::suggest_run_targets,
             commands::run_project_target,
+            commands::list_run_sessions,
+            commands::stop_run_session,
             commands::list_log_diary,
             commands::append_log_diary,
             commands::clear_log_diary,
@@ -97,6 +101,7 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             "quit" => {
+                app.state::<RunManager>().stop_all();
                 app.exit(0);
             }
             _ => {}

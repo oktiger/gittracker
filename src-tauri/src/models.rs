@@ -17,6 +17,46 @@ pub struct RunTarget {
     pub is_default: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunOutputLine {
+    pub stream: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunSession {
+    pub id: String,
+    pub project_id: String,
+    pub project_name: String,
+    pub target_id: String,
+    pub target_name: String,
+    pub cwd: String,
+    pub command: String,
+    /// starting | running | stopping | exited | failed | stopped
+    pub status: String,
+    pub started_at: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ended_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    #[serde(default)]
+    pub output: Vec<RunOutputLine>,
+    #[serde(default)]
+    pub output_truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunProgressEvent {
+    pub session_id: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<String>,
+    pub text: String,
+}
+
 fn is_false(v: &bool) -> bool {
     !*v
 }

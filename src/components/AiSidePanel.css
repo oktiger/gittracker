@@ -13,6 +13,19 @@
   animation: ai-side-in 0.2s ease;
 }
 
+.ai-session-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.ai-session-card .ai-side-body { flex: none; }
+.ai-session-card .ai-transcript { max-height: 240px; }
+
 @keyframes ai-side-in {
   from {
     opacity: 0;

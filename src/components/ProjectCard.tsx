@@ -22,6 +22,7 @@ interface Props {
   onDiscard: () => void;
   onViewChanges: () => void;
   onRemove: () => void;
+  onRunTarget: (target: RunTarget) => void;
   onOpenDoc: (relativePath: string, title: string, libraryFile?: boolean) => void;
   onConfigureRun: (mode: "identify" | "config") => void;
   onGenerateTasks: () => void;
@@ -57,6 +58,7 @@ export function ProjectCard({
   onDiscard,
   onViewChanges,
   onRemove,
+  onRunTarget: onRunTargetFromCenter,
   onOpenDoc,
   onConfigureRun,
   onGenerateTasks,
@@ -118,18 +120,8 @@ export function ProjectCard({
     setRunBusy(true);
     const t = targets.find((x) => x.id === targetId);
     try {
-      await api.runProjectTarget(project.id, targetId);
-      onLog({
-        kind: "runTarget",
-        status: "ok",
-        title: `运行 · ${t?.name ?? targetId}`,
-        projectId: project.id,
-        projectName: project.name,
-        detail: t
-          ? `cwd: ${t.cwd}\ncommand: ${t.command}\n\n已在系统终端启动（终端输出不回传到本应用）。`
-          : "已在系统终端启动。",
-      });
-      onToast(t ? `已在终端启动：${t.name}` : "已在终端启动");
+      if (!t) throw new Error("未找到启动目标");
+      onRunTargetFromCenter(t);
     } catch (e) {
       const msg = String(e);
       onLog({

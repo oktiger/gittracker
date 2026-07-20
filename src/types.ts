@@ -9,6 +9,34 @@ export interface RunTarget {
   isDefault?: boolean;
 }
 
+export interface RunOutputLine {
+  stream: "stdout" | "stderr" | string;
+  text: string;
+}
+
+export interface RunSession {
+  id: string;
+  projectId: string;
+  projectName: string;
+  targetId: string;
+  targetName: string;
+  cwd: string;
+  command: string;
+  status: "starting" | "running" | "stopping" | "exited" | "failed" | "stopped" | string;
+  startedAt: number;
+  endedAt?: number | null;
+  exitCode?: number | null;
+  output: RunOutputLine[];
+  outputTruncated: boolean;
+}
+
+export interface RunProgressEvent {
+  sessionId: string;
+  kind: "status" | "output" | "exit" | "error" | string;
+  stream?: "stdout" | "stderr" | string | null;
+  text: string;
+}
+
 export interface ProjectRecord {
   id: string;
   name: string;

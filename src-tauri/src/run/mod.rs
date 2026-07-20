@@ -1,9 +1,276 @@
 use crate::error::{AppError, AppResult};
-use crate::models::RunTarget;
+use crate::models::{RunOutputLine, RunProgressEvent, RunSession, RunTarget};
+use chrono::Utc;
+use parking_lot::Mutex;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::io::{BufRead, BufReader};
+use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter};
+
+const MAX_OUTPUT_LINES: usize = 2_000;
+
+#[derive(Default)]
+struct RunState {
+    sessions: std::collections::HashMap<String, RunSession>,
+    children: std::collections::HashMap<String, Child>,
+}
+
+#[derive(Clone, Default)]
+pub struct RunManager {
+    state: Arc<Mutex<RunState>>,
+}
+
+impl RunManager {
+    pub fn list(&self) -> Vec<RunSession> {
+        let mut sessions: Vec<_> = self.state.lock().sessions.values().cloned().collect();
+        sessions.sort_by_key(|session| session.started_at);
+        sessions
+    }
+
+    pub fn start(
+        &self,
+        app: AppHandle,
+        project_id: String,
+        project_name: String,
+        repo: &Path,
+        target: RunTarget,
+    ) -> AppResult<RunSession> {
+        validate_command(&target.command)?;
+        let cwd = resolve_cwd(repo, &target.cwd)?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let mut command = Command::new("/bin/zsh");
+        command
+            .arg("-lc")
+            .arg(&target.command)
+            .current_dir(&cwd)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setpgid(0, 0) == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        let mut child = command
+            .spawn()
+            .map_err(|e| AppError::msg(format!("无法启动命令：{e}")))?;
+        let session = RunSession {
+            id: id.clone(),
+            project_id,
+            project_name,
+            target_id: target.id,
+            target_name: target.name,
+            cwd: cwd.to_string_lossy().to_string(),
+            command: target.command,
+            status: "running".into(),
+            started_at: Utc::now().timestamp(),
+            ended_at: None,
+            exit_code: None,
+            output: Vec::new(),
+            output_truncated: false,
+        };
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        {
+            let mut state = self.state.lock();
+            state.sessions.insert(id.clone(), session.clone());
+            state.children.insert(id.clone(), child);
+        }
+        self.emit(&app, &id, "status", None, "命令已启动");
+        if let Some(stdout) = stdout {
+            self.read_stream(app.clone(), id.clone(), "stdout", stdout);
+        }
+        if let Some(stderr) = stderr {
+            self.read_stream(app.clone(), id.clone(), "stderr", stderr);
+        }
+        self.watch_exit(app, id);
+        Ok(session)
+    }
+
+    pub fn stop(&self, app: &AppHandle, id: &str) -> AppResult<()> {
+        let pid = {
+            let mut state = self.state.lock();
+            let pid = state
+                .children
+                .get(id)
+                .map(Child::id)
+                .ok_or_else(|| AppError::msg("运行会话已结束"))?;
+            let session = state
+                .sessions
+                .get_mut(id)
+                .ok_or_else(|| AppError::msg("未找到运行会话"))?;
+            session.status = "stopping".into();
+            pid
+        };
+        let result = unsafe { libc::kill(-(pid as i32), libc::SIGTERM) };
+        if result == -1 {
+            return Err(AppError::msg(format!(
+                "无法停止命令：{}",
+                std::io::Error::last_os_error()
+            )));
+        }
+        self.emit(app, id, "status", None, "正在停止命令…");
+        Ok(())
+    }
+
+    pub fn stop_all(&self) {
+        let ids: Vec<_> = self.state.lock().children.keys().cloned().collect();
+        for id in ids {
+            let _ = self.stop_all_one(&id);
+        }
+    }
+
+    fn stop_all_one(&self, id: &str) -> AppResult<()> {
+        let pid = self
+            .state
+            .lock()
+            .children
+            .get(id)
+            .map(Child::id)
+            .ok_or_else(|| AppError::msg("运行会话已结束"))?;
+        if unsafe { libc::kill(-(pid as i32), libc::SIGTERM) } == -1 {
+            return Err(AppError::msg(std::io::Error::last_os_error().to_string()));
+        }
+        Ok(())
+    }
+
+    fn read_stream<R: std::io::Read + Send + 'static>(
+        &self,
+        app: AppHandle,
+        id: String,
+        stream: &'static str,
+        reader: R,
+    ) {
+        let manager = self.clone();
+        thread::spawn(move || {
+            for line in BufReader::new(reader).lines() {
+                match line {
+                    Ok(text) => manager.push_output(&app, &id, stream, text),
+                    Err(err) => {
+                        manager.emit(
+                            &app,
+                            &id,
+                            "error",
+                            Some(stream),
+                            &format!("读取输出失败：{err}"),
+                        );
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    fn watch_exit(&self, app: AppHandle, id: String) {
+        let manager = self.clone();
+        thread::spawn(move || loop {
+            let status = {
+                let mut state = manager.state.lock();
+                let Some(child) = state.children.get_mut(&id) else {
+                    return;
+                };
+                match child.try_wait() {
+                    Ok(Some(status)) => {
+                        state.children.remove(&id);
+                        Some(Ok(status))
+                    }
+                    Ok(None) => None,
+                    Err(err) => {
+                        state.children.remove(&id);
+                        Some(Err(err))
+                    }
+                }
+            };
+            match status {
+                None => thread::sleep(Duration::from_millis(250)),
+                Some(Ok(exit)) => {
+                    let was_stopping = {
+                        let mut state = manager.state.lock();
+                        let Some(session) = state.sessions.get_mut(&id) else {
+                            return;
+                        };
+                        let stopping = session.status == "stopping";
+                        session.status = if stopping {
+                            "stopped".into()
+                        } else if exit.success() {
+                            "exited".into()
+                        } else {
+                            "failed".into()
+                        };
+                        session.ended_at = Some(Utc::now().timestamp());
+                        session.exit_code = exit.code();
+                        stopping
+                    };
+                    let message = if was_stopping {
+                        "命令已停止".into()
+                    } else if exit.success() {
+                        "命令已结束".into()
+                    } else {
+                        format!(
+                            "命令异常结束（退出码 {}）",
+                            exit.code()
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "未知".into())
+                        )
+                    };
+                    manager.emit(&app, &id, "exit", None, &message);
+                    return;
+                }
+                Some(Err(err)) => {
+                    if let Some(session) = manager.state.lock().sessions.get_mut(&id) {
+                        session.status = "failed".into();
+                        session.ended_at = Some(Utc::now().timestamp());
+                    }
+                    manager.emit(
+                        &app,
+                        &id,
+                        "error",
+                        None,
+                        &format!("等待命令结束失败：{err}"),
+                    );
+                    return;
+                }
+            }
+        });
+    }
+
+    fn push_output(&self, app: &AppHandle, id: &str, stream: &str, text: String) {
+        {
+            let mut state = self.state.lock();
+            let Some(session) = state.sessions.get_mut(id) else {
+                return;
+            };
+            if session.output.len() >= MAX_OUTPUT_LINES {
+                session.output.remove(0);
+                session.output_truncated = true;
+            }
+            session.output.push(RunOutputLine {
+                stream: stream.into(),
+                text: text.clone(),
+            });
+        }
+        self.emit(app, id, "output", Some(stream), &text);
+    }
+
+    fn emit(&self, app: &AppHandle, id: &str, kind: &str, stream: Option<&str>, text: &str) {
+        let _ = app.emit(
+            "run-progress",
+            RunProgressEvent {
+                session_id: id.into(),
+                kind: kind.into(),
+                stream: stream.map(str::to_string),
+                text: text.into(),
+            },
+        );
+    }
+}
 
 /// 收集仓库内与启动相关的上下文，供 AI 识别使用（控制体量）。
 pub fn gather_context(repo: &Path) -> AppResult<String> {
@@ -130,7 +397,13 @@ fn summarize_package_json(path: &Path) -> String {
     }
     if let Some(scripts) = v.get("scripts").and_then(|x| x.as_object()) {
         let keys = [
-            "dev", "start", "preview", "build", "tauri", "tauri:dev", "tauri:build",
+            "dev",
+            "start",
+            "preview",
+            "build",
+            "tauri",
+            "tauri:dev",
+            "tauri:build",
         ];
         let mut shown = Vec::new();
         for k in keys {
@@ -164,10 +437,7 @@ fn read_head(path: &Path, max_lines: usize) -> String {
     let Ok(raw) = fs::read_to_string(path) else {
         return String::new();
     };
-    raw.lines()
-        .take(max_lines)
-        .collect::<Vec<_>>()
-        .join("\n")
+    raw.lines().take(max_lines).collect::<Vec<_>>().join("\n")
 }
 
 /// 将相对 cwd 解析为仓库内的绝对路径，禁止逃出仓库。
@@ -219,63 +489,6 @@ pub fn validate_command(command: &str) -> AppResult<()> {
         return Err(AppError::msg("命令不能包含换行"));
     }
     Ok(())
-}
-
-/// 在系统终端中执行：cd 到目标目录后运行命令（macOS：生成 .command 并用 open 打开）。
-pub fn run_in_terminal(repo: &Path, target: &RunTarget) -> AppResult<()> {
-    validate_command(&target.command)?;
-    let cwd = resolve_cwd(repo, &target.cwd)?;
-    let script = format!(
-        "#!/bin/zsh\ncd {} || exit 1\necho \"% cd {} && {}\"\n{}\necho\necho \"[GitTracker] 命令已结束，可关闭此窗口\"\nexec zsh\n",
-        shell_single_quote(&cwd.to_string_lossy()),
-        shell_single_quote(&cwd.to_string_lossy()),
-        target.command.replace('"', "\\\""),
-        target.command
-    );
-
-    let tmp_dir = std::env::temp_dir().join("gittracker-run");
-    fs::create_dir_all(&tmp_dir)?;
-    let file = tmp_dir.join(format!(
-        "run-{}-{}.command",
-        uuid::Uuid::new_v4(),
-        sanitize_filename(&target.name)
-    ));
-    fs::write(&file, script)?;
-    let mut perms = fs::metadata(&file)?.permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&file, perms)?;
-
-    let status = Command::new("open")
-        .arg(&file)
-        .status()
-        .map_err(|e| AppError::msg(format!("无法打开系统终端：{e}")))?;
-    if !status.success() {
-        return Err(AppError::msg("打开系统终端失败"));
-    }
-    Ok(())
-}
-
-fn shell_single_quote(s: &str) -> String {
-    format!("'{}'", s.replace('\'', "'\\''"))
-}
-
-fn sanitize_filename(name: &str) -> String {
-    let s: String = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '-'
-            }
-        })
-        .take(32)
-        .collect();
-    if s.is_empty() {
-        "target".into()
-    } else {
-        s
-    }
 }
 
 /// 从 AI 原始输出中解析 RunTarget 列表。
@@ -331,11 +544,7 @@ pub fn parse_suggested_targets(raw: &str) -> AppResult<Vec<RunTarget>> {
             id: uuid::Uuid::new_v4().to_string(),
             name,
             description,
-            cwd: if cwd.is_empty() {
-                ".".into()
-            } else {
-                cwd
-            },
+            cwd: if cwd.is_empty() { ".".into() } else { cwd },
             command,
             kind,
             is_default,
@@ -426,13 +635,7 @@ fn is_web_dir(dir: &Path) -> bool {
 /// 不依赖 AI：从 package.json scripts 启发式生成启动目标。
 pub fn suggest_from_fs(repo: &Path) -> AppResult<Vec<RunTarget>> {
     let mut out = Vec::new();
-    let preferred = [
-        "dev",
-        "start",
-        "tauri:dev",
-        "tauri",
-        "preview",
-    ];
+    let preferred = ["dev", "start", "tauri:dev", "tauri", "preview"];
 
     for (rel, dir) in package_dirs(repo) {
         let pkg = dir.join("package.json");
@@ -493,7 +696,10 @@ pub fn suggest_from_fs(repo: &Path) -> AppResult<Vec<RunTarget>> {
             };
 
             // 跳过重复名称
-            if out.iter().any(|t: &RunTarget| t.name == name && t.cwd == rel) {
+            if out
+                .iter()
+                .any(|t: &RunTarget| t.name == name && t.cwd == rel)
+            {
                 continue;
             }
 
@@ -523,12 +729,7 @@ pub fn suggest_from_fs(repo: &Path) -> AppResult<Vec<RunTarget>> {
             });
 
             // 每个目录优先只收 1～2 个常用脚本，避免刷屏
-            if out
-                .iter()
-                .filter(|t| t.cwd == rel)
-                .count()
-                >= 2
-            {
+            if out.iter().filter(|t| t.cwd == rel).count() >= 2 {
                 break;
             }
         }
@@ -620,15 +821,9 @@ fn push_shell_scripts(repo: &Path, out: &mut Vec<RunTarget>) {
                 format!("执行 {name}，用脚本启动无界面后台服务"),
             )
         } else if name.starts_with("run") {
-            (
-                format!("脚本启动 · {name}"),
-                format!("执行仓库脚本 {name}"),
-            )
+            (format!("脚本启动 · {name}"), format!("执行仓库脚本 {name}"))
         } else {
-            (
-                format!("运行脚本 · {name}"),
-                format!("执行仓库脚本 {name}"),
-            )
+            (format!("运行脚本 · {name}"), format!("执行仓库脚本 {name}"))
         };
         push_unique(
             out,
@@ -765,11 +960,7 @@ fn push_python_targets(repo: &Path, out: &mut Vec<RunTarget>) {
                     "启动菜单栏",
                     "以 Python 直接跑菜单栏界面（开发用，未打包）",
                 ),
-                (
-                    "app.py",
-                    "启动 APP",
-                    "以 Python 直接跑应用入口（开发用）",
-                ),
+                ("app.py", "启动 APP", "以 Python 直接跑应用入口（开发用）"),
             ] {
                 if pkg_dir.join(module_file).is_file() {
                     let mod_name = module_file.trim_end_matches(".py");
@@ -796,9 +987,7 @@ fn push_python_targets(repo: &Path, out: &mut Vec<RunTarget>) {
             RunTarget {
                 id: uuid::Uuid::new_v4().to_string(),
                 name: "打包 APP".into(),
-                description: Some(
-                    "用 py2app 打成 macOS .app（-A 开发别名模式，便于调试）".into(),
-                ),
+                description: Some("用 py2app 打成 macOS .app（-A 开发别名模式，便于调试）".into()),
                 cwd: ".".into(),
                 command: format!("{py} setup.py py2app -A"),
                 kind: Some("build".into()),

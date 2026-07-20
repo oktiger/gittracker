@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "./api";
-import { AiSidePanel } from "./components/AiSidePanel";
+import { ActivitySidePanel, type AiActivity } from "./components/ActivitySidePanel";
 import { AppSidebar, type NavView } from "./components/AppSidebar";
 import { ChangesDialog } from "./components/ChangesDialog";
 import { CommitDialog } from "./components/CommitDialog";
@@ -14,8 +14,8 @@ import { ProjectCard } from "./components/ProjectCard";
 import { SettingsPage } from "./components/SettingsPage";
 import { useLogDiary } from "./hooks/useLogDiary";
 import { useProjects } from "./hooks/useProjects";
-import type { AiPanelSession } from "./lib/aiPanel";
-import type { NewLogDiaryEntry } from "./types";
+import { newAiSessionId, type AiPanelSession } from "./lib/aiPanel";
+import type { NewLogDiaryEntry, RunSession, RunTarget } from "./types";
 import "./App.css";
 
 type AppView = NavView | "project";
@@ -42,8 +42,9 @@ function App() {
   const [view, setView] = useState<AppView>("board");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [sidePanel, setSidePanel] = useState<AiPanelSession | null>(null);
-  const [panelEpoch, setPanelEpoch] = useState(0);
+  const [aiSessions, setAiSessions] = useState<AiActivity[]>([]);
+  const [runSessions, setRunSessions] = useState<RunSession[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [docsEpoch, setDocsEpoch] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -60,9 +61,31 @@ function App() {
   );
 
   const openAiSession = useCallback((session: AiPanelSession) => {
-    setPanelEpoch((n) => n + 1);
-    setSidePanel(session);
+    setAiSessions((items) => [...items, { id: newAiSessionId(), session }]);
+    setActivityOpen(true);
   }, []);
+
+  useEffect(() => {
+    void api.listRunSessions().then(setRunSessions).catch(() => undefined);
+  }, []);
+
+  const onRunTarget = async (project: { id: string; name: string }, target: RunTarget) => {
+    setActivityOpen(true);
+    try {
+      const session = await api.runProjectTarget(project.id, target.id);
+      setRunSessions((items) => [...items, session]);
+      appendLog({
+        kind: "runTarget",
+        status: "running",
+        title: `运行 · ${target.name}`,
+        projectId: project.id,
+        projectName: project.name,
+        detail: `cwd: ${target.cwd}\ncommand: ${target.command}\n\n已在运行中心启动，输出会实时显示。`,
+      });
+    } catch (e) {
+      setError(String(e));
+    }
+  };
 
   useEffect(() => {
     const checkSchedule = async () => {
@@ -152,6 +175,7 @@ function App() {
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
       onRemove={() => void onRemove(p.id, p.name)}
+      onRunTarget={(target) => void onRunTarget(p, target)}
       onOpenDoc={(relativePath, title, libraryFile = false) =>
         setDialog({
           type: "doc",
@@ -202,7 +226,7 @@ function App() {
   );
 
   return (
-    <div className={`app${sidePanel ? " has-ai-side" : ""}`}>
+    <div className={`app${activityOpen ? " has-ai-side" : ""}`}>
       <div className="app-bg" aria-hidden="true" />
 
       <div className="app-shell">
@@ -430,26 +454,26 @@ function App() {
         />
       )}
 
-      {sidePanel && (
-        <AiSidePanel
-          key={panelEpoch}
-          session={sidePanel}
-          onClose={() => {
-            if (sidePanel.kind === "oneClick") {
-              setBusy(sidePanel.projectId, null);
-            }
-            setSidePanel(null);
+      {activityOpen && (
+        <ActivitySidePanel
+          aiSessions={aiSessions}
+          runSessions={runSessions}
+          onClose={() => setActivityOpen(false)}
+          onDismissAi={(id, session) => {
+            if (session.kind === "oneClick") setBusy(session.projectId, null);
+            setAiSessions((items) => items.filter((item) => item.id !== id));
           }}
+          onRunSessionsChange={setRunSessions}
           onLog={appendLog}
           onTargetsSaved={(projectId, targets) => {
             showToast(`已保存 ${targets.length} 个启动目标`);
             void refreshOne(projectId);
           }}
-          onProjectRefresh={(projectId) => {
-            if (sidePanel.kind === "oneClick") {
+          onProjectRefresh={(projectId, session) => {
+            if (session.kind === "oneClick") {
               setBusy(projectId, null);
             }
-            if (sidePanel.kind === "generateTasks" || sidePanel.kind === "runTask") {
+            if (session.kind === "generateTasks" || session.kind === "runTask") {
               setDocsEpoch((n) => n + 1);
             }
             void refreshOne(projectId);

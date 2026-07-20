@@ -20,6 +20,7 @@ type Draft = RunTarget & { checked: boolean };
 
 interface Props {
   session: AiPanelSession;
+  embedded?: boolean;
   onClose: () => void;
   onLog: (entry: NewLogDiaryEntry) => void;
   onTargetsSaved?: (projectId: string, targets: RunTarget[]) => void;
@@ -129,6 +130,7 @@ function bootLine(session: AiPanelSession): AiTranscriptLine {
 
 export function AiSidePanel({
   session,
+  embedded = false,
   onClose,
   onLog,
   onTargetsSaved,
@@ -618,7 +620,7 @@ export function AiSidePanel({
   };
 
   return (
-    <aside className="ai-side-panel" aria-label={title}>
+    <section className={embedded ? "ai-session-card" : "ai-side-panel"} aria-label={title}>
       <header className="ai-side-header">
         <div className="ai-side-heading">
           <h3>{title}</h3>
@@ -819,6 +821,6 @@ export function AiSidePanel({
           </footer>
         </div>
       )}
-    </aside>
+    </section>
   );
 }

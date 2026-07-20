@@ -6,7 +6,7 @@ use crate::log_diary;
 use crate::models::{
     AiConnectionTestResult, AiProvider, AppSettings, DiscardPreview, DiscardResult, DocsOverview,
     DocumentLibrary, GenerateTasksResult, LogDiaryEntry, NewLogDiaryEntry, OneClickResult,
-    ProjectRecord, ProjectStatus, RunTarget, RunTaskResult, SuggestRunTargetsResult,
+    ProjectRecord, ProjectStatus, RunSession, RunTarget, RunTaskResult, SuggestRunTargetsResult,
 };
 use crate::run;
 use crate::store;
@@ -490,7 +490,27 @@ pub fn run_project_target(id: String, target_id: String) -> AppResult<()> {
         .find(|t| t.id == target_id)
         .cloned()
         .ok_or_else(|| AppError::msg("未找到该启动目标"))?;
-    run::run_in_terminal(Path::new(&project.path), &target)
+    manager.start(
+        app,
+        project.id,
+        project.name,
+        Path::new(&project.path),
+        target,
+    )
+}
+
+#[tauri::command]
+pub fn list_run_sessions(manager: State<run::RunManager>) -> Vec<RunSession> {
+    manager.list()
+}
+
+#[tauri::command]
+pub fn stop_run_session(
+    app: AppHandle,
+    manager: State<run::RunManager>,
+    session_id: String,
+) -> AppResult<()> {
+    manager.stop(&app, &session_id)
 }
 
 #[tauri::command]

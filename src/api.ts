@@ -14,6 +14,7 @@ import type {
   ProjectStatus,
   FileChange,
   RunTarget,
+  RunSession,
   RunTaskResult,
   SuggestRunTargetsResult,
   AiProvider,
@@ -90,7 +91,10 @@ export const api = {
       sessionId,
     }),
   runProjectTarget: (id: string, targetId: string) =>
-    invoke<void>("run_project_target", { id, targetId }),
+    invoke<RunSession>("run_project_target", { id, targetId }),
+  listRunSessions: () => invoke<RunSession[]>("list_run_sessions"),
+  stopRunSession: (sessionId: string) =>
+    invoke<void>("stop_run_session", { sessionId }),
   listLogDiary: () => invoke<LogDiaryEntry[]>("list_log_diary"),
   appendLogDiary: (entry: NewLogDiaryEntry) =>
     invoke<LogDiaryEntry>("append_log_diary", { entry }),

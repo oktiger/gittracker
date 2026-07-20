@@ -1295,6 +1295,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dirs",
+ "libc",
  "notify",
  "notify-debouncer-mini",
  "parking_lot",
