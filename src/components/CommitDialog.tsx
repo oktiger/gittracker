@@ -10,6 +10,8 @@ interface Props {
   onClose: () => void;
   onDone: () => void;
   onLog: (entry: NewLogDiaryEntry) => void;
+  /** 打开右侧 AI 侧栏生成 message，成功后 resolve 文案 */
+  onAiGenerate: () => Promise<string>;
 }
 
 export function CommitDialog({
@@ -18,6 +20,7 @@ export function CommitDialog({
   onClose,
   onDone,
   onLog,
+  onAiGenerate,
 }: Props) {
   const [message, setMessage] = useState("");
   const [alsoPush, setAlsoPush] = useState(false);
@@ -47,28 +50,13 @@ export function CommitDialog({
     setGenerating(true);
     setError(null);
     try {
-      const msg = await api.generateCommitMessage(projectId);
+      const msg = await onAiGenerate();
       setMessage(msg);
-      onLog({
-        kind: "generateCommit",
-        status: "ok",
-        title: `AI Generate · ${projectName}`,
-        projectId,
-        projectName,
-        detail: `生成的 Commit message:\n${msg}`,
-      });
     } catch (e) {
       const err = String(e);
-      onLog({
-        kind: "generateCommit",
-        status: "error",
-        title: `AI Generate 失败 · ${projectName}`,
-        projectId,
-        projectName,
-        detail: "根据 Staged Diff，经统一 AI 通道生成 Commit message。",
-        error: err,
-      });
-      setError(err);
+      if (!err.includes("已取消")) {
+        setError(err);
+      }
     } finally {
       setGenerating(false);
     }

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import type { AiPanelSession } from "../lib/aiPanel";
 import { HelpTip } from "./HelpTip";
 import type { AiProvider, AppSettings } from "../types";
 import "./SettingsPage.css";
 
 interface Props {
   onSaved: (msg: string) => void;
+  openAiSession: (session: AiPanelSession) => void;
 }
 
 const PROVIDERS: {
@@ -68,7 +70,7 @@ function formatTestError(err: unknown): string {
   return raw.replace(/^Error:\s*/i, "").trim() || "未知错误";
 }
 
-export function SettingsPage({ onSaved }: Props) {
+export function SettingsPage({ onSaved, openAiSession }: Props) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [testingId, setTestingId] = useState<AiProvider | null>(null);
@@ -89,22 +91,29 @@ export function SettingsPage({ onSaved }: Props) {
     setSettings((prev) => (prev ? { ...prev, aiProvider } : prev));
   };
 
-  const onTest = async (provider: AiProvider) => {
+  const onTest = (provider: AiProvider) => {
     if (!settings || testingId) return;
     setTestingId(provider);
     setError(null);
     setTestStatus((prev) => ({ ...prev, [provider]: { kind: "running" } }));
-    try {
-      await api.testAiConnection(provider);
-      setTestStatus((prev) => ({ ...prev, [provider]: { kind: "ok" } }));
-    } catch (e) {
-      setTestStatus((prev) => ({
-        ...prev,
-        [provider]: { kind: "error", message: formatTestError(e) },
-      }));
-    } finally {
-      setTestingId(null);
-    }
+    openAiSession({
+      kind: "testConnection",
+      provider,
+      onResult: (ok, detail) => {
+        setTestingId(null);
+        if (ok) {
+          setTestStatus((prev) => ({ ...prev, [provider]: { kind: "ok" } }));
+        } else {
+          setTestStatus((prev) => ({
+            ...prev,
+            [provider]: {
+              kind: "error",
+              message: formatTestError(detail ?? "测试失败"),
+            },
+          }));
+        }
+      },
+    });
   };
 
   const onSave = async () => {
@@ -174,7 +183,7 @@ export function SettingsPage({ onSaved }: Props) {
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
-                    onClick={() => void onTest(p.id)}
+                    onClick={() => onTest(p.id)}
                     disabled={!settings || busy}
                   >
                     {thisTesting ? "测试中…" : "测试"}

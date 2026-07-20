@@ -81,12 +81,23 @@ pub fn stage_all_changes(id: String) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn generate_commit_message(id: String) -> AppResult<String> {
-    let project = store::find_project(&id)?;
-    let repo = Path::new(&project.path);
-    git::stage_all(repo)?;
-    let diff = git::staged_diff(repo)?;
-    ai::generate_commit_message(&diff)
+pub async fn generate_commit_message(
+    app: AppHandle,
+    id: String,
+    session_id: String,
+) -> AppResult<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        progress("status", "正在读取项目信息…");
+        let project = store::find_project(&id)?;
+        let repo = Path::new(&project.path);
+        progress("status", "正在暂存全部改动…");
+        git::stage_all(repo)?;
+        let diff = git::staged_diff(repo)?;
+        ai::generate_commit_message(&diff, Some(&progress))
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
 }
 
 #[tauri::command]
@@ -111,21 +122,38 @@ pub fn commit_and_push(id: String, message: String) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn one_click_commit(id: String) -> AppResult<OneClickResult> {
-    let project = store::find_project(&id)?;
-    let repo = Path::new(&project.path);
+pub async fn one_click_commit(
+    app: AppHandle,
+    id: String,
+    session_id: String,
+) -> AppResult<OneClickResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        progress("status", "正在读取项目信息…");
+        let project = store::find_project(&id)?;
+        let repo = Path::new(&project.path);
 
-    // 自动暂存全部改动后再生成 message / commit / push
-    git::stage_all(repo)?;
-    let diff = git::staged_diff(repo)?;
-    let message = ai::generate_commit_message(&diff)?;
-    git::commit(repo, &message)?;
-    git::push(repo)?;
+        progress("status", "正在暂存全部改动…");
+        git::stage_all(repo)?;
+        let diff = git::staged_diff(repo)?;
 
-    Ok(OneClickResult {
-        message,
-        pushed: true,
+        progress("status", "AI 正在生成 Commit message…");
+        let message = ai::generate_commit_message(&diff, Some(&progress))?;
+
+        progress("status", "正在提交…");
+        git::commit(repo, &message)?;
+
+        progress("status", "正在推送到远程…");
+        git::push(repo)?;
+
+        progress("status", "一键提交完成");
+        Ok(OneClickResult {
+            message,
+            pushed: true,
+        })
     })
+    .await
+    .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
 }
 
 #[tauri::command]
@@ -167,8 +195,17 @@ pub fn update_settings(settings: AppSettings) -> AppResult<AppSettings> {
 }
 
 #[tauri::command]
-pub fn test_ai_connection(provider: AiProvider) -> AppResult<AiConnectionTestResult> {
-    ai::test_connection(provider)
+pub async fn test_ai_connection(
+    app: AppHandle,
+    provider: AiProvider,
+    session_id: String,
+) -> AppResult<AiConnectionTestResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        ai::test_connection(provider, Some(&progress))
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
 }
 
 #[tauri::command]
@@ -209,60 +246,94 @@ pub fn open_doc_external(app: AppHandle, id: String, relative_path: String) -> A
 }
 
 #[tauri::command]
-pub fn generate_tasks_from_goal(id: String) -> AppResult<GenerateTasksResult> {
-    let project = store::find_project(&id)?;
-    let repo = Path::new(&project.path);
-    let settings = store::get_settings()?;
+pub async fn generate_tasks_from_goal(
+    app: AppHandle,
+    id: String,
+    session_id: String,
+) -> AppResult<GenerateTasksResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        progress("status", "正在读取项目与 goal.md…");
+        let project = store::find_project(&id)?;
+        let repo = Path::new(&project.path);
+        let settings = store::get_settings()?;
 
-    let goal_rel = "Goal/goal.md";
-    let goal_md = docs::read_doc_file(repo, goal_rel)?;
-    if goal_md.trim().is_empty() {
-        return Err(AppError::msg("goal.md 为空，请先填写项目目标"));
-    }
-
-    let status = git::fetch_project_status(&project);
-    let context = format!(
-        "项目路径：{}\n项目名称：{}\n当前分支：{}\n工作区：{}",
-        project.path,
-        project.name,
-        if status.branch.is_empty() {
-            "—"
-        } else {
-            &status.branch
-        },
-        if status.clean {
-            "干净"
-        } else {
-            "有未提交改动"
+        let goal_rel = "Goal/goal.md";
+        let goal_md = docs::read_doc_file(repo, goal_rel)?;
+        if goal_md.trim().is_empty() {
+            return Err(AppError::msg("goal.md 为空，请先填写项目目标"));
         }
-    );
 
-    let ai_out = ai::run_goal(repo, &settings.goal_prompt_template, &goal_md, &context)?;
-    let created = docs::write_tasks_from_ai_output(repo, &ai_out)?;
-    let overview = docs::list_docs(repo)?;
-    Ok(GenerateTasksResult { created, overview })
+        let status = git::fetch_project_status(&project);
+        let context = format!(
+            "项目路径：{}\n项目名称：{}\n当前分支：{}\n工作区：{}",
+            project.path,
+            project.name,
+            if status.branch.is_empty() {
+                "—"
+            } else {
+                &status.branch
+            },
+            if status.clean {
+                "干净"
+            } else {
+                "有未提交改动"
+            }
+        );
+
+        progress("status", "AI 正在根据目标拆分任务…");
+        let ai_out = ai::run_goal(
+            repo,
+            &settings.goal_prompt_template,
+            &goal_md,
+            &context,
+            Some(&progress),
+        )?;
+        progress("status", "正在写入任务文件…");
+        let created = docs::write_tasks_from_ai_output(repo, &ai_out)?;
+        let overview = docs::list_docs(repo)?;
+        progress("status", &format!("已生成 {created} 个任务"));
+        Ok(GenerateTasksResult { created, overview })
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
 }
 
 #[tauri::command]
-pub fn run_docs_task(id: String, relative_path: String) -> AppResult<RunTaskResult> {
-    let project = store::find_project(&id)?;
-    let repo = Path::new(&project.path);
-    let settings = store::get_settings()?;
+pub async fn run_docs_task(
+    app: AppHandle,
+    id: String,
+    relative_path: String,
+    session_id: String,
+) -> AppResult<RunTaskResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        progress("status", "正在读取任务文档…");
+        let project = store::find_project(&id)?;
+        let repo = Path::new(&project.path);
+        let settings = store::get_settings()?;
 
-    let task_md = docs::read_doc_file(repo, &relative_path)?;
-    if task_md.trim().is_empty() {
-        return Err(AppError::msg("任务文档为空"));
-    }
+        let task_md = docs::read_doc_file(repo, &relative_path)?;
+        if task_md.trim().is_empty() {
+            return Err(AppError::msg("任务文档为空"));
+        }
 
-    let summary = ai::run_task(
-        repo,
-        &settings.task_prompt_template,
-        &task_md,
-        &relative_path,
-    )?;
-    docs::append_task_result(repo, &relative_path, &summary)?;
-    let overview = docs::list_docs(repo)?;
-    Ok(RunTaskResult { summary, overview })
+        progress("status", "AI 正在实现任务…");
+        let summary = ai::run_task(
+            repo,
+            &settings.task_prompt_template,
+            &task_md,
+            &relative_path,
+            Some(&progress),
+        )?;
+        progress("status", "正在写入任务结果…");
+        docs::append_task_result(repo, &relative_path, &summary)?;
+        let overview = docs::list_docs(repo)?;
+        progress("status", "任务执行完成");
+        Ok(RunTaskResult { summary, overview })
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
 }
 
 #[tauri::command]

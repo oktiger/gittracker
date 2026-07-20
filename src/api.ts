@@ -33,15 +33,15 @@ export const api = {
     invoke<string>("get_file_diff", { id, path, staged }),
   getStagedDiff: (id: string) => invoke<string>("get_staged_diff", { id }),
   stageAllChanges: (id: string) => invoke<void>("stage_all_changes", { id }),
-  generateCommitMessage: (id: string) =>
-    invoke<string>("generate_commit_message", { id }),
+  generateCommitMessage: (id: string, sessionId: string) =>
+    invoke<string>("generate_commit_message", { id, sessionId }),
   commitProject: (id: string, message: string) =>
     invoke<void>("commit_project", { id, message }),
   pushProject: (id: string) => invoke<void>("push_project", { id }),
   commitAndPush: (id: string, message: string) =>
     invoke<void>("commit_and_push", { id, message }),
-  oneClickCommit: (id: string) =>
-    invoke<OneClickResult>("one_click_commit", { id }),
+  oneClickCommit: (id: string, sessionId: string) =>
+    invoke<OneClickResult>("one_click_commit", { id, sessionId }),
   previewDiscard: (id: string) =>
     invoke<DiscardPreview>("preview_discard", { id }),
   discardChanges: (id: string, paths: string[], includeUntracked: boolean) =>
@@ -53,8 +53,11 @@ export const api = {
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),
-  testAiConnection: (provider: AiProvider) =>
-    invoke<AiConnectionTestResult>("test_ai_connection", { provider }),
+  testAiConnection: (provider: AiProvider, sessionId: string) =>
+    invoke<AiConnectionTestResult>("test_ai_connection", {
+      provider,
+      sessionId,
+    }),
   listDocs: (id: string) => invoke<DocsOverview>("list_docs", { id }),
   ensureDocs: (id: string) => invoke<DocsOverview>("ensure_docs", { id }),
   readDocFile: (id: string, relativePath: string) =>
@@ -63,10 +66,13 @@ export const api = {
     invoke<void>("write_doc_file", { id, relativePath, content }),
   openDocExternal: (id: string, relativePath: string) =>
     invoke<void>("open_doc_external", { id, relativePath }),
-  generateTasksFromGoal: (id: string) =>
-    invoke<GenerateTasksResult>("generate_tasks_from_goal", { id }),
-  runDocsTask: (id: string, relativePath: string) =>
-    invoke<RunTaskResult>("run_docs_task", { id, relativePath }),
+  generateTasksFromGoal: (id: string, sessionId: string) =>
+    invoke<GenerateTasksResult>("generate_tasks_from_goal", {
+      id,
+      sessionId,
+    }),
+  runDocsTask: (id: string, relativePath: string, sessionId: string) =>
+    invoke<RunTaskResult>("run_docs_task", { id, relativePath, sessionId }),
   setRunTargets: (id: string, targets: RunTarget[]) =>
     invoke<RunTarget[]>("set_run_targets", { id, targets }),
   suggestRunTargets: (id: string, sessionId: string) =>

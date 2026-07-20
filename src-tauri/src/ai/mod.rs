@@ -48,16 +48,23 @@ fn emit(progress: Option<&ProgressSink>, kind: &str, text: &str) {
 
 /// 设置页连通性测试：对指定 Provider 发一条最小只读请求，确认 CLI 已安装、已登录且可返回内容。
 /// 传入的 `provider` 为当前界面选中项（可尚未保存），便于切换后立刻验证。
-pub fn test_connection(provider: AiProvider) -> AppResult<AiConnectionTestResult> {
+pub fn test_connection(
+    provider: AiProvider,
+    progress: Option<&ProgressSink>,
+) -> AppResult<AiConnectionTestResult> {
+    let label = label_for(provider);
+    emit(progress, "status", &format!("正在测试 {label}…"));
+
     let prompt = "你是连通性测试助手。请只回复两个字：连通。不要解释、不要代码块、不要执行任何命令。";
     let reply = match provider {
-        AiProvider::Codex => run_codex(prompt, None, false, None)?,
-        AiProvider::CursorAgent => run_cursor_agent(prompt, None, false, None)?,
+        AiProvider::Codex => run_codex(prompt, None, false, progress)?,
+        AiProvider::CursorAgent => run_cursor_agent(prompt, None, false, progress)?,
     };
     let reply = truncate_for_ui(&reply, 120);
+    emit(progress, "assistant", &reply);
     Ok(AiConnectionTestResult {
         provider,
-        provider_label: label_for(provider).to_string(),
+        provider_label: label.to_string(),
         reply,
     })
 }
@@ -82,10 +89,20 @@ fn truncate_for_ui(s: &str, max_chars: usize) -> String {
 
 /// 统一 AI 入口：按设置中的 AI Provider 路由到 Codex CLI 或 Cursor Agent CLI。
 /// 本项目所有需要调用 AI 的能力都必须走此通道，禁止绕过。
-pub fn generate_commit_message(staged_diff: &str) -> AppResult<String> {
+pub fn generate_commit_message(
+    staged_diff: &str,
+    progress: Option<&ProgressSink>,
+) -> AppResult<String> {
     if staged_diff.trim().is_empty() {
         return Err(AppError::msg("没有 staged diff，无法生成 Commit message"));
     }
+
+    let label = provider_label().unwrap_or("AI");
+    emit(
+        progress,
+        "status",
+        &format!("使用 {label} 生成 Commit message…"),
+    );
 
     let truncated = if staged_diff.len() > MAX_DIFF_CHARS {
         format!(
@@ -107,7 +124,7 @@ pub fn generate_commit_message(staged_diff: &str) -> AppResult<String> {
          Staged diff:\n{truncated}"
     );
 
-    run_readonly(&prompt, None, None)
+    run_readonly(&prompt, None, progress)
 }
 
 /// 根据目标拆分任务（只读 / 分析，不改业务代码）。
@@ -116,12 +133,20 @@ pub fn run_goal(
     template: &str,
     goal_md: &str,
     project_context: &str,
+    progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
+    let label = provider_label().unwrap_or("AI");
+    emit(
+        progress,
+        "status",
+        &format!("使用 {label} 根据目标拆分任务…"),
+    );
+
     let prompt = format!(
         "{template}\n\n【项目目标】\n{goal_md}\n\n【项目现状】\n{project_context}\n"
     );
     let prompt = truncate_prompt(&prompt);
-    run_readonly(&prompt, Some(project_path), None)
+    run_readonly(&prompt, Some(project_path), progress)
 }
 
 /// 在项目目录中落地实现任务（可写）。
@@ -130,12 +155,20 @@ pub fn run_task(
     template: &str,
     task_md: &str,
     task_path: &str,
+    progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
+    let label = provider_label().unwrap_or("AI");
+    emit(
+        progress,
+        "status",
+        &format!("使用 {label} 实现任务（{task_path}）…"),
+    );
+
     let prompt = format!(
         "{template}\n\n【任务文件】{task_path}\n\n【任务文档】\n{task_md}\n"
     );
     let prompt = truncate_prompt(&prompt);
-    run_writable(&prompt, project_path, None)
+    run_writable(&prompt, project_path, progress)
 }
 
 fn truncate_prompt(prompt: &str) -> String {

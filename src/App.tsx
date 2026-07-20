@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "./api";
+import { AiSidePanel } from "./components/AiSidePanel";
 import { AppSidebar, type NavView } from "./components/AppSidebar";
 import { ChangesDialog } from "./components/ChangesDialog";
 import { CommitDialog } from "./components/CommitDialog";
@@ -9,11 +10,11 @@ import { HelpTip } from "./components/HelpTip";
 import { LogDiaryPage } from "./components/LogDiaryPage";
 import { MarkdownEditorDialog } from "./components/MarkdownEditorDialog";
 import { ProjectCard } from "./components/ProjectCard";
-import { AiSidePanel } from "./components/AiSidePanel";
 import { SettingsPage } from "./components/SettingsPage";
 import { useLogDiary } from "./hooks/useLogDiary";
 import { useProjects } from "./hooks/useProjects";
-import type { NewLogDiaryEntry, RunTarget } from "./types";
+import type { AiPanelSession } from "./lib/aiPanel";
+import type { NewLogDiaryEntry } from "./types";
 import "./App.css";
 
 type AppView = NavView | "project";
@@ -24,13 +25,6 @@ type DialogState =
   | { type: "changes"; id: string; name: string }
   | { type: "doc"; id: string; relativePath: string; title: string }
   | null;
-
-type SidePanelState = {
-  id: string;
-  name: string;
-  mode: "identify" | "config";
-  initialTargets?: RunTarget[];
-} | null;
 
 function App() {
   const {
@@ -47,7 +41,9 @@ function App() {
   const [view, setView] = useState<AppView>("board");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [sidePanel, setSidePanel] = useState<SidePanelState>(null);
+  const [sidePanel, setSidePanel] = useState<AiPanelSession | null>(null);
+  const [panelEpoch, setPanelEpoch] = useState(0);
+  const [docsEpoch, setDocsEpoch] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -61,6 +57,11 @@ function App() {
     },
     [logDiary.append],
   );
+
+  const openAiSession = useCallback((session: AiPanelSession) => {
+    setPanelEpoch((n) => n + 1);
+    setSidePanel(session);
+  }, []);
 
   const goNav = (next: NavView) => {
     setSelectedProjectId(null);
@@ -103,39 +104,16 @@ function App() {
     }
   };
 
-  const onOneClick = async (id: string) => {
+  const onOneClick = (id: string) => {
     const project = projects.find((p) => p.id === id);
     const projectName = project?.name ?? id;
-    setBusy(id, "一键提交中：AI → Commit → Push…");
+    setBusy(id, "一键提交中…");
     setError(null);
-    try {
-      const result = await api.oneClickCommit(id);
-      appendLog({
-        kind: "oneClick",
-        status: "ok",
-        title: `一键提交 · ${projectName}`,
-        projectId: id,
-        projectName,
-        detail: `Message:\n${result.message}\n\n已推送: ${result.pushed ? "是" : "否"}`,
-      });
-      showToast(`已提交并推送：${result.message.split("\n")[0]}`);
-      await refreshOne(id);
-    } catch (e) {
-      const msg = String(e);
-      appendLog({
-        kind: "oneClick",
-        status: "error",
-        title: `一键提交失败 · ${projectName}`,
-        projectId: id,
-        projectName,
-        detail: "流程：AI 生成 Commit Message → Commit → Push",
-        error: msg,
-      });
-      setError(msg);
-      await refreshOne(id);
-    } finally {
-      setBusy(id, null);
-    }
+    openAiSession({
+      kind: "oneClick",
+      projectId: id,
+      projectName,
+    });
   };
 
   const selectedProject =
@@ -143,17 +121,13 @@ function App() {
       ? projects.find((p) => p.id === selectedProjectId) ?? null
       : null;
 
-  const renderProjectCard = (
-    p: (typeof projects)[number],
-    opts?: { hideTitle?: boolean },
-  ) => (
+  const renderProjectCard = (p: (typeof projects)[number]) => (
     <ProjectCard
       key={p.id}
       project={p}
       busy={busyIds[p.id]}
-      hideTitle={opts?.hideTitle}
       onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
-      onOneClick={() => void onOneClick(p.id)}
+      onOneClick={() => onOneClick(p.id)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
       onRemove={() => void onRemove(p.id, p.name)}
@@ -166,17 +140,42 @@ function App() {
         })
       }
       onConfigureRun={(mode) =>
-        setSidePanel({
-          id: p.id,
-          name: p.name,
-          mode,
-          initialTargets: mode === "config" ? p.runTargets ?? [] : undefined,
+        openAiSession(
+          mode === "config"
+            ? {
+                kind: "config",
+                projectId: p.id,
+                projectName: p.name,
+                initialTargets: p.runTargets ?? [],
+              }
+            : {
+                kind: "identify",
+                projectId: p.id,
+                projectName: p.name,
+              },
+        )
+      }
+      onGenerateTasks={() =>
+        openAiSession({
+          kind: "generateTasks",
+          projectId: p.id,
+          projectName: p.name,
         })
       }
+      onImplementTask={(task) =>
+        openAiSession({
+          kind: "runTask",
+          projectId: p.id,
+          projectName: p.name,
+          relativePath: task.relativePath,
+          taskTitle: task.title,
+          taskNumber: String(task.number).padStart(3, "0"),
+        })
+      }
+      docsEpoch={docsEpoch}
       onError={(msg) => setError(msg)}
       onToast={showToast}
       onLog={appendLog}
-      onRefreshProject={() => void refreshOne(p.id)}
     />
   );
 
@@ -249,17 +248,14 @@ function App() {
             {view === "logDiary" && (
               <div className="main-heading">
                 <h2>日志</h2>
-                <p>
-                  每次运行（AI、提交、DOCS、启动目标等）会留下一条记录；点条目「复制」可粘贴给
-                  AI。
-                </p>
+                <p>记录一键提交、AI 操作与其它事件</p>
               </div>
             )}
 
             {view === "settings" && (
               <div className="main-heading">
                 <h2>设置</h2>
-                <p>配置 AI 调用通道与 DOCS 提示词模板</p>
+                <p>AI Provider 与提示词模板</p>
               </div>
             )}
           </header>
@@ -323,9 +319,7 @@ function App() {
                   </button>
                 </div>
               ) : (
-                <div className="project-detail">
-                  {renderProjectCard(selectedProject, { hideTitle: true })}
-                </div>
+                <div className="project-detail">{renderProjectCard(selectedProject)}</div>
               ))}
 
             {view === "logDiary" && (
@@ -338,7 +332,9 @@ function App() {
               />
             )}
 
-            {view === "settings" && <SettingsPage onSaved={showToast} />}
+            {view === "settings" && (
+              <SettingsPage onSaved={showToast} openAiSession={openAiSession} />
+            )}
           </main>
         </div>
       </div>
@@ -353,6 +349,17 @@ function App() {
             showToast("提交完成");
           }}
           onLog={appendLog}
+          onAiGenerate={() =>
+            new Promise<string>((resolve, reject) => {
+              openAiSession({
+                kind: "generateCommit",
+                projectId: dialog.id,
+                projectName: dialog.name,
+                onResult: resolve,
+                onError: (err) => reject(new Error(err)),
+              });
+            })
+          }
         />
       )}
 
@@ -389,16 +396,29 @@ function App() {
 
       {sidePanel && (
         <AiSidePanel
-          projectId={sidePanel.id}
-          projectName={sidePanel.name}
-          mode={sidePanel.mode}
-          initialTargets={sidePanel.initialTargets}
-          onClose={() => setSidePanel(null)}
-          onSaved={(targets) => {
-            showToast(`已保存 ${targets.length} 个启动目标`);
-            void refreshOne(sidePanel.id);
+          key={panelEpoch}
+          session={sidePanel}
+          onClose={() => {
+            if (sidePanel.kind === "oneClick") {
+              setBusy(sidePanel.projectId, null);
+            }
+            setSidePanel(null);
           }}
           onLog={appendLog}
+          onTargetsSaved={(projectId, targets) => {
+            showToast(`已保存 ${targets.length} 个启动目标`);
+            void refreshOne(projectId);
+          }}
+          onProjectRefresh={(projectId) => {
+            if (sidePanel.kind === "oneClick") {
+              setBusy(projectId, null);
+            }
+            if (sidePanel.kind === "generateTasks" || sidePanel.kind === "runTask") {
+              setDocsEpoch((n) => n + 1);
+            }
+            void refreshOne(projectId);
+          }}
+          onToast={showToast}
         />
       )}
 

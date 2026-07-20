@@ -298,6 +298,20 @@
   padding-top: 0.35rem;
 }
 
+.ai-side-result {
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(36, 110, 150, 0.1);
+  border: 1px solid rgba(36, 110, 150, 0.22);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
 .app.has-ai-side .app-main {
   margin-right: min(420px, 92vw);
   transition: margin-right 0.2s ease;

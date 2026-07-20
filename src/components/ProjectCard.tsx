@@ -22,10 +22,13 @@ interface Props {
   onRemove: () => void;
   onOpenDoc: (relativePath: string, title: string) => void;
   onConfigureRun: (mode: "identify" | "config") => void;
+  onGenerateTasks: () => void;
+  onImplementTask: (task: DocsTaskItem) => void;
+  /** 侧栏 AI 完成后递增，用于刷新 DOCS 列表 */
+  docsEpoch?: number;
   onError: (msg: string) => void;
   onToast: (msg: string) => void;
   onLog: (entry: NewLogDiaryEntry) => void;
-  onRefreshProject: () => void;
 }
 
 function relativeTime(ts: number): string {
@@ -54,10 +57,12 @@ export function ProjectCard({
   onRemove,
   onOpenDoc,
   onConfigureRun,
+  onGenerateTasks,
+  onImplementTask,
+  docsEpoch = 0,
   onError,
   onToast,
   onLog,
-  onRefreshProject,
 }: Props) {
   const disabled = Boolean(busy);
   const hasChanges = !project.clean;
@@ -84,7 +89,8 @@ export function ProjectCard({
 
   useEffect(() => {
     void loadDocs();
-  }, [project.id, project.path]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id, project.path, docsEpoch]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -182,38 +188,9 @@ export function ProjectCard({
     }
   };
 
-  const onGenerate = async () => {
-    setDocsBusy("正在生成任务…");
+  const onGenerate = () => {
     setMenuId(null);
-    try {
-      const result = await api.generateTasksFromGoal(project.id);
-      setDocs(result.overview);
-      onLog({
-        kind: "generateTasks",
-        status: "ok",
-        title: `生成任务 · ${project.name}`,
-        projectId: project.id,
-        projectName: project.name,
-        detail: `新建 ${result.created} 条任务\n当前共 ${result.overview.tasks.length} 条`,
-      });
-      onToast(`已生成 ${result.created} 条任务`);
-      onRefreshProject();
-    } catch (e) {
-      const msg = String(e);
-      onLog({
-        kind: "generateTasks",
-        status: "error",
-        title: `生成任务失败 · ${project.name}`,
-        projectId: project.id,
-        projectName: project.name,
-        detail: "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。",
-        error: msg,
-      });
-      onError(msg);
-      await loadDocs();
-    } finally {
-      setDocsBusy(null);
-    }
+    onGenerateTasks();
   };
 
   const openTask = async (task: DocsTaskItem) => {
@@ -230,39 +207,9 @@ export function ProjectCard({
     onOpenDoc(task.relativePath, `${String(task.number).padStart(3, "0")} ${task.title}`);
   };
 
-  const implementTask = async (task: DocsTaskItem) => {
+  const implementTask = (task: DocsTaskItem) => {
     setMenuId(null);
-    const num = String(task.number).padStart(3, "0");
-    setDocsBusy(`正在实现 ${num}…`);
-    try {
-      const result = await api.runDocsTask(project.id, task.relativePath);
-      setDocs(result.overview);
-      onLog({
-        kind: "runTask",
-        status: "ok",
-        title: `实现任务 ${num} · ${task.title}`,
-        projectId: project.id,
-        projectName: project.name,
-        detail: `路径: ${task.relativePath}\n\n实现摘要:\n${result.summary || "（无摘要）"}`,
-      });
-      onToast(`已实现 ${num}`);
-      onRefreshProject();
-    } catch (e) {
-      const msg = String(e);
-      onLog({
-        kind: "runTask",
-        status: "error",
-        title: `实现任务失败 ${num} · ${task.title}`,
-        projectId: project.id,
-        projectName: project.name,
-        detail: `路径: ${task.relativePath}`,
-        error: msg,
-      });
-      onError(msg);
-      await loadDocs();
-    } finally {
-      setDocsBusy(null);
-    }
+    onImplementTask(task);
   };
 
   return (

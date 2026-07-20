@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
+import {
+  aiSessionSubtitle,
+  aiSessionTitle,
+  newAiSessionId,
+  waitForPaint,
+  type AiPanelSession,
+} from "../lib/aiPanel";
 import type {
   AiProgressEvent,
   AiTranscriptLine,
@@ -12,13 +19,12 @@ import "./AiSidePanel.css";
 type Draft = RunTarget & { checked: boolean };
 
 interface Props {
-  projectId: string;
-  projectName: string;
-  mode: "identify" | "config";
-  initialTargets?: RunTarget[];
+  session: AiPanelSession;
   onClose: () => void;
-  onSaved: (targets: RunTarget[]) => void;
   onLog: (entry: NewLogDiaryEntry) => void;
+  onTargetsSaved?: (projectId: string, targets: RunTarget[]) => void;
+  onProjectRefresh?: (projectId: string) => void;
+  onToast?: (msg: string) => void;
 }
 
 function toDraft(targets: RunTarget[], allChecked = true): Draft[] {
@@ -29,13 +35,6 @@ function toDraft(targets: RunTarget[], allChecked = true): Draft[] {
     checked: allChecked,
     isDefault: Boolean(t.isDefault) || i === 0,
   }));
-}
-
-function newSessionId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `ai-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function kindLabel(kind: string): string {
@@ -55,32 +54,50 @@ function kindLabel(kind: string): string {
   }
 }
 
-/** 等浏览器先画完侧栏，再开始阻塞式 AI 调用，避免整窗卡死感。 */
-function waitForPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => resolve());
-    });
-  });
+function bootLine(session: AiPanelSession): AiTranscriptLine {
+  const text = (() => {
+    switch (session.kind) {
+      case "identify":
+        return `开始识别「${session.projectName}」的启动方式…`;
+      case "testConnection":
+        return `开始测试 ${session.provider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI"}…`;
+      case "generateCommit":
+        return `开始为「${session.projectName}」生成 Commit message…`;
+      case "oneClick":
+        return `一键提交「${session.projectName}」：AI → Commit → Push…`;
+      case "generateTasks":
+        return `根据 Goal 为「${session.projectName}」生成任务…`;
+      case "runTask":
+        return `实现任务 ${session.taskNumber}「${session.taskTitle}」…`;
+      case "config":
+        return "";
+    }
+  })();
+  return { id: "boot", kind: "status", text };
 }
 
 export function AiSidePanel({
-  projectId,
-  projectName,
-  mode,
-  initialTargets = [],
+  session,
   onClose,
-  onSaved,
   onLog,
+  onTargetsSaved,
+  onProjectRefresh,
+  onToast,
 }: Props) {
-  const [phase, setPhase] = useState<"loading" | "edit">(
-    mode === "identify" ? "loading" : "edit",
+  const needsAi = session.kind !== "config";
+  const [phase, setPhase] = useState<"running" | "done" | "edit">(
+    session.kind === "config"
+      ? "edit"
+      : session.kind === "identify"
+        ? "running"
+        : "running",
   );
+  const [resultSummary, setResultSummary] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>(() =>
-    mode === "config"
+    session.kind === "config"
       ? toDraft(
-          initialTargets.length
-            ? initialTargets
+          session.initialTargets?.length
+            ? session.initialTargets
             : [
                 {
                   id: "",
@@ -95,28 +112,29 @@ export function AiSidePanel({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [transcript, setTranscript] = useState<AiTranscriptLine[]>(() =>
-    mode === "identify"
-      ? [
-          {
-            id: "boot",
-            kind: "status",
-            text: `开始识别「${projectName}」的启动方式…`,
-          },
-        ]
-      : [],
-  );
+  const [transcript, setTranscript] = useState<AiTranscriptLine[]>(() => {
+    const boot = bootLine(session);
+    return boot.text ? [boot] : [];
+  });
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const lineIdRef = useRef(0);
+  const closedRef = useRef(false);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [transcript, phase]);
 
   useEffect(() => {
-    if (mode !== "identify") return;
+    closedRef.current = false;
+    return () => {
+      closedRef.current = true;
+    };
+  }, [session]);
+
+  useEffect(() => {
+    if (!needsAi) return;
     let cancelled = false;
-    const sessionId = newSessionId();
+    const sessionId = newAiSessionId();
     const unlistenPromise = listen<AiProgressEvent>("ai-progress", (event) => {
       const payload = event.payload;
       if (!payload || payload.sessionId !== sessionId) return;
@@ -140,8 +158,9 @@ export function AiSidePanel({
     });
 
     void (async () => {
-      setPhase("loading");
+      setPhase("running");
       setError(null);
+      setResultSummary(null);
       const unlisten = await unlistenPromise;
       if (cancelled) {
         unlisten();
@@ -149,54 +168,205 @@ export function AiSidePanel({
       }
       await waitForPaint();
       if (cancelled) return;
+
       try {
-        const result = await api.suggestRunTargets(projectId, sessionId);
-        if (cancelled) return;
-        setDrafts(toDraft(result.targets));
-        if (result.warning) setError(result.warning);
-        const preview = result.targets
-          .map((t) => {
-            const desc = t.description?.trim();
-            return desc
-              ? `- ${t.name}：${desc}（${t.cwd} · ${t.command}）`
-              : `- ${t.name}: ${t.cwd} · ${t.command}`;
-          })
-          .join("\n");
-        onLog({
-          kind: "suggestRunTargets",
-          status: "ok",
-          title: `识别启动方式 · ${projectName}`,
-          projectId,
-          projectName,
-          detail: `来源: ${result.source}\n建议 ${result.targets.length} 条:\n${preview || "（空）"}`,
-          error: result.warning ?? undefined,
-        });
-        setPhase("edit");
+        switch (session.kind) {
+          case "identify": {
+            const result = await api.suggestRunTargets(session.projectId, sessionId);
+            if (cancelled) return;
+            setDrafts(toDraft(result.targets));
+            if (result.warning) setError(result.warning);
+            const preview = result.targets
+              .map((t) => {
+                const desc = t.description?.trim();
+                return desc
+                  ? `- ${t.name}：${desc}（${t.cwd} · ${t.command}）`
+                  : `- ${t.name}: ${t.cwd} · ${t.command}`;
+              })
+              .join("\n");
+            onLog({
+              kind: "suggestRunTargets",
+              status: "ok",
+              title: `识别启动方式 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: `来源: ${result.source}\n建议 ${result.targets.length} 条:\n${preview || "（空）"}`,
+              error: result.warning ?? undefined,
+            });
+            setPhase("edit");
+            break;
+          }
+          case "testConnection": {
+            const result = await api.testAiConnection(session.provider, sessionId);
+            if (cancelled) return;
+            setResultSummary(`${result.providerLabel} 回复：${result.reply}`);
+            session.onResult(true, result.reply);
+            setPhase("done");
+            break;
+          }
+          case "generateCommit": {
+            const msg = await api.generateCommitMessage(session.projectId, sessionId);
+            if (cancelled) return;
+            onLog({
+              kind: "generateCommit",
+              status: "ok",
+              title: `AI Generate · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: `生成的 Commit message:\n${msg}`,
+            });
+            setResultSummary(msg);
+            session.onResult(msg);
+            setPhase("done");
+            break;
+          }
+          case "oneClick": {
+            const result = await api.oneClickCommit(session.projectId, sessionId);
+            if (cancelled) return;
+            onLog({
+              kind: "oneClick",
+              status: "ok",
+              title: `一键提交 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: `Message:\n${result.message}\n\n已推送: ${result.pushed ? "是" : "否"}`,
+            });
+            setResultSummary(
+              `已提交并推送：\n${result.message.split("\n")[0] ?? result.message}`,
+            );
+            onToast?.(`已提交并推送：${result.message.split("\n")[0]}`);
+            onProjectRefresh?.(session.projectId);
+            setPhase("done");
+            break;
+          }
+          case "generateTasks": {
+            const result = await api.generateTasksFromGoal(session.projectId, sessionId);
+            if (cancelled) return;
+            onLog({
+              kind: "generateTasks",
+              status: "ok",
+              title: `生成任务 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: `新建 ${result.created} 条任务\n当前共 ${result.overview.tasks.length} 条`,
+            });
+            setResultSummary(`已生成 ${result.created} 条任务`);
+            onToast?.(`已生成 ${result.created} 条任务`);
+            onProjectRefresh?.(session.projectId);
+            setPhase("done");
+            break;
+          }
+          case "runTask": {
+            const result = await api.runDocsTask(
+              session.projectId,
+              session.relativePath,
+              sessionId,
+            );
+            if (cancelled) return;
+            onLog({
+              kind: "runTask",
+              status: "ok",
+              title: `实现任务 ${session.taskNumber} · ${session.taskTitle}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: `路径: ${session.relativePath}\n\n实现摘要:\n${result.summary || "（无摘要）"}`,
+            });
+            setResultSummary(result.summary || `已实现 ${session.taskNumber}`);
+            onToast?.(`已实现 ${session.taskNumber}`);
+            onProjectRefresh?.(session.projectId);
+            setPhase("done");
+            break;
+          }
+          default:
+            break;
+        }
       } catch (e) {
         if (cancelled) return;
         const err = String(e);
-        onLog({
-          kind: "suggestRunTargets",
-          status: "error",
-          title: `识别启动方式失败 · ${projectName}`,
-          projectId,
-          projectName,
-          detail: "经统一 AI 通道分析仓库并建议 Run Targets。",
-          error: err,
-        });
         setError(err);
-        setDrafts(
-          toDraft([
-            {
-              id: "",
-              name: "开发",
-              cwd: ".",
-              command: "npm run dev",
-              isDefault: true,
-            },
-          ]),
-        );
-        setPhase("edit");
+        switch (session.kind) {
+          case "identify":
+            onLog({
+              kind: "suggestRunTargets",
+              status: "error",
+              title: `识别启动方式失败 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: "经统一 AI 通道分析仓库并建议 Run Targets。",
+              error: err,
+            });
+            setDrafts(
+              toDraft([
+                {
+                  id: "",
+                  name: "开发",
+                  cwd: ".",
+                  command: "npm run dev",
+                  isDefault: true,
+                },
+              ]),
+            );
+            setPhase("edit");
+            break;
+          case "testConnection":
+            session.onResult(false, err);
+            setPhase("done");
+            break;
+          case "generateCommit":
+            onLog({
+              kind: "generateCommit",
+              status: "error",
+              title: `AI Generate 失败 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: "根据 Staged Diff，经统一 AI 通道生成 Commit message。",
+              error: err,
+            });
+            session.onError?.(err);
+            setPhase("done");
+            break;
+          case "oneClick":
+            onLog({
+              kind: "oneClick",
+              status: "error",
+              title: `一键提交失败 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: "流程：AI 生成 Commit Message → Commit → Push",
+              error: err,
+            });
+            onProjectRefresh?.(session.projectId);
+            setPhase("done");
+            break;
+          case "generateTasks":
+            onLog({
+              kind: "generateTasks",
+              status: "error",
+              title: `生成任务失败 · ${session.projectName}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。",
+              error: err,
+            });
+            setPhase("done");
+            break;
+          case "runTask":
+            onLog({
+              kind: "runTask",
+              status: "error",
+              title: `实现任务失败 ${session.taskNumber} · ${session.taskTitle}`,
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: `路径: ${session.relativePath}`,
+              error: err,
+            });
+            setPhase("done");
+            break;
+          default:
+            setPhase("done");
+        }
+      } finally {
+        unlisten();
       }
     })();
 
@@ -204,7 +374,20 @@ export function AiSidePanel({
       cancelled = true;
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [mode, projectId, projectName, onLog]);
+    // session object identity changes each open — intentional
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.kind, needsAi]);
+
+  const handleClose = () => {
+    if (closedRef.current) return;
+    if (phase === "running" && session.kind === "generateCommit") {
+      session.onError?.("已取消");
+    }
+    if (phase === "running" && session.kind === "testConnection") {
+      session.onResult(false, "已取消");
+    }
+    onClose();
+  };
 
   const updateDraft = (idx: number, patch: Partial<Draft>) => {
     setDrafts((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
@@ -234,7 +417,8 @@ export function AiSidePanel({
     ]);
   };
 
-  const onSave = async () => {
+  const onSaveTargets = async () => {
+    if (session.kind !== "identify" && session.kind !== "config") return;
     const kept = drafts.filter((d) => d.checked);
     if (kept.length === 0) {
       setError("请至少勾选一条启动目标");
@@ -262,27 +446,27 @@ export function AiSidePanel({
     setSaving(true);
     setError(null);
     try {
-      const saved = await api.setRunTargets(projectId, payload);
+      const saved = await api.setRunTargets(session.projectId, payload);
       onLog({
         kind: "saveRunTargets",
         status: "ok",
-        title: `保存启动目标 · ${projectName}`,
-        projectId,
-        projectName,
+        title: `保存启动目标 · ${session.projectName}`,
+        projectId: session.projectId,
+        projectName: session.projectName,
         detail: saved
           .map((t) => `- ${t.name}${t.isDefault ? " ★" : ""}: ${t.cwd} · ${t.command}`)
           .join("\n"),
       });
-      onSaved(saved);
+      onTargetsSaved?.(session.projectId, saved);
       onClose();
     } catch (e) {
       const err = String(e);
       onLog({
         kind: "saveRunTargets",
         status: "error",
-        title: `保存启动目标失败 · ${projectName}`,
-        projectId,
-        projectName,
+        title: `保存启动目标失败 · ${session.projectName}`,
+        projectId: session.projectId,
+        projectName: session.projectName,
         error: err,
       });
       setError(err);
@@ -291,12 +475,10 @@ export function AiSidePanel({
     }
   };
 
-  const title =
-    phase === "loading"
-      ? "AI 识别中"
-      : mode === "config"
-        ? "配置启动方式"
-        : "确认启动目标";
+  const title = phase === "edit" && session.kind === "identify"
+    ? "确认启动目标"
+    : aiSessionTitle(session);
+  const subtitle = aiSessionSubtitle(session);
 
   return (
     <aside className="ai-side-panel" aria-label={title}>
@@ -304,14 +486,14 @@ export function AiSidePanel({
         <div className="ai-side-heading">
           <h3>{title}</h3>
           <p className="ai-side-sub">
-            {projectName}
-            {phase === "loading" ? " · 只读分析，不会执行命令" : ""}
+            {subtitle}
+            {phase === "running" ? " · 进行中" : ""}
           </p>
         </div>
         <button
           type="button"
           className="btn-ghost btn-icon"
-          onClick={onClose}
+          onClick={handleClose}
           disabled={saving}
           aria-label="关闭侧边栏"
         >
@@ -319,7 +501,7 @@ export function AiSidePanel({
         </button>
       </header>
 
-      {phase === "loading" ? (
+      {phase === "running" && (
         <div className="ai-side-body">
           <div className="ai-transcript" aria-live="polite" aria-relevant="additions">
             {transcript.map((line) => (
@@ -335,12 +517,41 @@ export function AiSidePanel({
             <div ref={transcriptEndRef} />
           </div>
           <footer className="ai-side-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={handleClose}>
               取消
             </button>
           </footer>
         </div>
-      ) : (
+      )}
+
+      {phase === "done" && (
+        <div className="ai-side-body">
+          {transcript.length > 0 && (
+            <details className="ai-side-history" open>
+              <summary>AI 过程（{transcript.length} 条）</summary>
+              <div className="ai-transcript ai-transcript-compact">
+                {transcript.map((line) => (
+                  <div key={line.id} className={`ai-line ai-line-${line.kind}`}>
+                    <span className="ai-line-kind">{kindLabel(line.kind)}</span>
+                    <pre className="ai-line-text">{line.text}</pre>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          {resultSummary && !error && (
+            <pre className="ai-side-result">{resultSummary}</pre>
+          )}
+          {error && <p className="ai-side-error">{error}</p>}
+          <footer className="ai-side-footer">
+            <button type="button" className="btn btn-primary" onClick={onClose}>
+              完成
+            </button>
+          </footer>
+        </div>
+      )}
+
+      {phase === "edit" && (session.kind === "identify" || session.kind === "config") && (
         <div className="ai-side-body">
           {transcript.length > 0 && (
             <details className="ai-side-history">
@@ -357,7 +568,7 @@ export function AiSidePanel({
           )}
 
           <p className="ai-side-hint">
-            {mode === "config"
+            {session.kind === "config"
               ? "编辑启动目标。保存后可从运行菜单选择。"
               : "请勾选需要保留的项，可改名称、说明、目录与命令。"}
           </p>
@@ -451,7 +662,7 @@ export function AiSidePanel({
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => void onSave()}
+              onClick={() => void onSaveTargets()}
               disabled={saving}
             >
               {saving ? "保存中…" : "保存"}
