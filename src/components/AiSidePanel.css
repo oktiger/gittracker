@@ -34,6 +34,17 @@
   flex-shrink: 0;
 }
 
+.ai-side-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.ai-side-copy-btn {
+  min-width: 3.5rem;
+}
+
 .ai-side-heading h3 {
   margin: 0;
   font-family: var(--font-display);

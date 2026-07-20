@@ -54,6 +54,55 @@ function kindLabel(kind: string): string {
   }
 }
 
+function formatTranscriptLines(lines: AiTranscriptLine[]): string {
+  return lines
+    .map((line) => `[${kindLabel(line.kind)}] ${line.text}`)
+    .join("\n\n");
+}
+
+/** 拼成便于粘贴给 AI 的整段运行过程 */
+function formatAiRunForCopy(opts: {
+  title: string;
+  subtitle: string;
+  transcript: AiTranscriptLine[];
+  resultSummary: string | null;
+  error: string | null;
+  phase: "running" | "done" | "edit";
+}): string {
+  const status =
+    opts.error
+      ? "失败"
+      : opts.phase === "running"
+        ? "进行中"
+        : "完成";
+  const lines = [
+    "# GitTracker AI 运行过程（反馈用）",
+    "",
+    `标题: ${opts.title}`,
+    `说明: ${opts.subtitle}`,
+    `状态: ${status}`,
+    "",
+  ];
+
+  if (opts.transcript.length > 0) {
+    lines.push("## AI 过程", "", formatTranscriptLines(opts.transcript), "");
+  }
+
+  if (opts.resultSummary?.trim()) {
+    lines.push("## 结果", "", opts.resultSummary.trim(), "");
+  }
+
+  if (opts.error?.trim()) {
+    lines.push("## 错误", "", opts.error.trim(), "");
+  }
+
+  lines.push(
+    "---",
+    "请根据以上 AI 运行过程帮忙分析问题原因，并给出可执行的修复建议。",
+  );
+  return lines.join("\n");
+}
+
 function bootLine(session: AiPanelSession): AiTranscriptLine {
   const text = (() => {
     switch (session.kind) {
@@ -112,11 +161,14 @@ export function AiSidePanel({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [transcript, setTranscript] = useState<AiTranscriptLine[]>(() => {
     const boot = bootLine(session);
     return boot.text ? [boot] : [];
   });
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const transcriptRef = useRef(transcript);
+  transcriptRef.current = transcript;
   const lineIdRef = useRef(0);
   const closedRef = useRef(false);
 
@@ -151,9 +203,12 @@ export function AiSidePanel({
         ) {
           const next = [...prev];
           next[next.length - 1] = { ...last, text: last.text + text };
+          transcriptRef.current = next;
           return next;
         }
-        return [...prev, { id, kind: payload.kind, text }];
+        const next = [...prev, { id, kind: payload.kind, text }];
+        transcriptRef.current = next;
+        return next;
       });
     });
 
@@ -199,7 +254,21 @@ export function AiSidePanel({
           case "testConnection": {
             const result = await api.testAiConnection(session.provider, sessionId);
             if (cancelled) return;
-            setResultSummary(`${result.providerLabel} 回复：${result.reply}`);
+            const label = result.providerLabel;
+            const process = formatTranscriptLines(transcriptRef.current);
+            onLog({
+              kind: "testConnection",
+              status: "ok",
+              title: `测试 ${label}`,
+              detail: [
+                `Provider: ${label}`,
+                `回复: ${result.reply}`,
+                process ? `\n## AI 过程\n${process}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            });
+            setResultSummary(`${label} 回复：${result.reply}`);
             session.onResult(true, result.reply);
             setPhase("done");
             break;
@@ -308,10 +377,27 @@ export function AiSidePanel({
             );
             setPhase("edit");
             break;
-          case "testConnection":
+          case "testConnection": {
+            const label =
+              session.provider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI";
+            const process = formatTranscriptLines(transcriptRef.current);
+            onLog({
+              kind: "testConnection",
+              status: "error",
+              title: `测试 ${label} 失败`,
+              detail: [
+                `Provider: ${label}`,
+                "验证 CLI 已安装并可返回最小只读回复。",
+                process ? `\n## AI 过程\n${process}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+              error: err,
+            });
             session.onResult(false, err);
             setPhase("done");
             break;
+          }
           case "generateCommit":
             onLog({
               kind: "generateCommit",
@@ -480,6 +566,29 @@ export function AiSidePanel({
     : aiSessionTitle(session);
   const subtitle = aiSessionSubtitle(session);
 
+  const canCopy =
+    transcript.length > 0 || Boolean(resultSummary) || Boolean(error);
+
+  const copyAiRun = async () => {
+    if (!canCopy) return;
+    const text = formatAiRunForCopy({
+      title,
+      subtitle,
+      transcript: transcriptRef.current,
+      resultSummary,
+      error,
+      phase,
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      onToast?.("已复制，可粘贴给 AI");
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      onToast?.("复制失败，请手动选择文本");
+    }
+  };
+
   return (
     <aside className="ai-side-panel" aria-label={title}>
       <header className="ai-side-header">
@@ -490,15 +599,27 @@ export function AiSidePanel({
             {phase === "running" ? " · 进行中" : ""}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn-ghost btn-icon"
-          onClick={handleClose}
-          disabled={saving}
-          aria-label="关闭侧边栏"
-        >
-          ×
-        </button>
+        <div className="ai-side-header-actions">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm ai-side-copy-btn"
+            onClick={() => void copyAiRun()}
+            disabled={!canCopy || saving}
+            aria-label="复制 AI 运行过程"
+            title="复制整段 AI 过程"
+          >
+            {copied ? "已复制" : "复制"}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost btn-icon"
+            onClick={handleClose}
+            disabled={saving}
+            aria-label="关闭侧边栏"
+          >
+            ×
+          </button>
+        </div>
       </header>
 
       {phase === "running" && (

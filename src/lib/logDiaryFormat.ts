@@ -11,6 +11,7 @@ const KIND_LABELS: Record<string, string> = {
   saveRunTargets: "保存启动目标",
   runTarget: "运行目标",
   discard: "Discard",
+  testConnection: "测试 AI 连接",
 };
 
 const STATUS_LABELS: Record<LogDiaryStatus, string> = {

@@ -135,6 +135,7 @@ export type LogDiaryKind =
   | "saveRunTargets"
   | "runTarget"
   | "discard"
+  | "testConnection"
   | string;
 
 export interface LogDiaryEntry {
