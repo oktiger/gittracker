@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitTracker · UI 信息架构重构 Mockup</title>
+  <style>
+    :root {
+      --bg: #eef1f4;
+      --panel: #ffffff;
+      --panel-soft: #f6f7f8;
+      --ink: #182027;
+      --muted: #69747d;
+      --line: #dce1e5;
+      --line-strong: #c7ced4;
+      --accent: #136f63;
+      --accent-strong: #0d574e;
+      --accent-soft: #e7f3f0;
+      --blue: #246e96;
+      --green: #23865a;
+      --amber: #b87513;
+      --red: #be493d;
+      --shadow: 0 16px 48px rgba(30, 38, 44, .08);
+      --radius: 14px;
+      --sidebar: 232px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); font-size: 14px; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 3px solid rgba(19, 111, 99, .2);
+      outline-offset: 2px;
+    }
+
+    .app { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) 1fr; }
+    .sidebar {
+      position: fixed; inset: 0 auto 0 0; width: var(--sidebar); z-index: 10;
+      display: flex; flex-direction: column; padding: 18px 14px;
+      background: rgba(250, 251, 251, .94); border-right: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+    }
+    .brand { padding: 6px 8px 20px; }
+    .brand strong { display: block; font-size: 19px; letter-spacing: -.5px; }
+    .brand span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .nav { display: grid; gap: 4px; }
+    .nav-btn, .project-link {
+      width: 100%; border: 0; background: transparent; color: var(--muted);
+      padding: 9px 10px; border-radius: 9px; text-align: left;
+      display: flex; align-items: center; gap: 9px;
+    }
+    .nav-btn:hover, .project-link:hover { background: #edf0f2; color: var(--ink); }
+    .nav-btn.active, .project-link.active { background: var(--accent-soft); color: var(--accent-strong); font-weight: 650; }
+    .nav-icon { width: 20px; text-align: center; font-size: 13px; opacity: .9; }
+    .nav-label { flex: 1; }
+    .nav-badge { min-width: 20px; padding: 2px 6px; border-radius: 999px; background: #e4e9ec; font-size: 11px; text-align: center; }
+    .sidebar-rule { height: 1px; background: var(--line); margin: 14px 4px; }
+    .side-label { padding: 0 10px 7px; color: #879098; font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .projects { display: grid; gap: 2px; overflow: auto; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .status-dot.dirty { background: var(--amber); }
+    .sidebar-foot { margin-top: auto; padding: 13px 9px 2px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .main { grid-column: 2; min-width: 0; padding: 28px 34px 48px; }
+    .page { display: none; max-width: 1380px; margin: 0 auto; }
+    .page.active { display: block; animation: fade .15s ease; }
+    @keyframes fade { from { opacity: .2; transform: translateY(3px); } }
+    .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    .eyebrow { color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+    h1 { margin: 4px 0 0; font-size: 27px; line-height: 1.15; letter-spacing: -.8px; }
+    .sub { margin: 7px 0 0; color: var(--muted); line-height: 1.5; }
+    .head-actions, .inline-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .btn {
+      border: 1px solid transparent; border-radius: 9px; padding: 8px 12px;
+      background: var(--panel); color: var(--ink); font-weight: 620;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn:hover { border-color: var(--line-strong); }
+    .btn.primary { background: var(--accent); color: white; }
+    .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+    .btn.soft { background: var(--panel-soft); border-color: var(--line); }
+    .btn.danger { background: #fff4f2; color: var(--red); border-color: #f1d0ca; }
+    .btn.small { padding: 6px 9px; font-size: 12px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .icon-btn { width: 34px; height: 34px; padding: 0; }
+
+    .summary-strip {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;
+    }
+    .metric { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.65); }
+    .metric strong { display: block; font-size: 21px; letter-spacing: -.4px; }
+    .metric span { color: var(--muted); font-size: 12px; }
+
+    .project-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 14px; }
+    .project-card {
+      position: relative; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--panel); box-shadow: 0 1px 0 rgba(255,255,255,.7);
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .project-card:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: var(--shadow); }
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .card-name { margin: 0; font-size: 17px; letter-spacing: -.2px; }
+    .path { margin-top: 5px; color: var(--muted); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .pill.clean { color: var(--green); background: #eaf6ef; }
+    .pill.changed { color: #8c5b0d; background: #fbf1dc; }
+    .pill.error { color: var(--red); background: #fff0ed; }
+    .branch-row { display: flex; align-items: center; gap: 8px; margin-top: 13px; color: var(--muted); font-size: 12px; }
+    .branch { padding: 3px 7px; background: var(--panel-soft); border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #38444d; }
+    .card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0; }
+    .mini-stat { padding: 10px; border-radius: 10px; background: var(--panel-soft); }
+    .mini-stat strong { display: block; font-size: 16px; }
+    .mini-stat span { color: var(--muted); font-size: 11px; }
+    .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 13px; }
+    .last-commit { min-width: 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .project-hero {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+      padding: 20px; margin-bottom: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    }
+    .back-link { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 650; }
+    .project-hero h1 { font-size: 24px; }
+    .hero-meta { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .detail-grid { display: grid; grid-template-columns: minmax(440px, 1.12fr) minmax(350px, .88fr); gap: 14px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 16px; border-bottom: 1px solid var(--line); }
+    .panel-title { margin: 0; font-size: 14px; }
+    .panel-caption { color: var(--muted); font-size: 11px; }
+    .changes-layout { display: grid; grid-template-columns: 210px 1fr; min-height: 400px; }
+    .file-list { border-right: 1px solid var(--line); background: #fbfcfc; }
+    .file-row { width: 100%; border: 0; border-bottom: 1px solid #edf0f2; background: transparent; padding: 10px 11px; text-align: left; display: grid; grid-template-columns: 19px 1fr; gap: 7px; }
+    .file-row:hover { background: #f1f4f4; }
+    .file-row.active { background: var(--accent-soft); }
+    .file-status { font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--amber); }
+    .file-status.u { color: var(--green); }
+    .file-status.d { color: var(--red); }
+    .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .diff { margin: 0; padding: 15px 17px; overflow: auto; background: #fbfcfc; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; color: #35414a; }
+    .diff .add { display: block; margin: 0 -17px; padding: 0 17px; background: #e8f5ed; color: #24633f; }
+    .diff .del { display: block; margin: 0 -17px; padding: 0 17px; background: #fff0ed; color: #9d4036; }
+    .diff .hunk { color: #7859a6; }
+
+    .docs-body { padding: 12px; }
+    .goal-card { padding: 12px; border: 1px solid #cde0dc; border-radius: 10px; background: #f2f8f7; }
+    .goal-card strong { display: block; }
+    .goal-card p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .task-list { display: grid; gap: 7px; margin-top: 11px; }
+    .task { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; }
+    .task-num { color: var(--muted); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .task-title { border: 0; background: none; padding: 0; text-align: left; font-weight: 620; color: var(--ink); }
+    .task-title:hover { color: var(--accent); }
+    .task-state { font-size: 10px; color: var(--muted); padding: 3px 6px; border-radius: 999px; background: var(--panel-soft); }
+    .task-state.done { color: var(--green); background: #eaf6ef; }
+    .task-actions { grid-column: 2 / -1; display: none; gap: 6px; }
+    .task.open .task-actions { display: flex; }
+    .commit-list { list-style: none; margin: 0; padding: 4px 16px 14px; }
+    .commit-list li { display: grid; grid-template-columns: 62px 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf0f2; font-size: 12px; }
+    .hash { color: var(--blue); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .time { color: var(--muted); white-space: nowrap; }
+
+    .filters { display: flex; gap: 8px; margin-bottom: 12px; }
+    .input, .select, .textarea { border: 1px solid var(--line); border-radius: 9px; background: var(--panel); padding: 9px 11px; color: var(--ink); }
+    .input { flex: 1; }
+    .log-list { display: grid; gap: 9px; }
+    .log-row { background: var(--panel); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; }
+    .log-summary { width: 100%; border: 0; background: transparent; padding: 13px 15px; display: grid; grid-template-columns: 72px 120px 1fr auto; align-items: center; gap: 10px; text-align: left; }
+    .log-summary:hover { background: #fafbfb; }
+    .log-detail { display: none; border-top: 1px solid var(--line); padding: 13px 15px; background: var(--panel-soft); color: #43505a; white-space: pre-wrap; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .log-row.open .log-detail { display: block; }
+
+    .settings-wrap { max-width: 900px; display: grid; gap: 13px; }
+    .setting-panel { padding: 17px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+    .setting-panel h2 { margin: 0 0 12px; font-size: 15px; }
+    .provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .provider { padding: 13px; border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: flex-start; gap: 9px; }
+    .provider:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+    .provider strong { display: block; }
+    .provider span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .textarea { width: 100%; min-height: 130px; resize: vertical; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .dirty-note { display: none; color: var(--amber); font-size: 12px; }
+    .dirty-note.show { display: inline; }
+
+    .modal-backdrop { display: none; position: fixed; inset: 0; z-index: 40; background: rgba(17,24,29,.42); align-items: center; justify-content: center; padding: 24px; }
+    .modal-backdrop.show { display: flex; }
+    .modal { width: min(680px, 100%); background: var(--panel); border-radius: 16px; box-shadow: 0 30px 90px rgba(14,20,25,.28); overflow: hidden; }
+    .modal-head, .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 15px 18px; }
+    .modal-head { border-bottom: 1px solid var(--line); }
+    .modal-foot { border-top: 1px solid var(--line); }
+    .modal-body { padding: 17px 18px; }
+    .commit-preview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 13px; }
+    .preview-stat { padding: 9px; border-radius: 9px; background: var(--panel-soft); text-align: center; }
+    .preview-stat strong { display: block; }
+    .commit-message { width: 100%; min-height: 100px; }
+
+    .drawer { position: fixed; z-index: 35; top: 0; right: 0; width: min(430px, 94vw); height: 100vh; transform: translateX(105%); transition: transform .2s ease; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -16px 0 50px rgba(25,33,40,.12); display: flex; flex-direction: column; }
+    .drawer.show { transform: translateX(0); }
+    .drawer-head { padding: 17px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; }
+    .drawer-head h2 { margin: 0; font-size: 16px; }
+    .drawer-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .drawer-body { flex: 1; overflow: auto; padding: 14px 17px; }
+    .ai-step { display: grid; grid-template-columns: 68px 1fr; gap: 8px; padding: 9px 0; border-bottom: 1px solid #edf0f2; }
+    .ai-kind { color: var(--accent); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+    .ai-copy { font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+    .drawer-foot { padding: 13px 17px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
+    .spinner { width: 13px; height: 13px; border: 2px solid #cfe0dc; border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast { position: fixed; z-index: 80; left: 50%; bottom: 24px; transform: translate(-50%, 14px); opacity: 0; pointer-events: none; padding: 10px 14px; border-radius: 999px; background: #1d282e; color: white; box-shadow: var(--shadow); transition: .18s ease; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1050px) {
+      .project-grid, .detail-grid { grid-template-columns: 1fr; }
+      .changes-layout { grid-template-columns: 180px 1fr; }
+    }
+    @media (max-width: 760px) {
+      :root { --sidebar: 72px; }
+      .sidebar { padding-inline: 9px; }
+      .brand strong { font-size: 15px; }
+      .brand span, .nav-label, .nav-badge, .side-label, .project-link span:not(.status-dot), .sidebar-foot { display: none; }
+      .nav-btn, .project-link { justify-content: center; }
+      .main { padding: 20px 16px 40px; }
+      .summary-strip { grid-template-columns: 1fr 1fr; }
+      .project-grid { grid-template-columns: 1fr; }
+      .page-head, .project-hero { align-items: flex-start; flex-direction: column; }
+      .changes-layout { grid-template-columns: 1fr; }
+      .file-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; overflow: auto; }
+      .provider-grid { grid-template-columns: 1fr; }
+      .log-summary { grid-template-columns: 65px 1fr auto; }
+      .log-summary .log-project { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand"><strong>GitTracker</strong><span>更快地看清每个仓库</span></div>
+      <nav class="nav">
+        <button class="nav-btn active" data-page="board"><span class="nav-icon">▦</span><span class="nav-label">看板</span></button>
+        <button class="nav-btn" data-page="logs"><span class="nav-icon">≡</span><span class="nav-label">日志</span></button>
+        <button class="nav-btn" data-page="settings"><span class="nav-icon">⚙</span><span class="nav-label">设置</span><span class="nav-badge" id="dirtyBadge" hidden>!</span></button>
+      </nav>
+      <div class="sidebar-rule"></div>
+      <div class="side-label">项目</div>
+      <div class="projects">
+        <button class="project-link" data-project="dailysync"><span class="status-dot dirty"></span><span>dailysync</span></button>
+        <button class="project-link" data-project="ob-super-copy"><span class="status-dot"></span><span>ob-super-copy</span></button>
+        <button class="project-link" data-project="english-hero"><span class="status-dot dirty"></span><span>English Hero</span></button>
+        <button class="project-link" data-project="gittracker"><span class="status-dot dirty"></span><span>gittracker</span></button>
+      </div>
+      <div class="sidebar-foot">4 个项目 · 3 个有变更<br />状态刚刚更新</div>
+    </aside>
+
+    <main class="main">
+      <section class="page active" id="page-board">
+        <header class="page-head">
+          <div><div class="eyebrow">Workspace overview</div><h1>看板</h1><p class="sub">只展示需要你做决定的信息，详细内容进入项目页。</p></div>
+          <div class="head-actions"><button class="btn soft" data-toast="已刷新全部项目">↻ 刷新</button><button class="btn primary" data-toast="这是 Mockup：不会打开目录">＋ 添加项目</button></div>
+        </header>
+        <div class="summary-strip">
+          <div class="metric"><strong>4</strong><span>项目</span></div>
+          <div class="metric"><strong>3</strong><span>有本地变更</span></div>
+          <div class="metric"><strong>1</strong><span>落后远程</span></div>
+          <div class="metric"><strong>8</strong><span>待处理文件</span></div>
+        </div>
+        <div class="project-grid" id="projectGrid"></div>
+      </section>
+
+      <section class="page" id="page-project">
+        <button class="back-link" data-page="board">← 返回看板</button>
+        <div class="project-hero">
+          <div><div class="eyebrow">Project detail</div><h1 id="detailName">gittracker</h1><div class="path" id="detailPath">/Users/biem.mini/Documents/20260720_GitTracker/gittracker</div><div class="hero-meta"><span class="branch" id="detailBranch">main</span><span class="pill changed" id="detailState">Changed</span><span class="panel-caption">↑2 ahead · ↓0 behind</span></div></div>
+          <div class="head-actions"><button class="btn soft" data-toast="项目状态已刷新">↻ 刷新</button><button class="btn soft" data-drawer="run">▶ 运行</button><button class="btn primary" data-modal="commit">提交…</button><button class="btn icon-btn" data-toast="更多菜单：移除项目 / Discard">•••</button></div>
+        </div>
+        <div class="detail-grid">
+          <section class="panel">
+            <div class="panel-head"><div><h2 class="panel-title">变更</h2><span class="panel-caption">选择文件查看 Diff · 5 个文件</span></div><div class="inline-actions"><button class="btn small soft" data-toast="筛选：全部变更">全部</button><button class="btn small soft" data-toast="筛选：仅暂存区">Staged</button></div></div>
+            <div class="changes-layout">
+              <div class="file-list" id="fileList"></div>
+              <pre class="diff" id="diffView"></pre>
+            </div>
+          </section>
+          <div style="display:grid;gap:14px">
+            <section class="panel">
+              <div class="panel-head"><div><h2 class="panel-title">DOCS 与任务</h2><span class="panel-caption">目标 → 任务 → 实现</span></div><button class="btn small primary" data-drawer="generate">AI 生成任务</button></div>
+              <div class="docs-body">
+                <div class="goal-card"><strong>项目目标</strong><p>提升 GitTracker 的信息层级、操作安全性和多项目响应速度。</p><button class="back-link" style="margin-top:8px" data-toast="打开 goal.md 编辑器">编辑 goal.md</button></div>
+                <div class="task-list">
+                  <div class="task"><span class="task-num">001</span><button class="task-title">修复 AI 取消状态</button><span class="task-state done">已完成</span><div class="task-actions"><button class="btn small soft" data-toast="打开任务 001">打开</button><button class="btn small primary" data-drawer="implement">AI 实现</button></div></div>
+                  <div class="task"><span class="task-num">002</span><button class="task-title">重构看板信息架构</button><span class="task-state">待做</span><div class="task-actions"><button class="btn small soft" data-toast="打开任务 002">打开</button><button class="btn small primary" data-drawer="implement">AI 实现</button></div></div>
+                  <div class="task"><span class="task-num">003</span><button class="task-title">并行加载项目状态</button><span class="task-state">待做</span><div class="task-actions"><button class="btn small soft" data-toast="打开任务 003">打开</button><button class="btn small primary" data-drawer="implement">AI 实现</button></div></div>
+                </div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2 class="panel-title">最近提交</h2><span class="panel-caption">最近 3 条</span></div>
+              <ul class="commit-list"><li><span class="hash">ec1624e</span><span>修复 nvm 下找不到 Codex</span><span class="time">4 分钟前</span></li><li><span class="hash">4ddab71</span><span>统一 AI 右侧栏实时过程</span><span class="time">11 分钟前</span></li><li><span class="hash">859a65e</span><span>去掉页面重复标题</span><span class="time">13 分钟前</span></li></ul>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-logs">
+        <header class="page-head"><div><div class="eyebrow">Activity</div><h1>日志</h1><p class="sub">默认折叠详情，按项目、状态和操作快速定位问题。</p></div><button class="btn soft" data-toast="日志已刷新">↻ 刷新</button></header>
+        <div class="filters"><input class="input" id="logSearch" placeholder="搜索标题、项目或错误…" /><select class="select" id="logStatus"><option value="all">全部状态</option><option value="成功">成功</option><option value="失败">失败</option></select><select class="select" id="logProject"><option value="all">全部项目</option><option>gittracker</option><option>dailysync</option></select></div>
+        <div class="log-list" id="logList"></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <header class="page-head"><div><div class="eyebrow">Preferences</div><h1>设置</h1><p class="sub">修改会保留在页面中，离开前明确提示是否保存。</p></div><div class="head-actions"><span class="dirty-note" id="dirtyNote">有未保存修改</span><button class="btn primary" id="saveSettings" disabled>保存修改</button></div></header>
+        <div class="settings-wrap">
+          <section class="setting-panel"><h2>AI 调用通道</h2><div class="provider-grid"><label class="provider"><input type="radio" name="provider" checked /><span><strong>Codex CLI</strong><span>使用本机 Codex 账号与额度。</span></span></label><label class="provider"><input type="radio" name="provider" /><span><strong>Cursor Agent CLI</strong><span>使用本机 Cursor 订阅额度。</span></span></label></div></section>
+          <section class="setting-panel"><h2>生成任务 · 提示词模板</h2><textarea class="textarea setting-control">你是项目规划助手。根据项目目标与当前仓库，把目标拆成可独立验收的小任务。</textarea><div class="inline-actions" style="margin-top:8px"><button class="back-link reset-template">恢复默认</button></div></section>
+          <section class="setting-panel"><h2>实现任务 · 提示词模板</h2><textarea class="textarea setting-control">你是实现助手。根据任务文档完成代码修改，并给出简体中文实现摘要。</textarea><div class="inline-actions" style="margin-top:8px"><button class="back-link reset-template">恢复默认</button></div></section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="commitModal" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="commitTitle">
+      <header class="modal-head"><div><strong id="commitTitle">提交 · gittracker</strong><div class="panel-caption">打开弹窗不会改变暂存区</div></div><button class="btn icon-btn close-modal" aria-label="关闭">×</button></header>
+      <div class="modal-body"><div class="commit-preview"><div class="preview-stat"><strong>5</strong><span>文件</span></div><div class="preview-stat"><strong>+142</strong><span>新增</span></div><div class="preview-stat"><strong>−38</strong><span>删除</span></div></div><label><span class="panel-caption">Commit message</span><textarea class="textarea commit-message" id="commitMessage">refactor: 重构项目信息架构，精简看板并强化详情页</textarea></label><div class="inline-actions" style="margin-top:9px"><button class="btn soft" data-drawer="commit-ai">✦ AI 重新生成</button><span class="panel-caption">确认时才会执行 git add -A</span></div></div>
+      <footer class="modal-foot"><button class="btn soft close-modal">取消</button><div class="inline-actions"><button class="btn soft" data-toast="Mockup：已模拟 Commit">仅 Commit</button><button class="btn primary" data-toast="Mockup：已模拟 Commit & Push">Commit & Push</button></div></footer>
+    </section>
+  </div>
+
+  <aside class="drawer" id="aiDrawer" aria-label="AI 过程">
+    <header class="drawer-head"><div><h2 id="drawerTitle">AI 过程</h2><p id="drawerSub">gittracker · 可真正停止</p></div><button class="btn icon-btn" id="closeDrawer" aria-label="关闭">×</button></header>
+    <div class="drawer-body" id="drawerBody"></div>
+    <footer class="drawer-foot"><button class="btn danger" id="stopAi">停止任务</button><button class="btn primary" id="finishAi" hidden>完成</button></footer>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const projects = [
+      { id:'dailysync', name:'dailysync', path:'/Users/biem/Documents/dailysync', branch:'main', state:'changed', staged:2, changes:4, sync:'↓1', commit:'修复日记同步冲突 · 21 分钟前' },
+      { id:'ob-super-copy', name:'ob-super-copy', path:'/Users/biem/Documents/ob-super-copy', branch:'main', state:'clean', staged:0, changes:0, sync:'已同步', commit:'发布 1.2.1 · 2 天前' },
+      { id:'english-hero', name:'English Hero', path:'/Users/biem/Documents/EnglishHero/eh', branch:'feature/words', state:'changed', staged:1, changes:2, sync:'↑3', commit:'增加双语字幕 · 1 天前' },
+      { id:'gittracker', name:'gittracker', path:'/Users/biem/Documents/GitTracker/gittracker', branch:'main', state:'changed', staged:0, changes:5, sync:'↑2', commit:'统一 AI 侧栏 · 11 分钟前' }
+    ];
+    const files = [
+      { name:'src/App.tsx', status:'M', diff:'@@ -118,14 +118,18 @@\\n export function App() {\\n-  return <ProjectCard project={project} />\\n+  return <ProjectDetailPage project={project} />\\n+\\n+  // Board cards now render summaries only\\n+  const summary = toProjectSummary(project);' },
+      { name:'src/components/ProjectDetailPage.tsx', status:'U', diff:'@@ -0,0 +1,34 @@\\n+export function ProjectDetailPage({ project }) {\\n+  return (\\n+    <main className="project-detail">\\n+      <ChangesPanel projectId={project.id} />\\n+      <DocsPanel projectId={project.id} />\\n+    </main>\\n+  );\\n+}' },
+      { name:'src/components/ProjectCard.tsx', status:'M', diff:'@@ -42,17 +42,9 @@\\n-export function ProjectCard(props) {\\n-  const [docs, setDocs] = useState(null);\\n-  const [menuOpen, setMenuOpen] = useState(false);\\n+export function ProjectSummaryCard(props) {\\n+  const { project, onOpen } = props;\\n   return (\\n-    <article className="project-card">\\n+    <article className="project-summary">' },
+      { name:'src/components/ProjectCard.css', status:'D', diff:'@@ -1,8 +0,0 @@\\n-.project-card {\\n-  display: flex;\\n-  flex-direction: column;\\n-  gap: .9rem;\\n-  padding: 1.1rem;\\n-}' },
+      { name:'src/types.ts', status:'M', diff:'@@ -25,6 +25,11 @@\\n export interface ProjectStatus {\\n   clean: boolean;\\n+  loadState: "loading" | "ready" | "error";\\n+  refreshedAt: number;\\n }' }
+    ];
+    const logs = [
+      { status:'成功', kind:'AI 提交', project:'gittracker', title:'生成提交文案', time:'刚刚', detail:'生成文案：refactor: 重构项目信息架构\\n阶段：等待用户确认 Commit & Push' },
+      { status:'失败', kind:'AI 任务', project:'dailysync', title:'实现任务 014 失败', time:'18 分钟前', detail:'CLI 已在 120 秒后超时并终止。\\n没有执行 Commit 或 Push；工作区可能保留部分修改。' },
+      { status:'成功', kind:'运行目标', project:'gittracker', title:'启动桌面开发环境', time:'41 分钟前', detail:'cwd: .\\ncommand: npm run tauri dev\\n已在系统终端启动。' },
+      { status:'成功', kind:'Discard', project:'dailysync', title:'丢弃 2 个文件', time:'1 小时前', detail:'恢复包：recovery/20260721-013245-a8f2/\\n已验证 2 个目标不再存在本地变更。' }
+    ];
+
+    const grid = document.getElementById('projectGrid');
+    grid.innerHTML = projects.map(p => `<article class="project-card"><div class="card-top"><div style="min-width:0"><h2 class="card-name">${p.name}</h2><div class="path">${p.path}</div></div><span class="pill ${p.state}">${p.state === 'clean' ? 'Clean' : 'Changed'}</span></div><div class="branch-row"><span class="branch">${p.branch}</span><span>${p.sync}</span></div><div class="card-stats"><div class="mini-stat"><strong>${p.staged}</strong><span>Staged</span></div><div class="mini-stat"><strong>${p.changes}</strong><span>Changes</span></div><div class="mini-stat"><strong>${p.state === 'clean' ? '—' : '需处理'}</strong><span>状态</span></div></div><div class="card-foot"><span class="last-commit">${p.commit}</span><div class="inline-actions"><button class="btn small soft" data-run="${p.id}">▶ 运行</button><button class="btn small primary" data-open="${p.id}">查看项目</button></div></div></article>`).join('');
+
+    const fileList = document.getElementById('fileList');
+    const diffView = document.getElementById('diffView');
+    function renderFiles(active = 0) {
+      fileList.innerHTML = files.map((f,i) => `<button class="file-row ${i===active?'active':''}" data-file="${i}"><span class="file-status ${f.status.toLowerCase()}">${f.status}</span><span class="file-name">${f.name}</span></button>`).join('');
+      diffView.innerHTML = files[active].diff.split('\\n').map(line => `<span class="${line.startsWith('+')?'add':line.startsWith('-')?'del':line.startsWith('@@')?'hunk':''}">${line.replaceAll('&','&amp;').replaceAll('<','&lt;')}</span>`).join('\\n');
+    }
+    renderFiles();
+
+    function renderLogs() {
+      const q = document.getElementById('logSearch').value.toLowerCase();
+      const status = document.getElementById('logStatus').value;
+      const project = document.getElementById('logProject').value;
+      const filtered = logs.filter(l => (status==='all'||l.status===status) && (project==='all'||l.project===project) && `${l.kind} ${l.project} ${l.title} ${l.detail}`.toLowerCase().includes(q));
+      document.getElementById('logList').innerHTML = filtered.length ? filtered.map((l,i) => `<article class="log-row"><button class="log-summary"><span class="pill ${l.status==='成功'?'clean':'error'}">${l.status}</span><span>${l.kind}</span><strong>${l.title}</strong><span class="time">${l.time} · ${l.project}</span></button><div class="log-detail">${l.detail}</div></article>`).join('') : '<div class="panel" style="padding:30px;text-align:center;color:var(--muted)">没有匹配的日志</div>';
+    }
+    renderLogs();
+
+    let currentPage = 'board';
+    let settingsDirty = false;
+    function showPage(name) {
+      if (currentPage === 'settings' && settingsDirty && name !== 'settings' && !confirm('设置有未保存修改，确定离开吗？')) return;
+      currentPage = name;
+      document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${name}`));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+      document.querySelectorAll('.project-link').forEach(b => b.classList.toggle('active', name==='project' && b.dataset.project === document.getElementById('detailName').dataset.id));
+    }
+    function openProject(id) {
+      const p = projects.find(x => x.id === id) || projects[3];
+      const name = document.getElementById('detailName'); name.textContent = p.name; name.dataset.id = p.id;
+      document.getElementById('detailPath').textContent = p.path;
+      document.getElementById('detailBranch').textContent = p.branch;
+      const state = document.getElementById('detailState'); state.textContent = p.state === 'clean' ? 'Clean' : 'Changed'; state.className = `pill ${p.state}`;
+      showPage('project');
+    }
+
+    document.addEventListener('click', e => {
+      const page = e.target.closest('[data-page]'); if (page) showPage(page.dataset.page);
+      const open = e.target.closest('[data-open]'); if (open) openProject(open.dataset.open);
+      const project = e.target.closest('[data-project]'); if (project) openProject(project.dataset.project);
+      const file = e.target.closest('[data-file]'); if (file) renderFiles(Number(file.dataset.file));
+      const task = e.target.closest('.task-title'); if (task) task.closest('.task').classList.toggle('open');
+      const log = e.target.closest('.log-summary'); if (log) log.closest('.log-row').classList.toggle('open');
+      const modal = e.target.closest('[data-modal]'); if (modal) document.getElementById('commitModal').classList.add('show');
+      if (e.target.closest('.close-modal')) document.getElementById('commitModal').classList.remove('show');
+      const drawer = e.target.closest('[data-drawer], [data-run]'); if (drawer) openDrawer(drawer.dataset.drawer || 'run');
+      const toastTarget = e.target.closest('[data-toast]'); if (toastTarget) { document.getElementById('commitModal').classList.remove('show'); showToast(toastTarget.dataset.toast); }
+      if (e.target.classList.contains('reset-template')) { e.preventDefault(); markDirty(); showToast('已恢复默认模板，保存后生效'); }
+    });
+    document.getElementById('commitModal').addEventListener('click', e => { if (e.target.id === 'commitModal') e.currentTarget.classList.remove('show'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.getElementById('commitModal').classList.remove('show'); document.getElementById('aiDrawer').classList.remove('show'); } });
+    ['logSearch','logStatus','logProject'].forEach(id => document.getElementById(id).addEventListener('input', renderLogs));
+
+    function markDirty() { settingsDirty = true; document.getElementById('dirtyNote').classList.add('show'); document.getElementById('dirtyBadge').hidden = false; document.getElementById('saveSettings').disabled = false; }
+    document.querySelectorAll('.setting-control, input[name="provider"]').forEach(el => el.addEventListener('input', markDirty));
+    document.getElementById('saveSettings').addEventListener('click', () => { settingsDirty = false; document.getElementById('dirtyNote').classList.remove('show'); document.getElementById('dirtyBadge').hidden = true; document.getElementById('saveSettings').disabled = true; showToast('设置已保存'); });
+
+    let aiTimer;
+    function openDrawer(kind) {
+      clearTimeout(aiTimer);
+      const title = {run:'运行目标',generate:'AI 生成任务',implement:'AI 实现任务','commit-ai':'AI 生成 Commit message'}[kind] || 'AI 过程';
+      document.getElementById('drawerTitle').textContent = title;
+      document.getElementById('drawerBody').innerHTML = `<div class="ai-step"><span class="ai-kind">状态</span><span class="ai-copy">正在读取项目上下文…</span></div><div class="ai-step"><span class="ai-kind">过程</span><span class="ai-copy">已收集变更摘要与项目结构</span></div><div class="ai-step" id="pendingStep"><span class="spinner"></span><span class="ai-copy">正在处理，点击“停止任务”会真正终止后端进程。</span></div>`;
+      document.getElementById('stopAi').hidden = false; document.getElementById('finishAi').hidden = true;
+      document.getElementById('aiDrawer').classList.add('show');
+      aiTimer = setTimeout(() => { const pending = document.getElementById('pendingStep'); if (!pending) return; pending.innerHTML = `<span class="ai-kind">完成</span><span class="ai-copy">Mockup 演示已完成，没有执行真实命令。</span>`; document.getElementById('stopAi').hidden = true; document.getElementById('finishAi').hidden = false; }, 1800);
+    }
+    document.getElementById('closeDrawer').addEventListener('click', () => document.getElementById('aiDrawer').classList.remove('show'));
+    document.getElementById('finishAi').addEventListener('click', () => document.getElementById('aiDrawer').classList.remove('show'));
+    document.getElementById('stopAi').addEventListener('click', () => { clearTimeout(aiTimer); document.getElementById('pendingStep').innerHTML = `<span class="ai-kind" style="color:var(--red)">已停止</span><span class="ai-copy">后端进程已终止；已刷新项目状态。</span>`; document.getElementById('stopAi').hidden = true; document.getElementById('finishAi').hidden = false; });
+
+    let toastTimer;
+    function showToast(message) { clearTimeout(toastTimer); const toast = document.getElementById('toast'); toast.textContent = message; toast.classList.add('show'); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200); }
+  </script>
+</body>
+</html>
