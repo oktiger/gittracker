@@ -298,15 +298,13 @@
   padding-top: 0.35rem;
 }
 
-.app.has-ai-side .board,
-.app.has-ai-side .topbar {
+.app.has-ai-side .app-main {
   margin-right: min(420px, 92vw);
   transition: margin-right 0.2s ease;
 }
 
 @media (max-width: 900px) {
-  .app.has-ai-side .board,
-  .app.has-ai-side .topbar {
+  .app.has-ai-side .app-main {
     margin-right: 0;
   }
 

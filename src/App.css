@@ -14,6 +14,7 @@
   --font-display: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
   --font-body: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+  --sidebar-width: 220px;
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.45;
@@ -41,7 +42,6 @@ body {
 .app {
   position: relative;
   min-height: 100vh;
-  padding: 1.25rem 1.5rem 2rem;
 }
 
 .app-bg {
@@ -54,100 +54,108 @@ body {
     linear-gradient(180deg, #edf2f5 0%, #e4ebf0 100%);
 }
 
-.topbar {
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.15rem 1.4rem 1.75rem;
+}
+
+.main-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.1rem;
+  flex-wrap: wrap;
 }
 
-.brand h1 {
+.main-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.main-heading h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--ink);
 }
 
-.brand p {
-  margin: 0.2rem 0 0;
+.main-heading p {
+  margin: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
 }
 
-.topbar-actions {
+.main-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(560px, 70vw);
+  font-family: var(--font-mono);
+  font-size: 0.75rem !important;
+}
+
+.main-back {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+  width: fit-content;
+}
+
+.main-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.view-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  padding: 0.18rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid var(--border);
-  margin-right: 0.25rem;
-}
-
-.view-tab {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 650;
-  padding: 0.38rem 0.7rem;
-  border-radius: 8px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.view-tab:hover {
-  color: var(--ink);
-  background: rgba(26, 34, 41, 0.05);
-}
-
-.view-tab.is-active {
-  color: var(--ink);
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(20, 24, 28, 0.08);
-}
-
-.view-tab-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.28rem;
-  border-radius: 999px;
-  background: rgba(36, 110, 150, 0.14);
-  color: var(--accent);
-  font-size: 0.68rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 .board {
-  min-height: 50vh;
+  flex: 1;
+  min-height: 0;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1rem;
+}
+
+.board-card-wrap {
+  cursor: pointer;
+  border-radius: 12px;
+  outline: none;
+}
+
+.board-card-wrap:focus-visible {
+  box-shadow: 0 0 0 2px rgba(36, 110, 150, 0.45);
+}
+
+.project-detail {
+  max-width: 760px;
+}
+
+.project-detail .project-card {
+  transform: none;
+}
+
+.project-detail .project-card:hover {
+  transform: none;
 }
 
 .empty-state {
@@ -300,18 +308,21 @@ body {
   padding: 0;
 }
 
-@media (max-width: 640px) {
-  .app {
-    padding: 1rem;
-  }
-
-  .topbar {
+@media (max-width: 860px) {
+  .app-shell {
     flex-direction: column;
-    align-items: stretch;
   }
 
-  .topbar-actions {
-    justify-content: flex-end;
+  .app-sidebar {
+    width: 100% !important;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+
+  .app-main {
+    padding: 1rem;
   }
 }
 

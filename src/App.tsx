@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "./api";
+import { AppSidebar, type NavView } from "./components/AppSidebar";
 import { ChangesDialog } from "./components/ChangesDialog";
 import { CommitDialog } from "./components/CommitDialog";
 import { DiscardDialog } from "./components/DiscardDialog";
@@ -15,7 +16,7 @@ import { useProjects } from "./hooks/useProjects";
 import type { NewLogDiaryEntry, RunTarget } from "./types";
 import "./App.css";
 
-type AppView = "board" | "logDiary" | "settings";
+type AppView = NavView | "project";
 
 type DialogState =
   | { type: "commit"; id: string; name: string }
@@ -44,6 +45,7 @@ function App() {
   } = useProjects();
   const logDiary = useLogDiary();
   const [view, setView] = useState<AppView>("board");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [sidePanel, setSidePanel] = useState<SidePanelState>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -59,6 +61,17 @@ function App() {
     },
     [logDiary.append],
   );
+
+  const goNav = (next: NavView) => {
+    setSelectedProjectId(null);
+    setView(next);
+    if (next === "logDiary") void logDiary.refresh();
+  };
+
+  const openProject = (id: string) => {
+    setSelectedProjectId(id);
+    setView("project");
+  };
 
   const onAdd = async () => {
     try {
@@ -80,6 +93,10 @@ function App() {
     if (!window.confirm(`从看板移除「${name}」？\n不会删除磁盘上的仓库。`)) return;
     try {
       await api.removeProject(id);
+      if (selectedProjectId === id) {
+        setSelectedProjectId(null);
+        setView("board");
+      }
       await refresh();
     } catch (e) {
       setError(String(e));
@@ -121,137 +138,201 @@ function App() {
     }
   };
 
+  const selectedProject =
+    view === "project" && selectedProjectId
+      ? projects.find((p) => p.id === selectedProjectId) ?? null
+      : null;
+
+  const renderProjectCard = (p: (typeof projects)[number]) => (
+    <ProjectCard
+      key={p.id}
+      project={p}
+      busy={busyIds[p.id]}
+      onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
+      onOneClick={() => void onOneClick(p.id)}
+      onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
+      onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
+      onRemove={() => void onRemove(p.id, p.name)}
+      onOpenDoc={(relativePath, title) =>
+        setDialog({
+          type: "doc",
+          id: p.id,
+          relativePath,
+          title,
+        })
+      }
+      onConfigureRun={(mode) =>
+        setSidePanel({
+          id: p.id,
+          name: p.name,
+          mode,
+          initialTargets: mode === "config" ? p.runTargets ?? [] : undefined,
+        })
+      }
+      onError={(msg) => setError(msg)}
+      onToast={showToast}
+      onLog={appendLog}
+      onRefreshProject={() => void refreshOne(p.id)}
+    />
+  );
+
   return (
     <div className={`app${sidePanel ? " has-ai-side" : ""}`}>
       <div className="app-bg" aria-hidden="true" />
 
-      <header className="topbar">
-        <div className="brand">
-          <h1>GitTracker</h1>
-          <p>
-            多项目 Git 看板
-            <HelpTip text="文件变更自动刷新；每 60 秒兜底全量刷新。关闭窗口后仍驻留托盘。" />
-          </p>
-        </div>
-        <div className="topbar-actions">
-          <nav className="view-tabs" aria-label="主视图">
-            <button
-              type="button"
-              className={`view-tab${view === "board" ? " is-active" : ""}`}
-              onClick={() => setView("board")}
-            >
-              看板
-            </button>
-            <button
-              type="button"
-              className={`view-tab${view === "logDiary" ? " is-active" : ""}`}
-              onClick={() => {
-                setView("logDiary");
-                void logDiary.refresh();
-              }}
-            >
-              日志日记
-              {logDiary.entries.length > 0 ? (
-                <span className="view-tab-count">{logDiary.entries.length}</span>
-              ) : null}
-            </button>
-            <button
-              type="button"
-              className={`view-tab${view === "settings" ? " is-active" : ""}`}
-              onClick={() => setView("settings")}
-            >
-              设置
-            </button>
-          </nav>
-          {view === "board" && (
-            <>
-              <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
-                刷新
+      <div className="app-shell">
+        <AppSidebar
+          view={view}
+          selectedProjectId={selectedProjectId}
+          projects={projects}
+          logCount={logDiary.entries.length}
+          onNavigate={goNav}
+          onSelectProject={openProject}
+        />
+
+        <div className="app-main">
+          <header className="main-header">
+            {view === "board" && (
+              <>
+                <div className="main-heading">
+                  <h2>看板</h2>
+                  <p>
+                    总览全部项目状态
+                    <HelpTip text="文件变更自动刷新；每 60 秒兜底全量刷新。关闭窗口后仍驻留托盘。" />
+                  </p>
+                </div>
+                <div className="main-actions">
+                  <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
+                    刷新
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={() => void onAdd()}>
+                    添加项目
+                  </button>
+                </div>
+              </>
+            )}
+
+            {view === "project" && (
+              <>
+                <div className="main-heading">
+                  <button
+                    type="button"
+                    className="btn-link main-back"
+                    onClick={() => goNav("board")}
+                  >
+                    ← 看板
+                  </button>
+                  <h2>{selectedProject?.name ?? "项目详情"}</h2>
+                  {selectedProject ? (
+                    <p className="main-path" title={selectedProject.path}>
+                      {selectedProject.path}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="main-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => selectedProjectId && void refreshOne(selectedProjectId)}
+                    disabled={!selectedProjectId}
+                  >
+                    刷新
+                  </button>
+                </div>
+              </>
+            )}
+
+            {view === "logDiary" && (
+              <div className="main-heading">
+                <h2>日志</h2>
+                <p>记录一键提交、AI 操作与其它事件</p>
+              </div>
+            )}
+
+            {view === "settings" && (
+              <div className="main-heading">
+                <h2>设置</h2>
+                <p>AI Provider 与提示词模板</p>
+              </div>
+            )}
+          </header>
+
+          {error && (
+            <div className="banner-error" role="alert">
+              <span>{error}</span>
+              <button type="button" className="btn-link" onClick={() => setError(null)}>
+                关闭
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => void onAdd()}>
-                添加项目
-              </button>
-            </>
+            </div>
           )}
-        </div>
-      </header>
 
-      {error && (
-        <div className="banner-error" role="alert">
-          <span>{error}</span>
-          <button type="button" className="btn-link" onClick={() => setError(null)}>
-            关闭
-          </button>
-        </div>
-      )}
-
-      <main className="board">
-        {view === "board" &&
-          (loading ? (
-            <div className="empty-state">加载中…</div>
-          ) : projects.length === 0 ? (
-            <div className="empty-state">
-              <h2>还没有项目</h2>
-              <p>添加本地 Git 仓库，即可在同一窗口查看状态并提交。</p>
-              <button type="button" className="btn btn-primary" onClick={() => void onAdd()}>
-                添加第一个项目
-              </button>
-            </div>
-          ) : (
-            <div className="grid">
-              {projects.map((p) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  busy={busyIds[p.id]}
-                  onManualCommit={() =>
-                    setDialog({ type: "commit", id: p.id, name: p.name })
-                  }
-                  onOneClick={() => void onOneClick(p.id)}
-                  onDiscard={() =>
-                    setDialog({ type: "discard", id: p.id, name: p.name })
-                  }
-                  onViewChanges={() =>
-                    setDialog({ type: "changes", id: p.id, name: p.name })
-                  }
-                  onRemove={() => void onRemove(p.id, p.name)}
-                  onOpenDoc={(relativePath, title) =>
-                    setDialog({
-                      type: "doc",
-                      id: p.id,
-                      relativePath,
-                      title,
-                    })
-                  }
-                  onConfigureRun={(mode) =>
-                    setSidePanel({
-                      id: p.id,
-                      name: p.name,
-                      mode,
-                      initialTargets: mode === "config" ? p.runTargets ?? [] : undefined,
-                    })
-                  }
-                  onError={(msg) => setError(msg)}
-                  onToast={showToast}
-                  onLog={appendLog}
-                  onRefreshProject={() => void refreshOne(p.id)}
-                />
+          <main className="board">
+            {view === "board" &&
+              (loading ? (
+                <div className="empty-state">加载中…</div>
+              ) : projects.length === 0 ? (
+                <div className="empty-state">
+                  <h2>还没有项目</h2>
+                  <p>添加本地 Git 仓库，即可在同一窗口查看状态并提交。</p>
+                  <button type="button" className="btn btn-primary" onClick={() => void onAdd()}>
+                    添加第一个项目
+                  </button>
+                </div>
+              ) : (
+                <div className="grid">
+                  {projects.map((p) => (
+                    <div
+                      key={p.id}
+                      className="board-card-wrap"
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest("button, a, input, textarea, select, label")) return;
+                        openProject(p.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openProject(p.id);
+                        }
+                      }}
+                    >
+                      {renderProjectCard(p)}
+                    </div>
+                  ))}
+                </div>
               ))}
-            </div>
-          ))}
 
-        {view === "logDiary" && (
-          <LogDiaryPage
-            entries={logDiary.entries}
-            loading={logDiary.loading}
-            onClear={logDiary.clear}
-            onRefresh={logDiary.refresh}
-            onToast={showToast}
-          />
-        )}
+            {view === "project" &&
+              (loading ? (
+                <div className="empty-state">加载中…</div>
+              ) : !selectedProject ? (
+                <div className="empty-state">
+                  <h2>项目不存在</h2>
+                  <p>该项目可能已被移除。</p>
+                  <button type="button" className="btn btn-primary" onClick={() => goNav("board")}>
+                    返回看板
+                  </button>
+                </div>
+              ) : (
+                <div className="project-detail">{renderProjectCard(selectedProject)}</div>
+              ))}
 
-        {view === "settings" && <SettingsPage onSaved={showToast} />}
-      </main>
+            {view === "logDiary" && (
+              <LogDiaryPage
+                entries={logDiary.entries}
+                loading={logDiary.loading}
+                onClear={logDiary.clear}
+                onRefresh={logDiary.refresh}
+                onToast={showToast}
+              />
+            )}
+
+            {view === "settings" && <SettingsPage onSaved={showToast} />}
+          </main>
+        </div>
+      </div>
 
       {dialog?.type === "commit" && (
         <CommitDialog
