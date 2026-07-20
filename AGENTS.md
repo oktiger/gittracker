@@ -46,7 +46,30 @@
 
 ## Git 自动提交与发布（强制）
 
-每次完成一次代码修改后，必须只 stage 当前任务文件，创建一个版本 commit，并直接 push 到 `origin/main`。不得使用 force push，不得夹带 secret、环境文件、缓存、构建产物或无关改动。
+### 单任务模式
+
+单任务独占当前工作区时，每次完成一次代码修改后，必须只 stage 当前任务文件，创建一个版本 commit，并直接 push 到 `origin/main`。不得使用 force push，不得夹带 secret、环境文件、缓存、构建产物或无关改动。
+
+### 并行任务模式（强制隔离）
+
+当需要同时执行两个或以上会改代码的 Codex 任务时，**禁止**让多个任务共用同一个工作区、分支或暂存区。每个任务必须使用独立的 Git worktree 和任务分支，例如：
+
+```bash
+git fetch origin
+git worktree add ../gittracker-task-document-library -b codex/document-library origin/main
+```
+
+并行任务必须遵守：
+
+1. 一个任务只在自己的 worktree 内读写、`git add`、commit 和测试；不得在主工作区或其他任务的 worktree 操作 Git。
+2. 任务分支使用 `codex/<简短任务名>`；分支名与 worktree 目录必须一一对应。
+3. 任务只暂存明确列出的当前任务文件，禁止 `git add .`、`git add -A`，也不得暂存其他任务已经修改的文件。
+4. 任务完成后提交到自己的任务分支；不得自行向 `origin/main` push，也不得 force push。
+5. 只有“集成任务”可以在干净的主 worktree 合并已完成的任务分支、解决冲突、执行完整验证，并 fast-forward/rebase 后 push `origin/main`。
+6. 如果两个任务预计会改同一文件（尤其是 `src/App.tsx`、导航、类型定义、Tauri command 或 store），应拆分边界或改为串行；不得依靠暂存区来隔离改动。
+7. 合并前先检查目标分支是否落后于 `origin/main`；每合并一个任务分支后都要运行对应验证。若有冲突，由集成任务处理，不在多个任务间交叉修改。
+
+只做只读排查、代码评审、方案设计的任务可以共用主工作区，但不得修改文件或执行 `git add`、commit、push。
 
 ### Commit message 格式
 
@@ -57,11 +80,17 @@
 - **序号**：取整个 monorepo 历史中已有整数前缀的最大值加一
 - **type**：使用 Conventional Commits（如 `feat`、`fix`、`refactor`、`docs`、`chore` 等）
 
-### Push 前必须
+### 任务分支提交前必须
 
 1. 检查 `git status` 和 `git diff`
 2. 按风险执行 app 对应的 lint、build、test 或 E2E
-3. 获取 `origin/main` 最新状态，只允许安全 fast-forward 或 rebase
+3. 确认暂存区仅包含当前任务文件，且提交目标为本任务分支
+
+### 集成并 Push 前必须
+
+1. 获取 `origin/main` 最新状态，只允许安全 fast-forward 或 rebase
+2. 确认主 worktree 没有来自其他任务的未提交改动
+3. 检查 `git status`、`git diff` 与合并后的变更范围，并执行与风险相称的验证
 
 ### Push 后必须
 
