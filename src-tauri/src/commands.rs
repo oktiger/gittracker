@@ -2,7 +2,7 @@ use crate::ai;
 use crate::error::{AppError, AppResult};
 use crate::git;
 use crate::models::{
-    DiscardPreview, DiscardResult, OneClickResult, ProjectRecord, ProjectStatus,
+    AppSettings, DiscardPreview, DiscardResult, OneClickResult, ProjectRecord, ProjectStatus,
 };
 use crate::store;
 use crate::watch::{self, WatchState};
@@ -138,4 +138,14 @@ pub fn discard_changes(
 #[tauri::command]
 pub fn sync_file_watchers(app: AppHandle, _state: State<'_, WatchState>) -> AppResult<()> {
     watch::sync_watches(&app).map_err(AppError::msg)
+}
+
+#[tauri::command]
+pub fn get_settings() -> AppResult<AppSettings> {
+    store::get_settings()
+}
+
+#[tauri::command]
+pub fn update_settings(settings: AppSettings) -> AppResult<AppSettings> {
+    store::update_settings(settings)
 }

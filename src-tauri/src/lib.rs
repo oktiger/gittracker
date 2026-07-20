@@ -37,6 +37,8 @@ pub fn run() {
             commands::preview_discard,
             commands::discard_changes,
             commands::sync_file_watchers,
+            commands::get_settings,
+            commands::update_settings,
         ])
         .setup(|app| {
             setup_tray(app)?;

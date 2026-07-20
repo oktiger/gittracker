@@ -5,12 +5,14 @@ import { CommitDialog } from "./components/CommitDialog";
 import { DiscardDialog } from "./components/DiscardDialog";
 import { HelpTip } from "./components/HelpTip";
 import { ProjectCard } from "./components/ProjectCard";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { useProjects } from "./hooks/useProjects";
 import "./App.css";
 
 type DialogState =
   | { type: "commit"; id: string; name: string }
   | { type: "discard"; id: string; name: string }
+  | { type: "settings" }
   | null;
 
 function App() {
@@ -89,6 +91,13 @@ function App() {
           <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
             刷新
           </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setDialog({ type: "settings" })}
+          >
+            设置
+          </button>
           <button type="button" className="btn btn-primary" onClick={() => void onAdd()}>
             添加项目
           </button>
@@ -157,6 +166,13 @@ function App() {
             void refreshOne(dialog.id);
             showToast("已 Discard");
           }}
+        />
+      )}
+
+      {dialog?.type === "settings" && (
+        <SettingsDialog
+          onClose={() => setDialog(null)}
+          onSaved={(msg) => showToast(msg)}
         />
       )}
 

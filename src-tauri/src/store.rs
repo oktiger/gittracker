@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{AppStore, ProjectRecord};
+use crate::models::{AppSettings, AppStore, ProjectRecord};
 use std::fs;
 use std::path::PathBuf;
 
@@ -109,4 +109,15 @@ pub fn recovery_dir(project_id: &str) -> AppResult<PathBuf> {
     let dir = data_dir()?.join("recovery").join(project_id);
     fs::create_dir_all(&dir)?;
     Ok(dir)
+}
+
+pub fn get_settings() -> AppResult<AppSettings> {
+    Ok(load_store()?.settings)
+}
+
+pub fn update_settings(settings: AppSettings) -> AppResult<AppSettings> {
+    let mut store = load_store()?;
+    store.settings = settings.clone();
+    save_store(&store)?;
+    Ok(settings)
 }

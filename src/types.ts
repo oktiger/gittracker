@@ -5,6 +5,12 @@ export interface ProjectRecord {
   order: number;
 }
 
+export type AiProvider = "codex" | "cursorAgent";
+
+export interface AppSettings {
+  aiProvider: AiProvider;
+}
+
 export interface CommitInfo {
   hash: string;
   timestamp: number;

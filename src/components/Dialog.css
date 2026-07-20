@@ -126,6 +126,55 @@
   border-top: 1px solid var(--border);
 }
 
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.provider-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.provider-option:hover {
+  border-color: var(--border-strong);
+}
+
+.provider-option.is-selected {
+  border-color: var(--accent);
+  background: rgba(36, 110, 150, 0.08);
+}
+
+.provider-option input {
+  margin-top: 0.2rem;
+}
+
+.provider-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.provider-copy strong {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.provider-copy span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .file-list-header {
   display: flex;
   justify-content: space-between;

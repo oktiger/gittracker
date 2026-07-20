@@ -86,7 +86,7 @@ export function CommitDialog({ projectId, projectName, onClose, onDone }: Props)
 
         <p className="dialog-hint">
           {stagedHint}{" "}
-          <HelpTip text="AI 仅根据 Staged Diff 生成文案，不会修改文件或执行 Git 命令" />
+          <HelpTip text="AI 仅根据 Staged Diff 生成文案，不会修改文件或执行 Git 命令。具体走 Codex 还是 Cursor Agent，在设置中选择。" />
         </p>
 
         <label className="field">

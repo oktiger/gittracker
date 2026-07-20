@@ -9,10 +9,35 @@ pub struct ProjectRecord {
     pub order: i32,
 }
 
+/// 全局 AI 调用通道。项目内所有 AI 能力都必须经此设置统一路由。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum AiProvider {
+    #[default]
+    Codex,
+    CursorAgent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettings {
+    pub ai_provider: AiProvider,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            ai_provider: AiProvider::Codex,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AppStore {
     pub projects: Vec<ProjectRecord>,
+    #[serde(default)]
+    pub settings: AppSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  AppSettings,
   DiscardPreview,
   DiscardResult,
   OneClickResult,
@@ -39,4 +40,7 @@ export const api = {
       paths,
       includeUntracked,
     }),
+  getSettings: () => invoke<AppSettings>("get_settings"),
+  updateSettings: (settings: AppSettings) =>
+    invoke<AppSettings>("update_settings", { settings }),
 };
