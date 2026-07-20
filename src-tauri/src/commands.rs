@@ -511,7 +511,12 @@ pub async fn suggest_run_targets(
 }
 
 #[tauri::command]
-pub fn run_project_target(id: String, target_id: String) -> AppResult<()> {
+pub fn run_project_target(
+    app: AppHandle,
+    manager: State<run::RunManager>,
+    id: String,
+    target_id: String,
+) -> AppResult<RunSession> {
     let project = store::find_project(&id)?;
     let target = project
         .run_targets

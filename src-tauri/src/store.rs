@@ -68,13 +68,7 @@ pub fn add_project(path: String, name: Option<String>) -> AppResult<ProjectRecor
             .to_string()
     });
 
-    let order = store
-        .projects
-        .iter()
-        .map(|p| p.order)
-        .max()
-        .unwrap_or(-1)
-        + 1;
+    let order = store.projects.iter().map(|p| p.order).max().unwrap_or(-1) + 1;
 
     let record = ProjectRecord {
         id: uuid::Uuid::new_v4().to_string(),

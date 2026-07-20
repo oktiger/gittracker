@@ -55,7 +55,8 @@ pub fn test_connection(
     let label = label_for(provider);
     emit(progress, "status", &format!("正在测试 {label}…"));
 
-    let prompt = "你是连通性测试助手。请只回复两个字：连通。不要解释、不要代码块、不要执行任何命令。";
+    let prompt =
+        "你是连通性测试助手。请只回复两个字：连通。不要解释、不要代码块、不要执行任何命令。";
     let reply = match provider {
         AiProvider::Codex => run_codex(prompt, None, false, progress)?,
         AiProvider::CursorAgent => run_cursor_agent(prompt, None, false, progress)?,
@@ -138,7 +139,11 @@ pub fn summarize_daily_completion(
         return Ok("这段时间还没有新的提交。".to_string());
     }
     let label = provider_label().unwrap_or("AI");
-    emit(progress, "status", &format!("使用 {label} 整理{period_label}完成事项…"));
+    emit(
+        progress,
+        "status",
+        &format!("使用 {label} 整理{period_label}完成事项…"),
+    );
     let prompt = format!(
         "你是 Git 工作总结助手。仅依据下方 commit message，总结用户{period_label}做了什么。\n\
          要求：\n\
@@ -166,9 +171,8 @@ pub fn run_goal(
         &format!("使用 {label} 根据目标拆分任务…"),
     );
 
-    let prompt = format!(
-        "{template}\n\n【项目目标】\n{goal_md}\n\n【项目现状】\n{project_context}\n"
-    );
+    let prompt =
+        format!("{template}\n\n【项目目标】\n{goal_md}\n\n【项目现状】\n{project_context}\n");
     let prompt = truncate_prompt(&prompt);
     run_readonly(&prompt, Some(project_path), progress)
 }
@@ -188,9 +192,7 @@ pub fn run_task(
         &format!("使用 {label} 实现任务（{task_path}）…"),
     );
 
-    let prompt = format!(
-        "{template}\n\n【任务文件】{task_path}\n\n【任务文档】\n{task_md}\n"
-    );
+    let prompt = format!("{template}\n\n【任务文件】{task_path}\n\n【任务文档】\n{task_md}\n");
     let prompt = truncate_prompt(&prompt);
     run_writable(&prompt, project_path, progress)
 }
@@ -218,11 +220,7 @@ fn run_readonly(
     }
 }
 
-fn run_writable(
-    prompt: &str,
-    cwd: &Path,
-    progress: Option<&ProgressSink>,
-) -> AppResult<String> {
+fn run_writable(prompt: &str, cwd: &Path, progress: Option<&ProgressSink>) -> AppResult<String> {
     match store::get_settings()?.ai_provider {
         AiProvider::Codex => run_codex(prompt, Some(cwd), true, progress),
         AiProvider::CursorAgent => run_cursor_agent(prompt, Some(cwd), true, progress),
@@ -245,10 +243,7 @@ fn run_codex(
         "未找到 Codex CLI。请先安装并登录：npm i -g @openai/codex && codex login",
     )?;
 
-    let tmp = std::env::temp_dir().join(format!(
-        "gittracker-ai-{}.txt",
-        uuid::Uuid::new_v4()
-    ));
+    let tmp = std::env::temp_dir().join(format!("gittracker-ai-{}.txt", uuid::Uuid::new_v4()));
 
     let sandbox = if writable {
         "workspace-write"
@@ -379,10 +374,7 @@ fn run_codex(
     Ok(message)
 }
 
-fn finish_codex_output(
-    output: std::process::Output,
-    tmp: &Path,
-) -> AppResult<String> {
+fn finish_codex_output(output: std::process::Output, tmp: &Path) -> AppResult<String> {
     let mut message = if tmp.exists() {
         let content = std::fs::read_to_string(tmp).unwrap_or_default();
         let _ = std::fs::remove_file(tmp);
@@ -617,11 +609,7 @@ struct CursorStreamAcc {
     last_assistant_emitted: String,
 }
 
-fn forward_cursor_json_line(
-    progress: &dyn Fn(&str, &str),
-    line: &str,
-    acc: &mut CursorStreamAcc,
-) {
+fn forward_cursor_json_line(progress: &dyn Fn(&str, &str), line: &str, acc: &mut CursorStreamAcc) {
     let trimmed = line.trim();
     if trimmed.is_empty() {
         return;
@@ -638,10 +626,7 @@ fn forward_cursor_json_line(
 
     match event_type {
         "system" if subtype == "init" => {
-            let model = v
-                .get("model")
-                .and_then(|m| m.as_str())
-                .unwrap_or("unknown");
+            let model = v.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
             progress("status", &format!("已连接 Cursor Agent（模型：{model}）"));
         }
         "user" => {
@@ -665,7 +650,8 @@ fn forward_cursor_json_line(
                         && !acc.last_assistant_emitted.is_empty()
                     {
                         text[acc.last_assistant_emitted.len()..].to_string()
-                    } else if acc.assistant_text.is_empty() || !text.starts_with(&acc.assistant_text)
+                    } else if acc.assistant_text.is_empty()
+                        || !text.starts_with(&acc.assistant_text)
                     {
                         text.clone()
                     } else {
