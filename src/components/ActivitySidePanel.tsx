@@ -51,6 +51,7 @@ export function ActivitySidePanel(props: Props) {
   const { onRunSessionsChange } = props;
   const [aiCopyContent, setAiCopyContent] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
   useEffect(() => {
     const unlistenPromise = listen<RunProgressEvent>("run-progress", ({ payload }) => {
       onRunSessionsChange((sessions) => sessions.map((session) => {
@@ -106,6 +107,15 @@ export function ActivitySidePanel(props: Props) {
     void copy("all", ["# GitTracker 运行中心", "", ...runs, ...ai].join("\n\n---\n\n"));
   };
 
+  const toggleRunOutput = (id: string) => {
+    setExpandedRuns((ids) => {
+      const next = new Set(ids);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <aside className="activity-side-panel" aria-label="运行中心">
       <header className="activity-side-header">
@@ -116,14 +126,19 @@ export function ActivitySidePanel(props: Props) {
         </div>
       </header>
       <div className="activity-side-body">
-        {[...props.runSessions].sort((a, b) => a.startedAt - b.startedAt).map((session) => (
+        {[...props.runSessions].sort((a, b) => a.startedAt - b.startedAt).map((session) => {
+          const expanded = expandedRuns.has(session.id);
+          const output = expanded ? session.output : session.output.slice(-6);
+          const hasHiddenOutput = session.output.length > output.length;
+          return (
           <article className="run-session-card" key={session.id}>
             <div className="run-session-head"><div><strong>{session.targetName}</strong><small>{session.projectName} · {session.cwd}</small></div><div className="run-session-head-actions"><span className={"run-session-status is-" + session.status}>{statusLabel(session.status)}</span><button type="button" className="btn btn-secondary btn-sm" onClick={() => void copy("run-" + session.id, formatRunSession(session))}>{copied === "run-" + session.id ? "已复制" : "复制"}</button></div></div>
             <code className="run-session-command">{session.command}</code>
-            <pre className="run-session-output">{session.output.length ? session.output.map((line, index) => <span key={index} className={"is-" + line.stream}>{line.text + "\n"}</span>) : "正在等待输出…"}</pre>
-            <div className="run-session-actions">{session.status === "running" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void stop(session)}>停止</button>}{session.endedAt && <><small>{session.exitCode == null ? statusLabel(session.status) : "退出码 " + session.exitCode}</small><button type="button" className="btn btn-secondary btn-sm" onClick={() => void restart(session)}>重新运行</button></>}</div>
+            <pre className={"run-session-output" + (expanded ? " is-expanded" : "")}>{session.output.length ? output.map((line, index) => <span key={index} className={"is-" + line.stream}>{line.text + "\n"}</span>) : "正在等待输出…"}</pre>
+            <div className="run-session-actions"><div>{(hasHiddenOutput || expanded) && <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleRunOutput(session.id)}>{expanded ? "收起日志" : `查看完整日志（${session.output.length} 行）`}</button>}</div>{session.status === "running" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void stop(session)}>停止</button>}{session.endedAt && <><small>{session.exitCode == null ? statusLabel(session.status) : "退出码 " + session.exitCode}</small><button type="button" className="btn btn-secondary btn-sm" onClick={() => void restart(session)}>重新运行</button></>}</div>
           </article>
-        ))}
+          );
+        })}
         {props.aiSessions.map((item) => <AiSidePanel key={item.id} embedded session={item.session} onClose={() => props.onDismissAi(item.id, item.session)} onLog={props.onLog} onTargetsSaved={props.onTargetsSaved} onProjectRefresh={(projectId) => props.onProjectRefresh(projectId, item.session)} onToast={props.onToast} onCopyContent={(content) => setAiCopyContent((items) => ({ ...items, [item.id]: content }))} />)}
         {props.runSessions.length === 0 && props.aiSessions.length === 0 && <p className="activity-empty">还没有运行中的会话。</p>}
       </div>

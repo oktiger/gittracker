@@ -11,6 +11,7 @@
 .run-session-status { color: var(--accent); font-size: .75rem; font-weight: 600; white-space: nowrap; }
 .run-session-status.is-failed { color: var(--danger); }
 .run-session-command { display: block; margin: .6rem 0; color: var(--ink-soft); font-size: .75rem; word-break: break-word; }
-.run-session-output { max-height: 180px; margin: 0 0 .65rem; overflow: auto; white-space: pre-wrap; color: var(--ink-soft); font-family: var(--font-mono); font-size: .74rem; }
+.run-session-output { max-height: 9.4rem; margin: 0 0 .65rem; overflow: hidden; white-space: pre-wrap; color: var(--ink-soft); font-family: var(--font-mono); font-size: .74rem; }
+.run-session-output.is-expanded { max-height: 22rem; overflow: auto; }
 .run-session-output .is-stderr { color: var(--danger); }
 .activity-empty { color: var(--muted); font-size: .84rem; }
