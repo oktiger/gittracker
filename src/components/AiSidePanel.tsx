@@ -26,6 +26,7 @@ interface Props {
   onTargetsSaved?: (projectId: string, targets: RunTarget[]) => void;
   onProjectRefresh?: (projectId: string) => void;
   onToast?: (msg: string) => void;
+  onCopyContent?: (content: string) => void;
 }
 
 function toDraft(targets: RunTarget[], allChecked = true): Draft[] {
@@ -136,6 +137,7 @@ export function AiSidePanel({
   onTargetsSaved,
   onProjectRefresh,
   onToast,
+  onCopyContent,
 }: Props) {
   const needsAi = session.kind !== "config";
   const [phase, setPhase] = useState<"running" | "done" | "edit">(
@@ -598,6 +600,18 @@ export function AiSidePanel({
 
   const canCopy =
     transcript.length > 0 || Boolean(resultSummary) || Boolean(error);
+
+  useEffect(() => {
+    if (!onCopyContent) return;
+    onCopyContent(formatAiRunForCopy({
+      title,
+      subtitle,
+      transcript,
+      resultSummary,
+      error,
+      phase,
+    }));
+  }, [error, onCopyContent, phase, resultSummary, subtitle, title, transcript]);
 
   const copyAiRun = async () => {
     if (!canCopy) return;
