@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import {
-  isWorkingTreeChange,
   workingTreeBadge,
   type GitStatusKind,
 } from "../lib/gitStatusBadge";
@@ -58,8 +57,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
       setLoading(true);
       setError(null);
       try {
-        const all = await api.listChangedFiles(projectId);
-        setFiles(all.filter(isWorkingTreeChange));
+        setFiles(await api.listChangedFiles(projectId));
       } catch (e) {
         setError(String(e));
       } finally {
@@ -82,7 +80,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
         <DialogHeader>
           <DialogTitle>Changes · {projectName}</DialogTitle>
           <DialogDescription>
-            未暂存改动（Unstaged）与未跟踪新文件（Untracked）。{" "}
+            当前 Worktree 的全部 Changes。{" "}
             <HelpTip text="文件名右侧字母沿用 VS Code / GitHub Desktop：U Untracked、M Modified、D Deleted、A Added、R Renamed。" />
           </DialogDescription>
         </DialogHeader>
@@ -125,7 +123,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
             })}
             {sorted.length === 0 && (
               <li className="px-3 py-3 text-sm text-muted-foreground">
-                当前没有 Unstaged / Untracked 文件
+                当前没有 Changes
               </li>
             )}
           </ul>

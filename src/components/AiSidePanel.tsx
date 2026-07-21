@@ -441,7 +441,7 @@ export function AiSidePanel({
               title: `AI Generate 失败 · ${session.projectName}`,
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: "根据 Staged Diff，经统一 AI 通道生成 Commit message。",
+              detail: "根据当前 Worktree 的全部 Changes，经统一 AI 通道生成 Commit message。",
               error: err,
             });
             session.onError?.(err);

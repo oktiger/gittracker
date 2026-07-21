@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../api";
 import type { NewLogDiaryEntry } from "../types";
 import { HelpTip } from "./HelpTip";
@@ -37,25 +37,6 @@ export function CommitDialog({
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stagedHint, setStagedHint] = useState("");
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        // 打开对话框即自动暂存全部改动（Unstaged + Untracked）
-        await api.stageAllChanges(projectId);
-        const diff = await api.getStagedDiff(projectId);
-        setStagedHint(
-          diff.trim()
-            ? `已自动暂存全部改动，diff 约 ${diff.length} 字符`
-            : "当前没有可提交的更改",
-        );
-      } catch {
-        setStagedHint("");
-      }
-    })();
-  }, [projectId]);
-
   const onGenerate = async () => {
     setGenerating(true);
     setError(null);
@@ -119,8 +100,8 @@ export function CommitDialog({
         <DialogHeader>
           <DialogTitle>手动提交 · {projectName}</DialogTitle>
           <DialogDescription>
-            {stagedHint}{" "}
-            <HelpTip text="打开本对话框或点 AI Generate / Commit 时，会自动 git add -A（含 Unstaged 与 Untracked）。AI 根据暂存区 Diff 生成文案；具体走 Codex 还是 Cursor Agent，在设置中选择。" />
+            将提交当前 Worktree 的全部 Changes。
+            <HelpTip text="GitTracker 不要求你管理暂存区。AI Generate 会只读汇总全部 Changes；确认 Commit 时，应用才在内部创建一次临时提交快照。" />
           </DialogDescription>
         </DialogHeader>
 

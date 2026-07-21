@@ -25,6 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(WatchState::new())
+        .manage(git::GitOperationState::default())
         .manage(RunManager::default())
         .invoke_handler(tauri::generate_handler![
             commands::list_projects,
@@ -35,8 +36,6 @@ pub fn run() {
             commands::refresh_all,
             commands::list_changed_files,
             commands::get_file_diff,
-            commands::get_staged_diff,
-            commands::stage_all_changes,
             commands::generate_commit_message,
             commands::commit_project,
             commands::push_project,

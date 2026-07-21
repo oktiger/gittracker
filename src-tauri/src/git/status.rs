@@ -182,10 +182,6 @@ pub fn list_changed_files(repo: &Path) -> AppResult<Vec<FileChange>> {
     Ok(files)
 }
 
-pub fn staged_diff(repo: &Path) -> AppResult<String> {
-    run_git(repo, &["diff", "--cached"])
-}
-
 pub fn file_diff(repo: &Path, path: &str, staged: bool) -> AppResult<String> {
     if staged {
         run_git(repo, &["diff", "--cached", "--", path])

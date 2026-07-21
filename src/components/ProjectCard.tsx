@@ -76,7 +76,7 @@ export function ProjectCard({
 }: Props) {
   const disabled = Boolean(busy);
   const hasChanges = !project.clean;
-  const workingChanges = project.unstaged + project.untracked;
+  const changeCount = project.staged + project.unstaged + project.untracked;
   const [docs, setDocs] = useState<DocsOverview | null>(null);
   const [docsBusy, setDocsBusy] = useState<string | null>(null);
   const [runBusy, setRunBusy] = useState(false);
@@ -254,7 +254,7 @@ export function ProjectCard({
       )}
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2.5">
         <span className="text-[11px] text-muted-foreground">
-          {project.staged} Staged · {workingChanges} Changes
+          {changeCount} Changes
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           {board ? (
@@ -273,7 +273,7 @@ export function ProjectCard({
                 type="button"
                 variant="outline"
                 size="xs"
-                disabled={locked || workingChanges === 0}
+                disabled={locked || changeCount === 0}
                 onClick={onViewChanges}
               >
                 查看变更
@@ -448,18 +448,18 @@ export function ProjectCard({
               </div>
               <div className="mb-4 grid max-w-md grid-cols-2 gap-3">
                 <div className="rounded-md border border-border p-4 text-center">
-                  <div className="text-3xl font-semibold tabular-nums">{project.staged}</div>
+                  <div className="text-3xl font-semibold tabular-nums">{changeCount}</div>
                   <div className="text-xs text-muted-foreground">
-                    Staged <HelpTip text="已暂存、等待提交的文件数" />
+                    Changes <HelpTip text="当前 Worktree 中全部尚未提交的文件改动。" />
                   </div>
                 </div>
                 <button
                   type="button"
-                  disabled={workingChanges === 0 || locked}
+                  disabled={changeCount === 0 || locked}
                   onClick={onViewChanges}
                   className="rounded-md border border-border p-4 text-center hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
                 >
-                  <div className="text-3xl font-semibold tabular-nums">{workingChanges}</div>
+                  <div className="text-3xl font-semibold tabular-nums">{changeCount}</div>
                   <div className="text-xs text-muted-foreground">Changes · 点击查看</div>
                 </button>
               </div>

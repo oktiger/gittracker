@@ -1,25 +1,43 @@
 use crate::error::{AppError, AppResult};
-use crate::git::{run_git, run_git_allow_fail};
+use crate::git::{run_git, run_git_allow_fail, run_git_with_index};
 use crate::models::DiscardResult;
 use crate::store;
 use chrono::Local;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use uuid::Uuid;
 
-/// 将工作区全部改动（Unstaged + Untracked）加入暂存区，便于一键/手动提交无需手动 stage。
+/// 将当前 Worktree 的全部 Changes 加入提交快照。
 pub fn stage_all(repo: &Path) -> AppResult<()> {
     run_git(repo, &["add", "-A"])?;
     Ok(())
 }
 
+/// 读取完整 Changes 的 diff，不修改用户正在使用的 Git index。
+pub fn working_tree_diff(repo: &Path) -> AppResult<String> {
+    let index_path = std::env::temp_dir().join(format!("gittracker-{}.index", Uuid::new_v4()));
+    let result = (|| {
+        run_git_with_index(repo, &["add", "-A"], &index_path)?;
+        run_git_with_index(repo, &["diff", "--cached"], &index_path)
+    })();
+
+    let _ = fs::remove_file(&index_path);
+    let _ = fs::remove_file(index_path.with_extension("index.lock"));
+    result
+}
+
 pub fn commit(repo: &Path, message: &str) -> AppResult<()> {
+    stage_all(repo)?;
+    commit_staged(repo, message)
+}
+
+/// 提交已经由调用方创建好的完整 Changes 快照，不再次修改 index。
+pub fn commit_staged(repo: &Path, message: &str) -> AppResult<()> {
     let msg = message.trim();
     if msg.is_empty() {
         return Err(AppError::msg("Commit message 不能为空"));
     }
-
-    stage_all(repo)?;
 
     let staged = run_git(repo, &["diff", "--cached", "--name-only"])?;
     if staged.trim().is_empty() {

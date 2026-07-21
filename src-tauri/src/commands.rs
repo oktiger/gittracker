@@ -12,7 +12,7 @@ use crate::run;
 use crate::store;
 use crate::watch::{self, WatchState};
 use std::path::Path;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
@@ -69,31 +69,20 @@ pub fn get_file_diff(id: String, path: String, staged: bool) -> AppResult<String
 }
 
 #[tauri::command]
-pub fn get_staged_diff(id: String) -> AppResult<String> {
-    let project = store::find_project(&id)?;
-    git::staged_diff(Path::new(&project.path))
-}
-
-#[tauri::command]
-pub fn stage_all_changes(id: String) -> AppResult<()> {
-    let project = store::find_project(&id)?;
-    git::stage_all(Path::new(&project.path))
-}
-
-#[tauri::command]
 pub async fn generate_commit_message(
     app: AppHandle,
     id: String,
     session_id: String,
 ) -> AppResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let progress = ai::make_progress_sink(app, session_id);
+        let progress = ai::make_progress_sink(app.clone(), session_id);
         progress("status", "正在读取项目信息…");
         let project = store::find_project(&id)?;
         let repo = Path::new(&project.path);
-        progress("status", "正在暂存全部改动…");
-        git::stage_all(repo)?;
-        let diff = git::staged_diff(repo)?;
+        let operations = app.state::<git::GitOperationState>();
+        let _operation = operations.try_acquire(repo)?;
+        progress("status", "正在汇总全部 Changes…");
+        let diff = git::working_tree_diff(repo)?;
         ai::generate_commit_message(&diff, Some(&progress))
     })
     .await
@@ -101,21 +90,32 @@ pub async fn generate_commit_message(
 }
 
 #[tauri::command]
-pub fn commit_project(id: String, message: String) -> AppResult<()> {
+pub fn commit_project(
+    id: String,
+    message: String,
+    operations: State<'_, git::GitOperationState>,
+) -> AppResult<()> {
     let project = store::find_project(&id)?;
+    let _operation = operations.try_acquire(Path::new(&project.path))?;
     git::commit(Path::new(&project.path), &message)
 }
 
 #[tauri::command]
-pub fn push_project(id: String) -> AppResult<()> {
+pub fn push_project(id: String, operations: State<'_, git::GitOperationState>) -> AppResult<()> {
     let project = store::find_project(&id)?;
+    let _operation = operations.try_acquire(Path::new(&project.path))?;
     git::push(Path::new(&project.path))
 }
 
 #[tauri::command]
-pub fn commit_and_push(id: String, message: String) -> AppResult<()> {
+pub fn commit_and_push(
+    id: String,
+    message: String,
+    operations: State<'_, git::GitOperationState>,
+) -> AppResult<()> {
     let project = store::find_project(&id)?;
     let repo = Path::new(&project.path);
+    let _operation = operations.try_acquire(repo)?;
     git::commit(repo, &message)?;
     git::push(repo)?;
     Ok(())
@@ -128,20 +128,22 @@ pub async fn one_click_commit(
     session_id: String,
 ) -> AppResult<OneClickResult> {
     tauri::async_runtime::spawn_blocking(move || {
-        let progress = ai::make_progress_sink(app, session_id);
+        let progress = ai::make_progress_sink(app.clone(), session_id);
         progress("status", "正在读取项目信息…");
         let project = store::find_project(&id)?;
         let repo = Path::new(&project.path);
+        let operations = app.state::<git::GitOperationState>();
+        let _operation = operations.try_acquire(repo)?;
 
-        progress("status", "正在暂存全部改动…");
-        git::stage_all(repo)?;
-        let diff = git::staged_diff(repo)?;
+        progress("status", "正在汇总全部 Changes…");
+        let diff = git::working_tree_diff(repo)?;
 
         progress("status", "AI 正在生成 Commit message…");
         let message = ai::generate_commit_message(&diff, Some(&progress))?;
 
-        progress("status", "正在提交…");
-        git::commit(repo, &message)?;
+        progress("status", "正在创建 Commit 快照…");
+        git::stage_all(repo)?;
+        git::commit_staged(repo, &message)?;
 
         progress("status", "正在推送到远程…");
         git::push(repo)?;

@@ -91,11 +91,11 @@ fn truncate_for_ui(s: &str, max_chars: usize) -> String {
 /// 统一 AI 入口：按设置中的 AI Provider 路由到 Codex CLI 或 Cursor Agent CLI。
 /// 本项目所有需要调用 AI 的能力都必须走此通道，禁止绕过。
 pub fn generate_commit_message(
-    staged_diff: &str,
+    changes_diff: &str,
     progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
-    if staged_diff.trim().is_empty() {
-        return Err(AppError::msg("没有 staged diff，无法生成 Commit message"));
+    if changes_diff.trim().is_empty() {
+        return Err(AppError::msg("当前没有可提交的 Changes，无法生成 Commit message"));
     }
 
     let label = provider_label().unwrap_or("AI");
@@ -105,24 +105,24 @@ pub fn generate_commit_message(
         &format!("使用 {label} 生成 Commit message…"),
     );
 
-    let truncated = if staged_diff.len() > MAX_DIFF_CHARS {
+    let truncated = if changes_diff.len() > MAX_DIFF_CHARS {
         format!(
             "{}\n\n...[diff truncated, {} chars total]",
-            &staged_diff[..MAX_DIFF_CHARS],
-            staged_diff.len()
+            &changes_diff[..MAX_DIFF_CHARS],
+            changes_diff.len()
         )
     } else {
-        staged_diff.to_string()
+        changes_diff.to_string()
     };
 
     let prompt = format!(
-        "你是 Git commit message 助手。根据下方 staged diff，生成一条简体中文的 commit message。\n\
+        "你是 Git commit message 助手。根据下方全部 Changes 的 diff，生成一条简体中文的 commit message。\n\
          要求：\n\
          1. 只输出 commit message 本身，不要解释、不要代码块、不要引号\n\
          2. 第一行尽量不超过 60 个中文字符，简洁说明实际修改\n\
          3. 如有必要可加简短正文，用空行分隔\n\
          4. 不要执行任何命令，不要修改文件\n\n\
-         Staged diff:\n{truncated}"
+         Changes diff:\n{truncated}"
     );
 
     run_readonly(&prompt, None, progress)

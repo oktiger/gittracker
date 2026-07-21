@@ -33,8 +33,6 @@ export const api = {
     invoke<FileChange[]>("list_changed_files", { id }),
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
-  getStagedDiff: (id: string) => invoke<string>("get_staged_diff", { id }),
-  stageAllChanges: (id: string) => invoke<void>("stage_all_changes", { id }),
   generateCommitMessage: (id: string, sessionId: string) =>
     invoke<string>("generate_commit_message", { id, sessionId }),
   commitProject: (id: string, message: string) =>

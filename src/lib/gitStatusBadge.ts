@@ -53,18 +53,14 @@ function fromCode(code: string): GitStatusBadge {
   }
 }
 
-/** 取工作区（Unstaged / Untracked）视角的状态标识 */
+/** 为任意未提交 Changes 生成统一的状态标识。 */
 export function workingTreeBadge(file: FileChange): GitStatusBadge {
   if (file.untracked) {
     return { letter: "U", kind: "untracked", label: LABELS.untracked };
   }
   const x = file.status[0] ?? " ";
   const y = file.status[1] ?? " ";
-  // 优先 worktree 位；若无则回退 index（例如仅 staged 的情况）
+  // 优先工作区位；若只有 index 状态，仍将其作为一个 Change 展示。
   const code = y !== " " ? y : x;
   return fromCode(code);
-}
-
-export function isWorkingTreeChange(file: FileChange): boolean {
-  return file.untracked || file.unstaged;
 }
