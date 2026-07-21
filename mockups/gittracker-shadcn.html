@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitTracker · shadcn/ui Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: {
+              DEFAULT: "hsl(var(--primary))",
+              foreground: "hsl(var(--primary-foreground))",
+            },
+            secondary: {
+              DEFAULT: "hsl(var(--secondary))",
+              foreground: "hsl(var(--secondary-foreground))",
+            },
+            muted: {
+              DEFAULT: "hsl(var(--muted))",
+              foreground: "hsl(var(--muted-foreground))",
+            },
+            accent: {
+              DEFAULT: "hsl(var(--accent))",
+              foreground: "hsl(var(--accent-foreground))",
+            },
+            destructive: {
+              DEFAULT: "hsl(var(--destructive))",
+              foreground: "hsl(var(--destructive-foreground))",
+            },
+            card: {
+              DEFAULT: "hsl(var(--card))",
+              foreground: "hsl(var(--card-foreground))",
+            },
+            popover: {
+              DEFAULT: "hsl(var(--popover))",
+              foreground: "hsl(var(--popover-foreground))",
+            },
+          },
+          borderRadius: {
+            lg: "var(--radius)",
+            md: "calc(var(--radius) - 2px)",
+            sm: "calc(var(--radius) - 4px)",
+          },
+          fontFamily: {
+            sans: ["Geist", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+            mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 240 10% 3.9%;
+      --primary: 240 5.9% 10%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 240 4.8% 95.9%;
+      --secondary-foreground: 240 5.9% 10%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --accent: 240 4.8% 95.9%;
+      --accent-foreground: 240 5.9% 10%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 5.9% 90%;
+      --input: 240 5.9% 90%;
+      --ring: 240 5.9% 10%;
+      --radius: 0.625rem;
+    }
+    .dark {
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 5.5%;
+      --card-foreground: 0 0% 98%;
+      --popover: 240 10% 5.5%;
+      --popover-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 240 5.9% 10%;
+      --secondary: 240 3.7% 15.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --accent: 240 3.7% 15.9%;
+      --accent-foreground: 0 0% 98%;
+      --destructive: 0 62.8% 50%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 3.7% 15.9%;
+      --input: 240 3.7% 15.9%;
+      --ring: 240 4.9% 83.9%;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-family: Geist, Inter, ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .view { display: none; }
+    .view.is-active { display: block; }
+    .nav-item.is-active,
+    .project-item.is-active,
+    .tab-btn.is-active {
+      background: hsl(var(--accent));
+      color: hsl(var(--accent-foreground));
+    }
+    .sheet {
+      transform: translateX(100%);
+      transition: transform 220ms ease;
+    }
+    .sheet.is-open { transform: translateX(0); }
+    .overlay {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .overlay.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .dialog-panel {
+      opacity: 0;
+      transform: scale(0.97) translateY(6px);
+      transition: opacity 160ms ease, transform 160ms ease;
+      pointer-events: none;
+    }
+    .dialog-panel.is-open {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+    .toast {
+      transform: translateY(12px);
+      opacity: 0;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .toast.is-show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: hsl(var(--muted-foreground) / 0.25);
+      border-radius: 999px;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
+    .menu {
+      display: none; position: absolute; z-index: 30; right: 8px; top: 44px;
+      width: 220px; padding: 4px;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      background: hsl(var(--popover));
+      color: hsl(var(--popover-foreground));
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    }
+    .menu.is-open { display: block; animation: menu-in .12s ease; }
+    @keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
+  </style>
+</head>
+<body class="h-full overflow-hidden">
+  <div class="flex h-full">
+    <!-- Sidebar -->
+    <aside class="flex w-[240px] shrink-0 flex-col border-r border-border bg-card">
+      <div class="border-b border-border px-4 py-4">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-sm font-semibold tracking-tight">GitTracker</div>
+            <div class="text-xs text-muted-foreground">多项目 Git 看板</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="space-y-1 p-3" aria-label="主视图">
+        <button type="button" data-nav="board" class="nav-item is-active flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          看板
+        </button>
+        <button type="button" data-nav="summary" class="nav-item flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+          总结
+        </button>
+        <button type="button" data-nav="logs" class="nav-item flex w-full items-center justify-between rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          <span class="flex items-center gap-2">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+            日志
+          </span>
+          <span class="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">12</span>
+        </button>
+        <button type="button" data-nav="settings" class="nav-item flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          设置
+        </button>
+      </nav>
+
+      <div class="flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin">
+        <div class="mb-2 px-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">项目</div>
+        <div class="space-y-0.5">
+          <button type="button" data-project="gittracker" class="project-item flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-accent">
+            <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+            <span class="flex-1 truncate text-left">gittracker</span>
+            <span class="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">7</span>
+          </button>
+          <button type="button" data-project="hero-base" class="project-item flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-accent">
+            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+            <span class="flex-1 truncate text-left">hero-base</span>
+          </button>
+          <button type="button" data-project="docs-site" class="project-item flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-accent">
+            <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+            <span class="flex-1 truncate text-left">docs-site</span>
+            <span class="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">3</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-border p-3">
+        <button type="button" id="btn-upgrade" class="flex w-full flex-col items-start gap-0.5 rounded-md border border-border bg-background px-3 py-2.5 text-left hover:bg-accent">
+          <span class="text-sm font-medium">升级</span>
+          <span class="text-xs text-muted-foreground">打包并替换本应用</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="flex items-end justify-between gap-4 border-b border-border px-6 py-4">
+        <div>
+          <div id="header-eyebrow" class="mb-1 hidden text-xs text-muted-foreground"></div>
+          <h1 id="header-title" class="text-xl font-semibold tracking-tight">看板</h1>
+          <p id="header-desc" class="mt-0.5 text-sm text-muted-foreground">总览全部项目状态 · 变更自动刷新</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="header-actions" class="flex items-center gap-2"></div>
+          <button type="button" id="btn-activity" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent" title="运行中心">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-y-auto p-6 scrollbar-thin">
+        <!-- Board：代码 / 文档双模块（对齐 ui-information-architecture） -->
+        <section id="view-board" class="view is-active">
+          <div class="grid gap-5 xl:grid-cols-2">
+            <!-- Card: gittracker -->
+            <article class="rounded-lg border border-border bg-card shadow-sm">
+              <header class="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
+                <div class="min-w-0">
+                  <h2 class="truncate text-base font-semibold tracking-tight">
+                    <button type="button" class="text-left hover:underline" data-open-project="gittracker">gittracker</button>
+                  </h2>
+                  <p class="mt-1 truncate font-mono text-[11px] text-muted-foreground">/Users/biem.mini/Documents/20260720_GitTracker/gittracker</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <code class="rounded-md bg-muted px-1.5 py-0.5 font-mono">main</code>
+                    <span>↑2 ahead</span>
+                  </div>
+                </div>
+                <span class="inline-flex shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400">Changed</span>
+              </header>
+              <div class="space-y-3 p-3">
+                <section class="overflow-hidden rounded-md border border-border bg-background/40">
+                  <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted font-mono text-[10px] font-semibold text-muted-foreground">&lt;/&gt;</span>
+                      <span class="text-sm font-semibold">代码</span>
+                    </div>
+                    <span class="text-[11px] text-muted-foreground">最近 3 次提交</span>
+                  </header>
+                  <ul class="divide-y divide-border px-3">
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">90967fc</span>
+                      <span class="truncate text-foreground/90">重构看板项目卡片，以代码与文档双模块突出提交历史</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">8 分钟前</span>
+                    </li>
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">b876c9e</span>
+                      <span class="truncate text-foreground/90">新增信息架构重构原型，提供可交互看板与项目详情演示</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">21 分钟前</span>
+                    </li>
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">ec1624e</span>
+                      <span class="truncate text-foreground/90">修复 nvm 下找不到 Codex，并支持复制 AI 过程</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">35 分钟前</span>
+                    </li>
+                  </ul>
+                  <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2.5">
+                    <span class="text-[11px] text-muted-foreground">0 Staged · 5 Changes</span>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="showToast('打开全部提交（mock）')">全部提交</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="openSheet('run')">▶ 运行</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="openDialog('changes')">查看变更</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md bg-primary px-2.5 text-[11px] font-medium text-primary-foreground" onclick="openDialog('commit')">提交…</button>
+                    </div>
+                  </footer>
+                </section>
+                <section class="overflow-visible rounded-md border border-border bg-background/40">
+                  <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/15 text-[10px] font-bold text-emerald-400">D</span>
+                      <span class="text-sm font-semibold">文档</span>
+                      <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">DOCS</code>
+                    </div>
+                    <span class="text-[11px] text-muted-foreground">项目文档库 · 文件夹层级</span>
+                  </header>
+                  <div class="docs-list" data-project="gittracker"></div>
+                </section>
+              </div>
+            </article>
+
+            <!-- Card: hero-base -->
+            <article class="rounded-lg border border-border bg-card shadow-sm">
+              <header class="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
+                <div class="min-w-0">
+                  <h2 class="truncate text-base font-semibold tracking-tight">
+                    <button type="button" class="text-left hover:underline" data-open-project="hero-base">hero-base</button>
+                  </h2>
+                  <p class="mt-1 truncate font-mono text-[11px] text-muted-foreground">/Users/biem.mini/Documents/hero-base</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <code class="rounded-md bg-muted px-1.5 py-0.5 font-mono">develop</code>
+                  </div>
+                </div>
+                <span class="inline-flex shrink-0 items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400">Clean</span>
+              </header>
+              <div class="space-y-3 p-3">
+                <section class="overflow-hidden rounded-md border border-border bg-background/40">
+                  <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted font-mono text-[10px] font-semibold text-muted-foreground">&lt;/&gt;</span>
+                      <span class="text-sm font-semibold">代码</span>
+                    </div>
+                    <span class="text-[11px] text-muted-foreground">最近 3 次提交</span>
+                  </header>
+                  <ul class="divide-y divide-border px-3">
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">a1c2d3e</span>
+                      <span class="truncate">chore: bump deps</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">2 天前</span>
+                    </li>
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">f9e8d7c</span>
+                      <span class="truncate">fix: layout shift on mobile</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">4 天前</span>
+                    </li>
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">1122334</span>
+                      <span class="truncate">feat: landing hero</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">1 周前</span>
+                    </li>
+                  </ul>
+                  <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2.5">
+                    <span class="text-[11px] text-muted-foreground">0 Staged · 0 Changes</span>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="showToast('打开全部提交（mock）')">全部提交</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="openSheet('run')">▶ 运行</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] text-muted-foreground" disabled>查看变更</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] text-muted-foreground" disabled>提交…</button>
+                    </div>
+                  </footer>
+                </section>
+                <section class="rounded-md border border-dashed border-border bg-background/40 px-4 py-7 text-center">
+                  <div class="mx-auto mb-2 inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/15 text-xs font-bold text-emerald-400">D</div>
+                  <div class="text-sm font-medium">尚未设置文档库</div>
+                  <p class="mt-1 text-xs text-muted-foreground">读取项目内文件夹（默认 <code class="rounded bg-muted px-1 font-mono">DOCS</code>），按层级列出全部文件</p>
+                  <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                    <button type="button" class="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground" onclick="showToast('已创建文档库 DOCS（mock）')">创建文档库</button>
+                    <button type="button" class="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs hover:bg-accent" onclick="showToast('选择已有文件夹（mock）')">选择已有文件夹</button>
+                  </div>
+                </section>
+              </div>
+            </article>
+
+            <!-- Card: docs-site -->
+            <article class="rounded-lg border border-border bg-card shadow-sm xl:col-span-2">
+              <header class="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
+                <div class="min-w-0">
+                  <h2 class="truncate text-base font-semibold tracking-tight">
+                    <button type="button" class="text-left hover:underline" data-open-project="docs-site">docs-site</button>
+                  </h2>
+                  <p class="mt-1 truncate font-mono text-[11px] text-muted-foreground">/Users/biem.mini/Documents/docs-site</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <code class="rounded-md bg-muted px-1.5 py-0.5 font-mono">main</code>
+                    <span>↓2 behind</span>
+                  </div>
+                </div>
+                <span class="inline-flex shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400">Changed</span>
+              </header>
+              <div class="grid gap-3 p-3 lg:grid-cols-2">
+                <section class="overflow-hidden rounded-md border border-border bg-background/40">
+                  <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted font-mono text-[10px] font-semibold text-muted-foreground">&lt;/&gt;</span>
+                      <span class="text-sm font-semibold">代码</span>
+                    </div>
+                    <span class="text-[11px] text-muted-foreground">最近 3 次提交</span>
+                  </header>
+                  <ul class="divide-y divide-border px-3">
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">88ab12c</span>
+                      <span class="truncate">docs: refresh API reference</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">1 小时前</span>
+                    </li>
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">77cd99a</span>
+                      <span class="truncate">fix: search index rebuild</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">昨天</span>
+                    </li>
+                    <li class="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs">
+                      <span class="font-mono text-sky-400">66ef00b</span>
+                      <span class="truncate">feat: version switcher</span>
+                      <span class="whitespace-nowrap text-[10px] text-muted-foreground">3 天前</span>
+                    </li>
+                  </ul>
+                  <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2.5">
+                    <span class="text-[11px] text-muted-foreground">1 Staged · 3 Changes</span>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="showToast('打开全部提交（mock）')">全部提交</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="openSheet('run')">▶ 运行</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="openDialog('changes')">查看变更</button>
+                      <button type="button" class="inline-flex h-7 items-center rounded-md bg-primary px-2.5 text-[11px] font-medium text-primary-foreground" onclick="openDialog('commit')">提交…</button>
+                    </div>
+                  </footer>
+                </section>
+                <section class="overflow-visible rounded-md border border-border bg-background/40">
+                  <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/15 text-[10px] font-bold text-emerald-400">D</span>
+                      <span class="text-sm font-semibold">文档</span>
+                      <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">DOCS</code>
+                    </div>
+                    <span class="text-[11px] text-muted-foreground">项目文档库 · 文件夹层级</span>
+                  </header>
+                  <div class="docs-list" data-project="docs-site"></div>
+                </section>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Project detail -->
+        <section id="view-project" class="view">
+          <div class="mb-4 inline-flex rounded-lg border border-border bg-muted/40 p-1">
+            <button type="button" class="tab-btn is-active rounded-md px-3 py-1.5 text-sm" data-tab="run">运行</button>
+            <button type="button" class="tab-btn rounded-md px-3 py-1.5 text-sm text-muted-foreground" data-tab="code">代码</button>
+            <button type="button" class="tab-btn rounded-md px-3 py-1.5 text-sm text-muted-foreground" data-tab="docs">文档</button>
+            <button type="button" class="tab-btn rounded-md px-3 py-1.5 text-sm text-muted-foreground" data-tab="evolution">进化</button>
+          </div>
+
+          <div id="tab-run" class="tab-panel">
+            <div class="rounded-lg border border-border bg-card">
+              <div class="flex items-center justify-between border-b border-border px-4 py-3">
+                <div>
+                  <h3 class="text-sm font-medium">可运行命令</h3>
+                  <p class="text-xs text-muted-foreground">来自项目配置 / AI 识别</p>
+                </div>
+                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="openSheet('ai')">配置</button>
+              </div>
+              <ul class="divide-y divide-border">
+                <li>
+                  <button type="button" class="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-accent/50" onclick="openSheet('run')">
+                    <div class="flex items-center gap-2 text-sm font-medium">dev ★ <span class="rounded-full bg-secondary px-1.5 text-[10px]">default</span></div>
+                    <code class="font-mono text-xs text-muted-foreground">. · npm run tauri dev</code>
+                    <span class="text-xs text-muted-foreground">启动桌面开发模式</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-accent/50" onclick="openSheet('run')">
+                    <div class="text-sm font-medium">build</div>
+                    <code class="font-mono text-xs text-muted-foreground">. · npm run tauri build</code>
+                  </button>
+                </li>
+              </ul>
+              <div class="border-t border-border px-4 py-3">
+                <button type="button" class="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onclick="openSheet('ai')">识别启动方式</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-code" class="tab-panel hidden">
+            <div class="rounded-lg border border-border bg-card p-4">
+              <div class="mb-4 flex flex-wrap items-center gap-2 text-xs">
+                <code class="rounded bg-muted px-1.5 py-0.5 font-mono">main</code>
+                <span class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-400">Changed</span>
+                <span class="text-muted-foreground">↑1</span>
+              </div>
+              <div class="mb-4 grid grid-cols-2 gap-3 sm:max-w-md">
+                <div class="rounded-md border border-border p-4 text-center">
+                  <div class="text-3xl font-semibold tabular-nums">2</div>
+                  <div class="text-xs text-muted-foreground">Staged</div>
+                </div>
+                <button type="button" class="rounded-md border border-border p-4 text-center hover:bg-accent" onclick="openDialog('changes')">
+                  <div class="text-3xl font-semibold tabular-nums">5</div>
+                  <div class="text-xs text-muted-foreground">Changes · 点击查看</div>
+                </button>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" onclick="openSheet('ai')">一键提交</button>
+                <button type="button" class="inline-flex h-9 items-center rounded-md border border-input px-4 text-sm hover:bg-accent" onclick="openDialog('commit')">手动提交</button>
+                <button type="button" class="inline-flex h-9 items-center rounded-md border border-input px-4 text-sm text-destructive hover:bg-destructive/10" onclick="openDialog('discard')">Discard</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-docs" class="tab-panel hidden">
+            <div class="rounded-lg border border-border bg-card">
+              <div class="flex items-center justify-between border-b border-border px-4 py-3">
+                <h3 class="text-sm font-medium">文档库</h3>
+                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent">新建</button>
+              </div>
+              <ul class="divide-y divide-border text-sm">
+                <li class="flex items-center justify-between px-4 py-3 hover:bg-accent/40">
+                  <span>README.md</span>
+                  <span class="text-xs text-muted-foreground">2 小时前</span>
+                </li>
+                <li class="flex items-center justify-between px-4 py-3 hover:bg-accent/40">
+                  <span>AGENTS.md</span>
+                  <span class="text-xs text-muted-foreground">刚刚</span>
+                </li>
+                <li class="flex items-center justify-between px-4 py-3 hover:bg-accent/40">
+                  <span>docs/roadmap.md</span>
+                  <span class="text-xs text-muted-foreground">昨天</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="tab-evolution" class="tab-panel hidden">
+            <div class="grid gap-4 lg:grid-cols-[1fr_280px]">
+              <div class="rounded-lg border border-border bg-card p-4">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="text-sm font-medium">Goal</h3>
+                  <button type="button" class="text-xs text-muted-foreground hover:text-foreground" onclick="openDialog('doc')">打开 goal.md</button>
+                </div>
+                <p class="text-sm leading-relaxed text-muted-foreground">用 shadcn/ui 统一 GitTracker 界面，提升多项目看板与 AI 运行过程的可读性与交互一致性。</p>
+              </div>
+              <div class="rounded-lg border border-border bg-card p-4">
+                <h3 class="mb-3 text-sm font-medium">任务进度</h3>
+                <div class="mb-2 flex justify-between text-xs text-muted-foreground"><span>已完成</span><span>1 / 4</span></div>
+                <div class="mb-4 h-2 overflow-hidden rounded-full bg-muted"><div class="h-full w-1/4 rounded-full bg-primary"></div></div>
+                <button type="button" class="w-full rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground" onclick="openSheet('ai')">生成任务</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 总结（原「每日完成」） -->
+        <section id="view-summary" class="view max-w-3xl space-y-4">
+          <div class="flex items-center justify-between rounded-lg border border-border bg-card p-4">
+            <div>
+              <h3 class="text-sm font-medium">每日自动生成总结</h3>
+              <p class="mt-1 text-xs text-muted-foreground">汇总已配置项目的 commit message，并生成可分享的工作总结。</p>
+            </div>
+            <label class="inline-flex cursor-pointer items-center gap-2 text-sm">
+              <input id="daily-switch" type="checkbox" class="peer sr-only" checked />
+              <span class="relative h-5 w-9 rounded-full bg-input after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-background after:transition peer-checked:bg-primary peer-checked:after:translate-x-4"></span>
+              <b class="text-xs font-medium">已开启</b>
+            </label>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <button type="button" class="rounded-lg border border-border bg-card p-4 text-left hover:bg-accent/40" onclick="openSheet('ai')">
+              <div class="text-sm font-medium">本日做了什么</div>
+              <div class="mt-1 text-xs text-muted-foreground">生成今日总结卡片</div>
+            </button>
+            <button type="button" class="rounded-lg border border-border bg-card p-4 text-left hover:bg-accent/40" onclick="openSheet('ai')">
+              <div class="text-sm font-medium">本周做了什么</div>
+              <div class="mt-1 text-xs text-muted-foreground">按自然周汇总</div>
+            </button>
+            <button type="button" class="rounded-lg border border-border bg-card p-4 text-left hover:bg-accent/40" onclick="openSheet('ai')">
+              <div class="text-sm font-medium">过去 7 天</div>
+              <div class="mt-1 text-xs text-muted-foreground">滚动 7 日窗口</div>
+            </button>
+          </div>
+          <div class="rounded-lg border border-border bg-card p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="text-sm font-medium">今日总结 · 预览</h3>
+              <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已下载分享图（mock）')">下载 SVG</button>
+            </div>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li>• 看板卡片拆成代码 / 文档双模块</li>
+              <li>• 接入 Activity Sheet 展示 AI / 运行过程</li>
+              <li>• 设置页改为 Tabs + Card 分组</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Logs -->
+        <section id="view-logs" class="view max-w-4xl">
+          <div class="mb-4 flex items-center justify-between">
+            <p class="text-sm text-muted-foreground">记录一键提交、AI 操作与其它事件</p>
+            <div class="flex gap-2">
+              <button type="button" class="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent" onclick="showToast('已刷新日志')">刷新</button>
+              <button type="button" class="rounded-md border border-input px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10" onclick="showToast('已清空日志（mock）')">清空</button>
+            </div>
+          </div>
+          <div class="overflow-hidden rounded-lg border border-border">
+            <table class="w-full text-left text-sm">
+              <thead class="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th class="px-4 py-2.5 font-medium">时间</th>
+                  <th class="px-4 py-2.5 font-medium">类型</th>
+                  <th class="px-4 py-2.5 font-medium">标题</th>
+                  <th class="px-4 py-2.5 font-medium">状态</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <tr class="hover:bg-accent/30">
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted-foreground">01:02</td>
+                  <td class="px-4 py-2.5"><span class="rounded-md bg-secondary px-1.5 py-0.5 text-[10px]">oneClick</span></td>
+                  <td class="px-4 py-2.5">一键提交 · gittracker</td>
+                  <td class="px-4 py-2.5 text-emerald-400">ok</td>
+                </tr>
+                <tr class="hover:bg-accent/30">
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted-foreground">00:48</td>
+                  <td class="px-4 py-2.5"><span class="rounded-md bg-secondary px-1.5 py-0.5 text-[10px]">runTarget</span></td>
+                  <td class="px-4 py-2.5">运行 · dev</td>
+                  <td class="px-4 py-2.5 text-amber-400">running</td>
+                </tr>
+                <tr class="hover:bg-accent/30">
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted-foreground">昨天</td>
+                  <td class="px-4 py-2.5"><span class="rounded-md bg-secondary px-1.5 py-0.5 text-[10px]">generateTasks</span></td>
+                  <td class="px-4 py-2.5">生成任务 · docs-site</td>
+                  <td class="px-4 py-2.5 text-emerald-400">ok</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="view-settings" class="view max-w-3xl space-y-4">
+          <div class="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+            <button type="button" class="settings-tab is-active rounded-md px-3 py-1.5 text-sm" data-settings-tab="provider">AI Provider</button>
+            <button type="button" class="settings-tab rounded-md px-3 py-1.5 text-sm text-muted-foreground" data-settings-tab="prompts">提示词</button>
+            <button type="button" class="settings-tab rounded-md px-3 py-1.5 text-sm text-muted-foreground" data-settings-tab="summary">总结</button>
+          </div>
+
+          <div id="settings-provider" class="settings-panel space-y-3">
+            <div class="rounded-lg border border-border bg-card p-4">
+              <label class="mb-3 flex cursor-pointer items-start gap-3 rounded-md border border-primary bg-accent/30 p-3">
+                <input type="radio" name="provider" checked class="mt-1" />
+                <div>
+                  <div class="text-sm font-medium">Codex CLI</div>
+                  <p class="mt-1 text-xs text-muted-foreground">调用本机 codex，走 OpenAI / Codex 账号与额度。</p>
+                  <button type="button" class="mt-2 rounded-md border border-input px-2 py-1 text-[11px] hover:bg-accent" onclick="openSheet('ai')">测试</button>
+                </div>
+              </label>
+              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 hover:bg-accent/20">
+                <input type="radio" name="provider" class="mt-1" />
+                <div>
+                  <div class="text-sm font-medium">Cursor Agent CLI</div>
+                  <p class="mt-1 text-xs text-muted-foreground">调用本机 agent，走 Cursor 订阅额度。</p>
+                  <button type="button" class="mt-2 rounded-md border border-input px-2 py-1 text-[11px] hover:bg-accent" onclick="openSheet('ai')">测试</button>
+                </div>
+              </label>
+            </div>
+            <button type="button" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" onclick="showToast('设置已保存')">保存</button>
+          </div>
+
+          <div id="settings-prompts" class="settings-panel hidden space-y-3">
+            <div class="rounded-lg border border-border bg-card p-4">
+              <label class="mb-2 block text-sm font-medium">生成任务模板</label>
+              <textarea class="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs outline-none ring-offset-background focus:ring-2 focus:ring-ring" readonly>你是项目规划助手。请根据【项目目标】拆成可执行任务…</textarea>
+            </div>
+            <div class="rounded-lg border border-border bg-card p-4">
+              <label class="mb-2 block text-sm font-medium">实现任务模板</label>
+              <textarea class="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs outline-none ring-offset-background focus:ring-2 focus:ring-ring" readonly>你是实现助手。请根据【任务文档】落地实现…</textarea>
+            </div>
+          </div>
+
+          <div id="settings-summary" class="settings-panel hidden">
+            <div class="rounded-lg border border-border bg-card p-4">
+              <label class="mb-2 block text-sm font-medium">自动生成时间</label>
+              <input type="time" value="21:00" class="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <p class="mt-2 text-xs text-muted-foreground">到达时间后自动打开运行中心并生成今日总结。</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Activity Sheet -->
+    <div id="sheet-overlay" class="overlay fixed inset-0 z-40 bg-black/50" onclick="closeSheet()"></div>
+    <aside id="activity-sheet" class="sheet fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-background shadow-xl">
+      <div class="flex items-center justify-between border-b border-border px-4 py-3">
+        <div>
+          <h2 class="text-sm font-semibold" id="sheet-title">运行中心</h2>
+          <p class="text-xs text-muted-foreground" id="sheet-subtitle">AI 过程与命令输出</p>
+        </div>
+        <button type="button" class="rounded-md p-1.5 hover:bg-accent" onclick="closeSheet()">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="flex-1 space-y-3 overflow-y-auto p-4 scrollbar-thin" id="sheet-body">
+        <!-- filled by JS -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- Dialogs -->
+  <div id="dialog-overlay" class="overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onclick="if(event.target===this)closeDialog()">
+    <div id="dialog-panel" class="dialog-panel w-full max-w-lg rounded-lg border border-border bg-card shadow-2xl">
+      <div class="flex items-center justify-between border-b border-border px-4 py-3">
+        <div>
+          <h3 class="text-sm font-semibold" id="dialog-title">对话框</h3>
+          <p class="mt-0.5 font-mono text-[10px] text-muted-foreground" id="dialog-file"></p>
+        </div>
+        <button type="button" class="rounded-md p-1.5 hover:bg-accent" onclick="closeDialog()">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-4" id="dialog-body"></div>
+      <div class="flex justify-end gap-2 border-t border-border px-4 py-3" id="dialog-footer"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-md border border-border bg-card px-4 py-2 text-sm shadow-lg"></div>
+
+  <script>
+    const headers = {
+      board: { title: "看板", desc: "每张卡片拆成代码与文档 · 操作跟随对象出现", eyebrow: "" },
+      project: { title: "gittracker", desc: "/Users/biem.mini/Documents/20260720_GitTracker/gittracker", eyebrow: "← 看板" },
+      summary: { title: "总结", desc: "从 commit message 整理可分享的工作总结", eyebrow: "" },
+      logs: { title: "日志", desc: "记录一键提交、AI 操作与其它事件", eyebrow: "" },
+      settings: { title: "设置", desc: "AI Provider 与提示词模板", eyebrow: "" },
+    };
+
+    const projects = {
+      gittracker: { title: "gittracker", path: "/Users/biem.mini/Documents/20260720_GitTracker/gittracker" },
+      "hero-base": { title: "hero-base", path: "/Users/biem.mini/Documents/hero-base" },
+      "docs-site": { title: "docs-site", path: "/Users/biem.mini/Documents/docs-site" },
+    };
+
+    const docsByProject = {
+      gittracker: {
+        root: "DOCS",
+        entries: [
+          {
+            name: "guides",
+            relativePath: "DOCS/guides",
+            isDirectory: true,
+            children: [
+              {
+                name: "getting-started.md",
+                relativePath: "DOCS/guides/getting-started.md",
+                isDirectory: false,
+                content: "# Getting Started\n\n安装依赖并启动 GitTracker。",
+              },
+              {
+                name: "ai-provider.md",
+                relativePath: "DOCS/guides/ai-provider.md",
+                isDirectory: false,
+                content: "# AI Provider\n\n在设置中切换 Codex / Cursor Agent。",
+              },
+            ],
+          },
+          {
+            name: "specs",
+            relativePath: "DOCS/specs",
+            isDirectory: true,
+            children: [
+              {
+                name: "board-ia.md",
+                relativePath: "DOCS/specs/board-ia.md",
+                isDirectory: false,
+                content: "# Board IA\n\n代码区 + 文档区。",
+              },
+              {
+                name: "mockups",
+                relativePath: "DOCS/specs/mockups",
+                isDirectory: true,
+                children: [
+                  {
+                    name: "preview.html",
+                    relativePath: "DOCS/specs/mockups/preview.html",
+                    isDirectory: false,
+                    content: "<!doctype html><title>Preview</title>",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: "README.md",
+            relativePath: "DOCS/README.md",
+            isDirectory: false,
+            content: "# DOCS\n\n项目文档库根说明。",
+          },
+          {
+            name: "changelog.md",
+            relativePath: "DOCS/changelog.md",
+            isDirectory: false,
+            content: "# Changelog\n\n- shadcn mockup\n- document library tree",
+          },
+        ],
+      },
+      "docs-site": {
+        root: "DOCS",
+        entries: [
+          {
+            name: "api",
+            relativePath: "DOCS/api",
+            isDirectory: true,
+            children: [
+              {
+                name: "auth.md",
+                relativePath: "DOCS/api/auth.md",
+                isDirectory: false,
+                content: "# Auth API",
+              },
+              {
+                name: "search.md",
+                relativePath: "DOCS/api/search.md",
+                isDirectory: false,
+                content: "# Search API",
+              },
+            ],
+          },
+          {
+            name: "pages",
+            relativePath: "DOCS/pages",
+            isDirectory: true,
+            children: [
+              {
+                name: "index.html",
+                relativePath: "DOCS/pages/index.html",
+                isDirectory: false,
+                content: "<!doctype html><title>Docs</title>",
+              },
+            ],
+          },
+          {
+            name: "overview.md",
+            relativePath: "DOCS/overview.md",
+            isDirectory: false,
+            content: "# Overview",
+          },
+        ],
+      },
+    };
+
+    const docIndex = {};
+    function indexDocs(project, nodes) {
+      nodes.forEach((node) => {
+        docIndex[`${project}:${node.relativePath}`] = node;
+        if (node.children?.length) indexDocs(project, node.children);
+      });
+    }
+    Object.entries(docsByProject).forEach(([project, lib]) => indexDocs(project, lib.entries));
+
+    let currentView = "board";
+    let openMenuKey = null;
+
+    function setHeaderActions(view) {
+      const el = document.getElementById("header-actions");
+      if (view === "board") {
+        el.innerHTML = `
+          <button type="button" class="inline-flex h-9 items-center rounded-md border border-input px-3 text-sm hover:bg-accent" onclick="showToast('已刷新')">刷新</button>
+          <button type="button" class="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onclick="showToast('选择项目目录（mock）')">添加项目</button>`;
+      } else if (view === "project") {
+        el.innerHTML = `<button type="button" class="inline-flex h-9 items-center rounded-md border border-input px-3 text-sm hover:bg-accent" onclick="showToast('已刷新项目')">刷新</button>`;
+      } else {
+        el.innerHTML = "";
+      }
+    }
+
+    function showView(view, projectId) {
+      currentView = view;
+      document.querySelectorAll(".view").forEach((v) => v.classList.remove("is-active"));
+      const target = document.getElementById(`view-${view === "project" ? "project" : view}`);
+      if (target) target.classList.add("is-active");
+
+      document.querySelectorAll(".nav-item").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.nav === view);
+      });
+      document.querySelectorAll(".project-item").forEach((btn) => {
+        btn.classList.toggle("is-active", view === "project" && btn.dataset.project === projectId);
+      });
+
+      const meta = { ...headers[view] };
+      if (view === "project" && projectId && projects[projectId]) {
+        meta.title = projects[projectId].title;
+        meta.desc = projects[projectId].path;
+      }
+      const eyebrow = document.getElementById("header-eyebrow");
+      if (meta.eyebrow) {
+        eyebrow.textContent = meta.eyebrow;
+        eyebrow.classList.remove("hidden");
+        eyebrow.style.cursor = "pointer";
+        eyebrow.onclick = () => showView("board");
+      } else {
+        eyebrow.classList.add("hidden");
+        eyebrow.onclick = null;
+      }
+      document.getElementById("header-title").textContent = meta.title;
+      document.getElementById("header-desc").textContent = meta.desc;
+      setHeaderActions(view);
+    }
+
+    function renderNode(project, node, depth) {
+      const key = `${project}:${node.relativePath}`;
+      const pad = 12 + depth * 14;
+      const isHtml = /\.html?$/i.test(node.name);
+      const icon = node.isDirectory
+        ? `<svg class="h-3.5 w-3.5 shrink-0 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`
+        : `<svg class="h-3.5 w-3.5 shrink-0 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
+      const children =
+        node.isDirectory && node.children?.length
+          ? `<ul>${node.children.map((child) => renderNode(project, child, depth + 1)).join("")}</ul>`
+          : "";
+      return `
+        <li>
+          <div class="doc-row relative flex min-h-[36px] items-center gap-1 border-b border-border/70 hover:bg-accent/30"
+               style="padding-left:${pad}px;padding-right:8px"
+               data-doc-key="${key}" data-is-dir="${node.isDirectory ? "1" : "0"}" tabindex="0"
+               title="${node.relativePath}">
+            <button type="button" class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-xs ${node.isDirectory ? "font-medium" : ""}"
+                    data-open-node="${key}">
+              ${icon}
+              <span class="truncate">${node.name}</span>
+              ${isHtml ? `<span class="rounded bg-secondary px-1 py-0.5 text-[9px] text-secondary-foreground">HTML</span>` : ""}
+            </button>
+            <button type="button" class="more inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-base text-muted-foreground hover:bg-accent hover:text-foreground"
+                    data-menu="${key}" aria-label="${node.name} 的更多操作" aria-expanded="false">⋯</button>
+            <div class="menu" data-menu-panel="${key}">
+              ${
+                node.isDirectory
+                  ? ""
+                  : `<button type="button" class="block w-full rounded-sm px-2.5 py-2 text-left text-xs hover:bg-accent" data-action="open" data-key="${key}">${
+                      isHtml ? "用浏览器打开" : "打开并编辑"
+                    }</button>`
+              }
+              <button type="button" class="block w-full rounded-sm px-2.5 py-2 text-left text-xs hover:bg-accent" data-action="copy" data-key="${key}">复制路径</button>
+              <small class="block px-2.5 pb-2 text-[10px] leading-snug text-muted-foreground">${node.relativePath}</small>
+            </div>
+          </div>
+          ${children}
+        </li>`;
+    }
+
+    function renderDocs() {
+      document.querySelectorAll(".docs-list").forEach((list) => {
+        const project = list.dataset.project;
+        const lib = docsByProject[project];
+        if (!lib || !lib.entries.length) {
+          list.innerHTML = `<div class="px-3 py-6 text-center text-xs text-muted-foreground">文档库为空</div>`;
+          return;
+        }
+        list.innerHTML = `<ul class="document-tree py-1">${lib.entries.map((node) => renderNode(project, node, 0)).join("")}</ul>`;
+      });
+    }
+
+    function resolveDoc(key) {
+      return { key, node: docIndex[key] };
+    }
+
+    function closeMenus() {
+      document.querySelectorAll(".menu").forEach((m) => m.classList.remove("is-open"));
+      document.querySelectorAll(".more").forEach((b) => {
+        b.classList.remove("bg-accent", "text-foreground");
+        b.setAttribute("aria-expanded", "false");
+      });
+      openMenuKey = null;
+    }
+
+    function openNode(key) {
+      const { node } = resolveDoc(key);
+      if (!node || node.isDirectory) return;
+      if (/\.html?$/i.test(node.name)) {
+        showToast(`已用默认浏览器打开 ${node.name}（mock）`);
+        return;
+      }
+      document.getElementById("dialog-title").textContent = `编辑 · ${node.name}`;
+      document.getElementById("dialog-file").textContent = node.relativePath;
+      document.getElementById("dialog-body").innerHTML = `
+        <textarea id="editorContent" class="min-h-[280px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:ring-2 focus:ring-ring" spellcheck="false"></textarea>
+        <p class="mt-2 text-[11px] text-muted-foreground">来自项目文档库 · 保存后写回文件</p>`;
+      document.getElementById("dialog-footer").innerHTML = `
+        <button type="button" class="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent" onclick="closeDialog()">取消</button>
+        <button type="button" class="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" id="saveEditor">保存文档</button>`;
+      document.getElementById("editorContent").value = node.content || "";
+      document.getElementById("dialog-overlay").classList.add("is-open");
+      document.getElementById("dialog-panel").classList.add("is-open");
+      document.getElementById("saveEditor").onclick = () => {
+        node.content = document.getElementById("editorContent").value;
+        closeDialog();
+        showToast(`已保存「${node.name}」`);
+      };
+      setTimeout(() => document.getElementById("editorContent").focus(), 0);
+    }
+
+    document.querySelectorAll("[data-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => showView(btn.dataset.nav));
+    });
+    document.querySelectorAll("[data-project]").forEach((btn) => {
+      btn.addEventListener("click", () => showView("project", btn.dataset.project));
+    });
+    document.querySelectorAll("[data-open-project]").forEach((el) => {
+      el.addEventListener("click", () => showView("project", el.dataset.openProject));
+    });
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => {
+          b.classList.remove("is-active");
+          b.classList.add("text-muted-foreground");
+        });
+        btn.classList.add("is-active");
+        btn.classList.remove("text-muted-foreground");
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.remove("hidden");
+      });
+    });
+
+    document.querySelectorAll(".settings-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".settings-tab").forEach((b) => {
+          b.classList.remove("is-active");
+          b.classList.add("text-muted-foreground");
+        });
+        btn.classList.add("is-active");
+        btn.classList.remove("text-muted-foreground");
+        document.querySelectorAll(".settings-panel").forEach((p) => p.classList.add("hidden"));
+        document.getElementById(`settings-${btn.dataset.settingsTab}`).classList.remove("hidden");
+      });
+    });
+
+    function openSheet(mode) {
+      const title = document.getElementById("sheet-title");
+      const subtitle = document.getElementById("sheet-subtitle");
+      const body = document.getElementById("sheet-body");
+
+      if (mode === "ai") {
+        title.textContent = "AI · 过程";
+        subtitle.textContent = "统一运行中心 · Sheet";
+        body.innerHTML = `
+          <div class="rounded-lg border border-border bg-card p-3">
+            <div class="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span class="pulse-dot h-2 w-2 rounded-full bg-emerald-400"></span>
+              运行中
+            </div>
+            <div class="space-y-1 font-mono text-xs leading-relaxed text-muted-foreground">
+              <div>> 读取上下文…</div>
+              <div class="text-foreground">进度、结果与错误将在此展示</div>
+            </div>
+          </div>`;
+      } else {
+        title.textContent = "运行 · dev";
+        subtitle.textContent = "代码区 · ▶ 运行";
+        body.innerHTML = `
+          <div class="mb-2 flex items-center justify-between">
+            <span class="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
+              <span class="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-400"></span> running
+            </span>
+            <button type="button" class="rounded-md border border-input px-2 py-1 text-xs hover:bg-accent" onclick="showToast('已请求停止')">停止</button>
+          </div>
+          <pre class="overflow-auto rounded-lg border border-border bg-card p-3 font-mono text-[11px] leading-5 text-muted-foreground scrollbar-thin">$ npm run tauri dev
+VITE v7.0.4  ready in 312 ms
+➜  Local:   http://localhost:1420/
+Compiling gittracker v0.1.0
+    Finished \`dev\` profile</pre>`;
+      }
+
+      document.getElementById("activity-sheet").classList.add("is-open");
+      document.getElementById("sheet-overlay").classList.add("is-open");
+    }
+
+    function closeSheet() {
+      document.getElementById("activity-sheet").classList.remove("is-open");
+      document.getElementById("sheet-overlay").classList.remove("is-open");
+    }
+
+    const dialogs = {
+      commit: {
+        title: "提交…",
+        body: `
+          <label class="mb-2 block text-sm font-medium">Commit message</label>
+          <textarea class="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="写一句清晰的提交说明…"></textarea>
+          <button type="button" class="mt-3 inline-flex items-center rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent" onclick="openSheet('ai'); closeDialog();">AI Generate</button>`,
+        footer: `
+          <button type="button" class="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent" onclick="closeDialog()">取消</button>
+          <button type="button" class="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" onclick="closeDialog(); showToast('提交完成（mock）')">提交</button>`,
+      },
+      discard: {
+        title: "Discard 未提交改动？",
+        body: `<p class="text-sm text-muted-foreground">将丢弃 <b class="text-foreground">gittracker</b> 的 unstaged / untracked 变更。此操作不可撤销。</p>`,
+        footer: `
+          <button type="button" class="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent" onclick="closeDialog()">取消</button>
+          <button type="button" class="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground" onclick="closeDialog(); showToast('已 Discard（mock）')">确认 Discard</button>`,
+      },
+      changes: {
+        title: "查看变更",
+        body: `
+          <ul class="divide-y divide-border rounded-md border border-border text-sm">
+            <li class="flex justify-between px-3 py-2"><span>src/App.tsx</span><span class="font-mono text-xs text-amber-400">M</span></li>
+            <li class="flex justify-between px-3 py-2"><span>src/components/AppSidebar.tsx</span><span class="font-mono text-xs text-amber-400">M</span></li>
+            <li class="flex justify-between px-3 py-2"><span>mockups/gittracker-shadcn.html</span><span class="font-mono text-xs text-emerald-400">U</span></li>
+          </ul>`,
+        footer: `<button type="button" class="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent" onclick="closeDialog()">关闭</button>`,
+      },
+      doc: {
+        title: "编辑 · goal.md",
+        body: `<textarea class="min-h-[180px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-ring"># Goal\n\n用 shadcn/ui 统一 GitTracker 界面…</textarea>`,
+        footer: `
+          <button type="button" class="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent" onclick="closeDialog()">取消</button>
+          <button type="button" class="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" onclick="closeDialog(); showToast('文档已保存')">保存</button>`,
+      },
+    };
+
+    function openDialog(type) {
+      const d = dialogs[type];
+      if (!d) return;
+      document.getElementById("dialog-title").textContent = d.title;
+      document.getElementById("dialog-file").textContent = "";
+      document.getElementById("dialog-body").innerHTML = d.body;
+      document.getElementById("dialog-footer").innerHTML = d.footer;
+      document.getElementById("dialog-overlay").classList.add("is-open");
+      document.getElementById("dialog-panel").classList.add("is-open");
+    }
+
+    function closeDialog() {
+      document.getElementById("dialog-overlay").classList.remove("is-open");
+      document.getElementById("dialog-panel").classList.remove("is-open");
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("is-show");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => t.classList.remove("is-show"), 2400);
+    }
+
+    document.addEventListener("click", (event) => {
+      const openBtn = event.target.closest("[data-open-node]");
+      if (openBtn) {
+        event.stopPropagation();
+        openNode(openBtn.dataset.openNode);
+        return;
+      }
+
+      const more = event.target.closest("[data-menu]");
+      if (more) {
+        event.stopPropagation();
+        const key = more.dataset.menu;
+        const panel = document.querySelector(`[data-menu-panel="${key}"]`);
+        const opening = openMenuKey !== key;
+        closeMenus();
+        if (opening && panel) {
+          panel.classList.add("is-open");
+          more.classList.add("bg-accent", "text-foreground");
+          more.setAttribute("aria-expanded", "true");
+          openMenuKey = key;
+        }
+        return;
+      }
+
+      const action = event.target.closest("[data-action]");
+      if (action) {
+        event.stopPropagation();
+        const key = action.dataset.key;
+        const { node } = resolveDoc(key);
+        closeMenus();
+        if (action.dataset.action === "open") openNode(key);
+        if (action.dataset.action === "copy") {
+          void navigator.clipboard?.writeText(node.relativePath);
+          showToast(`已复制路径：${node.relativePath}`);
+        }
+        return;
+      }
+
+      closeMenus();
+    });
+
+    document.addEventListener("dblclick", (event) => {
+      const row = event.target.closest("[data-doc-key]");
+      if (row && row.dataset.isDir !== "1" && !event.target.closest("[data-menu]")) {
+        openNode(row.dataset.docKey);
+      }
+    });
+
+    document.getElementById("btn-activity").addEventListener("click", () => openSheet("run"));
+    document.getElementById("btn-upgrade").addEventListener("click", () => {
+      openSheet("run");
+      showToast("已开始升级，完成后将自动重启");
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeMenus();
+        closeDialog();
+        closeSheet();
+      }
+      const row = e.target.closest?.("[data-doc-key]");
+      if (row && e.key === "Enter" && row.dataset.isDir !== "1") openNode(row.dataset.docKey);
+    });
+
+    renderDocs();
+    setHeaderActions("board");
+  </script>
+</body>
+</html>

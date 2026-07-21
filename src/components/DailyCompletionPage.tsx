@@ -1,14 +1,43 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { AppSettings } from "../types";
-import "./DailyCompletionPage.css";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 type Period = "today" | "week" | "sevenDays";
 
-const PERIODS: { id: Period; label: string; cardTitle: string }[] = [
-  { id: "today", label: "本日做了什么", cardTitle: "今日完成" },
-  { id: "week", label: "本周做了什么", cardTitle: "本周完成" },
-  { id: "sevenDays", label: "过去 7 天做了什么", cardTitle: "过去 7 天完成" },
+const PERIODS: {
+  id: Period;
+  label: string;
+  cardTitle: string;
+  subtitle: string;
+}[] = [
+  {
+    id: "today",
+    label: "本日做了什么",
+    cardTitle: "今日完成",
+    subtitle: "生成今日总结卡片",
+  },
+  {
+    id: "week",
+    label: "本周做了什么",
+    cardTitle: "本周完成",
+    subtitle: "按自然周汇总",
+  },
+  {
+    id: "sevenDays",
+    label: "过去 7 天做了什么",
+    cardTitle: "过去 7 天完成",
+    subtitle: "滚动 7 日窗口",
+  },
 ];
 
 function escapeXml(value: string) {
@@ -74,17 +103,65 @@ export function DailyCompletionPage({ onToast, onGenerate }: Props) {
     link.click();
   };
 
-  return <div className="daily-completion">
-    <section className="daily-setting-card">
-      <div><h3>每日自动生成日志</h3><p>每日汇总已配置项目的 commit message，并生成当天完成事项。</p></div>
-      <label className="daily-switch"><input type="checkbox" checked={settings?.dailyCompletionEnabled ?? false} disabled={!settings} onChange={(e) => settings && void saveSettings({ ...settings, dailyCompletionEnabled: e.target.checked })}/><span /><b>{settings?.dailyCompletionEnabled ? "已开启" : "已关闭"}</b></label>
-    </section>
-    <section className={`daily-time-card${settings?.dailyCompletionEnabled ? "" : " is-disabled"}`}>
-      <label>每日生成时间 <input type="time" value={settings?.dailyCompletionTime ?? "18:00"} disabled={!settings?.dailyCompletionEnabled} onChange={(e) => settings && setSettings({ ...settings, dailyCompletionTime: e.target.value })}/></label>
-      <button type="button" className="btn btn-secondary" disabled={!settings?.dailyCompletionEnabled} onClick={() => settings && void saveSettings(settings)}>保存时间</button>
-      <span>应用常驻运行时会按此时间自动生成。</span>
-    </section>
-    <section className="daily-generate-card"><div><h3>立即生成日志</h3><p>基于各项目提交信息，由当前 AI Provider 归纳你的工作内容。</p></div><div className="daily-actions">{PERIODS.map((item) => <button key={item.id} type="button" className="btn btn-primary" disabled={loading} onClick={() => void generate(item.id)}>{loading ? "生成中…" : item.label}</button>)}</div></section>
-    {result && <section className="daily-result"><div><h3>{result.title}</h3><pre>{result.summary}</pre><button type="button" className="btn btn-secondary" onClick={download}>下载分享图片</button></div><img src={result.image} alt={`${result.title}的 Git Tracker 分享图片`} /></section>}
-  </div>;
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <Card className="flex-row items-center justify-between gap-4 py-4">
+        <CardHeader className="flex-1 px-4 py-0">
+          <CardTitle className="text-sm font-medium">每日自动生成总结</CardTitle>
+          <CardDescription className="text-xs">
+            汇总已配置项目的 commit message，并生成可分享的工作总结。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2 px-4 py-0">
+          <Switch
+            id="daily-completion-enabled"
+            checked={settings?.dailyCompletionEnabled ?? false}
+            disabled={!settings}
+            onCheckedChange={(checked) =>
+              settings && void saveSettings({ ...settings, dailyCompletionEnabled: checked })
+            }
+          />
+          <Label htmlFor="daily-completion-enabled" className="text-xs font-medium">
+            {settings?.dailyCompletionEnabled ? "已开启" : "已关闭"}
+          </Label>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {PERIODS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            disabled={loading}
+            onClick={() => void generate(item.id)}
+            className="rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent/40 disabled:opacity-50"
+          >
+            <div className="text-sm font-medium">
+              {loading ? "生成中…" : item.label}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">{item.subtitle}</div>
+          </button>
+        ))}
+      </div>
+
+      {result && (
+        <Card className="gap-0 py-4">
+          <CardHeader className="flex-row items-center justify-between px-4 pb-3">
+            <CardTitle className="text-sm font-medium">{result.title} · 预览</CardTitle>
+            <Button type="button" variant="outline" size="xs" onClick={download}>
+              下载 SVG
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4 px-4">
+            <pre className="whitespace-pre-wrap text-sm text-muted-foreground">{result.summary}</pre>
+            <img
+              src={result.image}
+              alt={`${result.title}的 Git Tracker 分享图片`}
+              className="w-full max-w-sm rounded-md border border-border"
+            />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

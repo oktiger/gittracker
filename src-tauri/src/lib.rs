@@ -5,8 +5,10 @@ mod error;
 mod git;
 mod log_diary;
 mod models;
+mod path_env;
 mod run;
 mod store;
+mod upgrade;
 mod watch;
 
 use run::RunManager;
@@ -61,6 +63,7 @@ pub fn run() {
             commands::set_run_targets,
             commands::suggest_run_targets,
             commands::run_project_target,
+            commands::upgrade_self,
             commands::list_run_sessions,
             commands::stop_run_session,
             commands::list_log_diary,

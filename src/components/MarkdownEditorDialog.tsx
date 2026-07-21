@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import "./Dialog.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   projectId: string;
@@ -56,27 +65,18 @@ export function MarkdownEditorDialog({
   };
 
   return (
-    <div className="dialog-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="dialog dialog-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="md-editor-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="dialog-header">
-          <h3 id="md-editor-title">{title}</h3>
-          <button type="button" className="btn-ghost btn-icon" onClick={onClose}>
-            ×
-          </button>
-        </header>
-        <p className="dialog-hint">{relativePath}</p>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{relativePath}</DialogDescription>
+        </DialogHeader>
 
         {loading ? (
-          <p className="dialog-hint">加载中…</p>
+          <p className="text-sm text-muted-foreground">加载中…</p>
         ) : (
-          <textarea
-            className="md-editor-textarea"
+          <Textarea
+            className="min-h-[280px] font-mono text-sm leading-relaxed"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             spellCheck={false}
@@ -84,22 +84,21 @@ export function MarkdownEditorDialog({
           />
         )}
 
-        {error && <p className="dialog-error">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <footer className="dialog-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
+        <DialogFooter className="border-t pt-4">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
             取消
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-primary"
             onClick={() => void onSave()}
             disabled={loading || saving}
           >
             {saving ? "保存中…" : "保存"}
-          </button>
-        </footer>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

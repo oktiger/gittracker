@@ -3,15 +3,49 @@ import { api } from "../api";
 import {
   isWorkingTreeChange,
   workingTreeBadge,
+  type GitStatusKind,
 } from "../lib/gitStatusBadge";
 import type { FileChange } from "../types";
 import { HelpTip } from "./HelpTip";
-import "./Dialog.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface Props {
   projectId: string;
   projectName: string;
   onClose: () => void;
+}
+
+const badgeStyles: Record<GitStatusKind, string> = {
+  untracked: "text-green-700 bg-green-500/15 dark:text-green-400",
+  added: "text-green-700 bg-green-500/15 dark:text-green-400",
+  modified: "text-amber-700 bg-amber-500/15 dark:text-amber-400",
+  other: "text-amber-700 bg-amber-500/15 dark:text-amber-400",
+  deleted: "text-destructive bg-destructive/15",
+  renamed: "text-purple-700 bg-purple-500/15 dark:text-purple-400",
+  copied: "text-purple-700 bg-purple-500/15 dark:text-purple-400",
+  conflict: "text-destructive bg-destructive/20",
+};
+
+function GitBadge({ letter, kind }: { letter: string; kind: GitStatusKind }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-[1.15rem] min-w-[1.15rem] shrink-0 items-center justify-center rounded-sm px-0.5 font-mono text-[0.72rem] leading-none font-bold",
+        badgeStyles[kind],
+      )}
+    >
+      {letter}
+    </span>
+  );
 }
 
 export function ChangesDialog({ projectId, projectName, onClose }: Props) {
@@ -43,74 +77,69 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
   }, [files]);
 
   return (
-    <div className="dialog-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="dialog dialog-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="changes-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="dialog-header">
-          <h3 id="changes-title">Changes · {projectName}</h3>
-          <button type="button" className="btn-ghost btn-icon" onClick={onClose}>
-            ×
-          </button>
-        </header>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Changes · {projectName}</DialogTitle>
+          <DialogDescription>
+            未暂存改动（Unstaged）与未跟踪新文件（Untracked）。{" "}
+            <HelpTip text="文件名右侧字母沿用 VS Code / GitHub Desktop：U Untracked、M Modified、D Deleted、A Added、R Renamed。" />
+          </DialogDescription>
+        </DialogHeader>
 
-        <p className="dialog-hint">
-          未暂存改动（Unstaged）与未跟踪新文件（Untracked）。{" "}
-          <HelpTip text="文件名右侧字母沿用 VS Code / GitHub Desktop：U Untracked、M Modified、D Deleted、A Added、R Renamed。" />
-        </p>
-
-        <div className="git-badge-legend" aria-hidden="true">
-          <span className="git-badge git-badge-untracked">U</span>
+        <div
+          className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
+          aria-hidden="true"
+        >
+          <GitBadge letter="U" kind="untracked" />
           <span>Untracked</span>
-          <span className="git-badge git-badge-modified">M</span>
+          <GitBadge letter="M" kind="modified" />
           <span>Modified</span>
-          <span className="git-badge git-badge-deleted">D</span>
+          <GitBadge letter="D" kind="deleted" />
           <span>Deleted</span>
         </div>
 
         {loading ? (
-          <p className="dialog-hint">加载变更文件…</p>
+          <p className="text-sm text-muted-foreground">加载变更文件…</p>
         ) : error ? (
-          <p className="dialog-error">{error}</p>
+          <p className="text-sm text-destructive">{error}</p>
         ) : (
-          <ul className="file-list changes-file-list">
+          <ul className="max-h-[min(52vh,420px)] list-none overflow-auto rounded-md border border-border bg-muted/30 p-0">
             {sorted.map((f) => {
               const badge = workingTreeBadge(f);
               return (
-                <li key={f.path}>
-                  <div className="changes-file-row">
-                    <span className="file-path" title={f.path}>
+                <li key={f.path} className="border-b border-border last:border-b-0">
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <span
+                      className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
+                      title={f.path}
+                    >
                       {f.path}
                     </span>
-                    <span
-                      className={`git-badge git-badge-${badge.kind}`}
-                      title={badge.label}
-                    >
-                      {badge.letter}
+                    <span title={badge.label}>
+                      <GitBadge letter={badge.letter} kind={badge.kind} />
                     </span>
                   </div>
                 </li>
               );
             })}
             {sorted.length === 0 && (
-              <li className="empty">当前没有 Unstaged / Untracked 文件</li>
+              <li className="px-3 py-3 text-sm text-muted-foreground">
+                当前没有 Unstaged / Untracked 文件
+              </li>
             )}
           </ul>
         )}
 
-        <footer className="dialog-footer">
-          <span className="dialog-hint" style={{ margin: 0 }}>
+        <DialogFooter className="border-t pt-4 sm:justify-between">
+          <span className="text-sm text-muted-foreground">
             共 {sorted.length} 个文件
           </span>
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose}>
             关闭
-          </button>
-        </footer>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

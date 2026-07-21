@@ -3,7 +3,19 @@ import { api } from "../api";
 import type { AiPanelSession } from "../lib/aiPanel";
 import { HelpTip } from "./HelpTip";
 import type { AiProvider, AppSettings } from "../types";
-import "./SettingsPage.css";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface Props {
   onSaved: (msg: string) => void;
@@ -136,148 +148,196 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
   const busy = saving || testingId !== null;
 
   return (
-    <div className="settings-page">
-      <div className="settings-page-toolbar">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => void onSave()}
-          disabled={!settings || busy}
-        >
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => void onSave()} disabled={!settings || busy}>
           {saving ? "保存中…" : "保存"}
-        </button>
+        </Button>
       </div>
 
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          AI 调用通道
-          <HelpTip text="生成 Commit、生成任务、实现任务等所有 AI 能力都会走此处选择的 CLI，不会混用。" />
-        </h3>
+      <Tabs defaultValue="provider">
+        <TabsList>
+          <TabsTrigger value="provider">AI Provider</TabsTrigger>
+          <TabsTrigger value="prompts">提示词</TabsTrigger>
+          <TabsTrigger value="summary">总结</TabsTrigger>
+        </TabsList>
 
-        <div className="provider-list" role="radiogroup" aria-label="AI 调用通道">
-          {PROVIDERS.map((p) => {
-            const selected = settings?.aiProvider === p.id;
-            const status = testStatus[p.id];
-            const thisTesting = testingId === p.id;
-            return (
-              <div
-                key={p.id}
-                className={`provider-option${selected ? " is-selected" : ""}`}
-              >
-                <label className="provider-option-main">
-                  <input
-                    type="radio"
-                    name="aiProvider"
-                    value={p.id}
-                    checked={selected}
-                    onChange={() => onSelect(p.id)}
-                    disabled={!settings || busy}
-                  />
-                  <span className="provider-copy">
-                    <strong>{p.title}</strong>
-                    <span>{p.desc}</span>
-                  </span>
-                </label>
-
-                <div className="provider-test">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => onTest(p.id)}
-                    disabled={!settings || busy}
-                  >
-                    {thisTesting ? "测试中…" : "测试"}
-                  </button>
-                  {status.kind === "running" && (
-                    <span className="provider-test-result is-running">测试中…</span>
-                  )}
-                  {status.kind === "ok" && (
-                    <span className="provider-test-result is-ok" role="status">
-                      <span className="provider-test-icon" aria-hidden="true">
-                        ✓
-                      </span>
-                      测试成功
-                    </span>
-                  )}
-                  {status.kind === "error" && (
-                    <span className="provider-test-result is-error" role="alert">
-                      <span className="provider-test-icon" aria-hidden="true">
-                        ✕
-                      </span>
-                      <span className="provider-test-fail-copy">
-                        <span className="provider-test-fail-title">测试失败</span>
-                        <span className="provider-test-fail-reason">{status.message}</span>
-                      </span>
-                    </span>
-                  )}
-                </div>
+        <TabsContent value="provider" className="mt-4 space-y-3">
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+                AI 调用通道
+                <HelpTip text="生成 Commit、生成任务、实现任务等所有 AI 能力都会走此处选择的 CLI，不会混用。" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 px-4">
+              <div role="radiogroup" aria-label="AI 调用通道" className="space-y-2">
+                {PROVIDERS.map((p) => {
+                  const selected = settings?.aiProvider === p.id;
+                  const status = testStatus[p.id];
+                  const thisTesting = testingId === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        "rounded-md border p-3 transition-colors",
+                        selected
+                          ? "border-primary bg-accent/30"
+                          : "border-border hover:bg-accent/20",
+                      )}
+                    >
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input
+                          type="radio"
+                          name="aiProvider"
+                          value={p.id}
+                          checked={selected}
+                          onChange={() => onSelect(p.id)}
+                          disabled={!settings || busy}
+                          className="mt-1"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium">{p.title}</div>
+                          <p className="mt-1 text-xs text-muted-foreground">{p.desc}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              onClick={() => onTest(p.id)}
+                              disabled={!settings || busy}
+                            >
+                              {thisTesting ? "测试中…" : "测试"}
+                            </Button>
+                            {status.kind === "running" && (
+                              <span className="text-xs text-muted-foreground">测试中…</span>
+                            )}
+                            {status.kind === "ok" && (
+                              <span className="text-xs text-emerald-400" role="status">
+                                ✓ 测试成功
+                              </span>
+                            )}
+                            {status.kind === "error" && (
+                              <span className="text-xs text-destructive" role="alert">
+                                ✕ {status.message}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      </section>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          生成任务 · 提示词模板
-          <HelpTip text="点「生成任务」时：模板 + goal.md + 项目现状 → AI" />
-        </h3>
-        <textarea
-          className="settings-textarea"
-          value={settings?.goalPromptTemplate ?? ""}
-          onChange={(e) =>
-            setSettings((prev) =>
-              prev ? { ...prev, goalPromptTemplate: e.target.value } : prev,
-            )
-          }
-          disabled={!settings || busy}
-          rows={8}
-        />
-        <button
-          type="button"
-          className="btn-link"
-          onClick={() =>
-            setSettings((prev) =>
-              prev ? { ...prev, goalPromptTemplate: DEFAULT_GOAL } : prev,
-            )
-          }
-          disabled={!settings || busy}
-        >
-          恢复「生成任务」默认模板
-        </button>
-      </section>
+        <TabsContent value="prompts" className="mt-4 space-y-3">
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+                生成任务 · 提示词模板
+                <HelpTip text="点「生成任务」时：模板 + goal.md + 项目现状 → AI" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 px-4">
+              <Textarea
+                className="min-h-[120px] font-mono text-xs"
+                value={settings?.goalPromptTemplate ?? ""}
+                onChange={(e) =>
+                  setSettings((prev) =>
+                    prev ? { ...prev, goalPromptTemplate: e.target.value } : prev,
+                  )
+                }
+                disabled={!settings || busy}
+                rows={8}
+              />
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-xs"
+                onClick={() =>
+                  setSettings((prev) =>
+                    prev ? { ...prev, goalPromptTemplate: DEFAULT_GOAL } : prev,
+                  )
+                }
+                disabled={!settings || busy}
+              >
+                恢复「生成任务」默认模板
+              </Button>
+            </CardContent>
+          </Card>
 
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          实现任务 · 提示词模板
-          <HelpTip text="点「⋯ → 实现」时使用；AI 会在项目目录改代码" />
-        </h3>
-        <textarea
-          className="settings-textarea"
-          value={settings?.taskPromptTemplate ?? ""}
-          onChange={(e) =>
-            setSettings((prev) =>
-              prev ? { ...prev, taskPromptTemplate: e.target.value } : prev,
-            )
-          }
-          disabled={!settings || busy}
-          rows={6}
-        />
-        <button
-          type="button"
-          className="btn-link"
-          onClick={() =>
-            setSettings((prev) =>
-              prev ? { ...prev, taskPromptTemplate: DEFAULT_TASK } : prev,
-            )
-          }
-          disabled={!settings || busy}
-        >
-          恢复「实现任务」默认模板
-        </button>
-      </section>
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+                实现任务 · 提示词模板
+                <HelpTip text="点「⋯ → 实现」时使用；AI 会在项目目录改代码" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 px-4">
+              <Textarea
+                className="min-h-[120px] font-mono text-xs"
+                value={settings?.taskPromptTemplate ?? ""}
+                onChange={(e) =>
+                  setSettings((prev) =>
+                    prev ? { ...prev, taskPromptTemplate: e.target.value } : prev,
+                  )
+                }
+                disabled={!settings || busy}
+                rows={6}
+              />
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-xs"
+                onClick={() =>
+                  setSettings((prev) =>
+                    prev ? { ...prev, taskPromptTemplate: DEFAULT_TASK } : prev,
+                  )
+                }
+                disabled={!settings || busy}
+              >
+                恢复「实现任务」默认模板
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {error && <p className="settings-error">{error}</p>}
+        <TabsContent value="summary" className="mt-4">
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm font-medium">自动生成时间</CardTitle>
+              <CardDescription className="text-xs">
+                到达时间后自动打开运行中心并生成今日总结。开关请在「总结」页设置。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 px-4">
+              <Label htmlFor="dailyCompletionTime" className="text-sm">
+                每日生成时间
+              </Label>
+              <Input
+                id="dailyCompletionTime"
+                type="time"
+                className="w-auto"
+                value={settings?.dailyCompletionTime ?? "18:00"}
+                disabled={!settings || busy}
+                onChange={(e) =>
+                  setSettings((prev) =>
+                    prev ? { ...prev, dailyCompletionTime: e.target.value } : prev,
+                  )
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                应用常驻运行时会按此时间自动生成。
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

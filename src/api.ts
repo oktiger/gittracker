@@ -94,6 +94,7 @@ export const api = {
     }),
   runProjectTarget: (id: string, targetId: string) =>
     invoke<RunSession>("run_project_target", { id, targetId }),
+  upgradeSelf: () => invoke<RunSession>("upgrade_self"),
   listRunSessions: () => invoke<RunSession[]>("list_run_sessions"),
   stopRunSession: (sessionId: string) =>
     invoke<void>("stop_run_session", { sessionId }),

@@ -747,7 +747,7 @@ fn resolve_bin(primary: &str, aliases: &[&str], missing_msg: &str) -> AppResult<
         }
     }
 
-    for dir in cli_bin_dirs() {
+    for dir in crate::path_env::cli_bin_dirs() {
         for name in &names {
             let candidate = dir.join(name);
             if candidate.is_file() {
@@ -782,72 +782,8 @@ fn which_bin(name: &str) -> Option<PathBuf> {
     }
 }
 
-/// GUI 应用启动时 PATH 往往不完整（尤其缺 nvm），补上常见 CLI 安装目录。
-fn cli_bin_dirs() -> Vec<PathBuf> {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
-    let mut dirs = Vec::new();
-
-    let mut push_dir = |p: PathBuf| {
-        if p.is_dir() && !dirs.iter().any(|d| d == &p) {
-            dirs.push(p);
-        }
-    };
-
-    for p in [
-        home.join(".local/bin"),
-        PathBuf::from("/opt/homebrew/bin"),
-        PathBuf::from("/usr/local/bin"),
-        home.join("bin"),
-        home.join(".cargo/bin"),
-        home.join(".volta/bin"),
-        home.join(".asdf/shims"),
-        home.join(".fnm/current/bin"),
-        home.join(".local/share/fnm/aliases/default/bin"),
-    ] {
-        push_dir(p);
-    }
-
-    let nvm_dir = std::env::var_os("NVM_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home.join(".nvm"));
-    push_dir(nvm_dir.join("current/bin"));
-
-    // nvm alias/default → versions/node/<ver>/bin（GUI 下 ~/.nvm/current 常不存在）
-    if let Ok(default) = std::fs::read_to_string(nvm_dir.join("alias/default")) {
-        let ver = default.trim();
-        if !ver.is_empty() {
-            push_dir(nvm_dir.join("versions/node").join(ver).join("bin"));
-        }
-    }
-
-    if let Ok(entries) = std::fs::read_dir(nvm_dir.join("versions/node")) {
-        let mut versions: Vec<PathBuf> = entries
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| p.is_dir())
-            .collect();
-        // 版本名大致按新到旧排序（v25.8.0 > v20.x）
-        versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
-        for ver_path in versions {
-            push_dir(ver_path.join("bin"));
-        }
-    }
-
-    dirs
-}
-
 fn augmented_path() -> String {
-    let mut parts: Vec<String> = cli_bin_dirs()
-        .into_iter()
-        .map(|p| p.to_string_lossy().into_owned())
-        .collect();
-    let current = std::env::var("PATH").unwrap_or_default();
-    for p in current.split(':') {
-        if !p.is_empty() && !parts.iter().any(|x| x == p) {
-            parts.push(p.to_string());
-        }
-    }
-    parts.join(":")
+    crate::path_env::augmented_path()
 }
 
 fn clean_message(raw: &str) -> String {
@@ -888,21 +824,25 @@ pub fn suggest_run_targets(
          1. 只输出一个 JSON 数组，不要解释、不要 Markdown 标题\n\
          2. 每项字段：name、description、cwd、command、kind、isDefault\n\
          3. name：2～8 字动作短语，普通人一眼能懂。优先用这类说法：\n\
-            「启动 APP」「打包 APP」「启动网页」「启动桌面」「启动后台」「启动菜单栏」\n\
+            「启动 APP」「打包 APP」「升级 APP」「启动网页」「启动桌面」「启动后台」「启动菜单栏」\n\
             不要把 py2app、模块路径、脚本文件名写进 name\n\
          4. description：一句人话说明「做什么、给谁用」。例如：\n\
             「打开已打包好的 macOS 应用」\n\
             「用 py2app 打成 .app（开发别名模式）」\n\
+            「打包后替换 /Applications 里的旧版并打开」\n\
             「无界面后台服务，供菜单栏调用」\n\
             「用脚本启动菜单栏（开发调试）」\n\
          5. cwd：相对仓库根，如 \".\" 或 \"apps/web\"\n\
          6. command：一行 shell（含包管理器）；技术细节只放这里\n\
-         7. kind：dev|build|open|custom（打包用 build，打开 .app 用 open）\n\
-         8. isDefault：布尔，至多一个 true；日常开发优先，不要把打包/打开已构建 App 设为默认\n\
+         7. kind：dev|build|open|upgrade|custom（打包用 build，打开 .app 用 open，打包并替换安装用 upgrade）\n\
+         8. isDefault：布尔，至多一个 true；日常开发优先，不要把打包/升级/打开已构建 App 设为默认\n\
          9. 同类目标可并存，但 name 要能区分（如「启动 APP」与「启动菜单栏」）\n\
          10. 双端仓库请分别给出网页与桌面目标\n\
          11. 命令要符合上下文里的 package manager 与 scripts\n\
-         12. 不要执行任何命令，不要修改文件\n\n\
+         12. 若是 macOS 桌面项目（Tauri / Electron / py2app 等），除「打包 APP」外务必再给一条「升级 APP」：\n\
+             先 build 出 .app，再退出已安装应用（如有），用 ditto 替换 /Applications 下同名 .app，最后 open 打开。\n\
+             kind 必须为 upgrade；不要把「升级 APP」设为默认\n\
+         13. 不要执行任何命令，不要修改文件\n\n\
          【仓库上下文】\n{context}\n"
     );
     let prompt = truncate_prompt(&prompt);

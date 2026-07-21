@@ -14,7 +14,11 @@ import type {
   NewLogDiaryEntry,
   RunTarget,
 } from "../types";
-import "./AiSidePanel.css";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type Draft = RunTarget & { checked: boolean };
 
@@ -131,7 +135,7 @@ function bootLine(session: AiPanelSession): AiTranscriptLine {
 
 export function AiSidePanel({
   session,
-  embedded = false,
+  embedded: _embedded = false,
   onClose,
   onLog,
   onTargetsSaved,
@@ -633,206 +637,212 @@ export function AiSidePanel({
     }
   };
 
+  const renderTranscript = (compact = false) => (
+    <div className={cn("space-y-2", compact && "max-h-40 overflow-y-auto")}>
+      {transcript.map((line) => (
+        <div key={line.id} className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2">
+          <Badge variant="secondary" className="mb-1 text-[10px]">
+            {kindLabel(line.kind)}
+          </Badge>
+          <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90">
+            {line.text}
+          </pre>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-    <section className={embedded ? "ai-session-card" : "ai-side-panel"} aria-label={title}>
-      <header className="ai-side-header">
-        <div className="ai-side-heading">
-          <h3>{title}</h3>
-          <p className="ai-side-sub">
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-label={title}
+    >
+      <header className="flex items-start justify-between gap-2 border-b border-border px-3 py-2.5">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-medium">{title}</h3>
+          <p className="truncate text-xs text-muted-foreground">
             {subtitle}
             {phase === "running" ? " · 进行中" : ""}
           </p>
         </div>
-        <div className="ai-side-header-actions">
-          <button
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
             type="button"
-            className="btn btn-secondary btn-sm ai-side-copy-btn"
+            variant="outline"
+            size="xs"
             onClick={() => void copyAiRun()}
             disabled={!canCopy || saving}
             aria-label="复制 AI 运行过程"
             title="复制整段 AI 过程"
           >
             {copied ? "已复制" : "复制"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn-ghost btn-icon"
+            variant="ghost"
+            size="icon-xs"
             onClick={handleClose}
             disabled={saving}
-            aria-label="关闭侧边栏"
+            aria-label="关闭会话"
           >
             ×
-          </button>
+          </Button>
         </div>
       </header>
 
       {phase === "running" && (
-        <div className="ai-side-body">
-          <div className="ai-transcript" aria-live="polite" aria-relevant="additions">
-            {transcript.map((line) => (
-              <div key={line.id} className={`ai-line ai-line-${line.kind}`}>
-                <span className="ai-line-kind">{kindLabel(line.kind)}</span>
-                <pre className="ai-line-text">{line.text}</pre>
-              </div>
-            ))}
-            <div className="ai-line ai-line-status ai-line-pending">
-              <span className="run-spinner" aria-hidden />
-              <span className="ai-line-text">进行中…</span>
+        <div className="space-y-3 p-3">
+          <div aria-live="polite" aria-relevant="additions">
+            {renderTranscript()}
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+              进行中…
             </div>
             <div ref={transcriptEndRef} />
           </div>
-          <footer className="ai-side-footer">
-            <button type="button" className="btn btn-secondary" onClick={handleClose}>
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={handleClose}>
               取消
-            </button>
-          </footer>
+            </Button>
+          </div>
         </div>
       )}
 
       {phase === "done" && (
-        <div className="ai-side-body">
+        <div className="space-y-3 p-3">
           {transcript.length > 0 && (
-            <details className="ai-side-history" open>
-              <summary>AI 过程（{transcript.length} 条）</summary>
-              <div className="ai-transcript ai-transcript-compact">
-                {transcript.map((line) => (
-                  <div key={line.id} className={`ai-line ai-line-${line.kind}`}>
-                    <span className="ai-line-kind">{kindLabel(line.kind)}</span>
-                    <pre className="ai-line-text">{line.text}</pre>
-                  </div>
-                ))}
-              </div>
+            <details open className="rounded-md border border-border">
+              <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
+                AI 过程（{transcript.length} 条）
+              </summary>
+              <div className="border-t border-border p-2">{renderTranscript(true)}</div>
             </details>
           )}
-          {resultSummary && !error && (
-            <pre className="ai-side-result">{resultSummary}</pre>
-          )}
-          {error && <p className="ai-side-error">{error}</p>}
-          <footer className="ai-side-footer">
-            <button type="button" className="btn btn-primary" onClick={onClose}>
+          {resultSummary && !error ? (
+            <pre className="whitespace-pre-wrap rounded-md border border-border bg-muted/20 p-3 font-mono text-xs leading-relaxed">
+              {resultSummary}
+            </pre>
+          ) : null}
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex justify-end">
+            <Button type="button" size="sm" onClick={onClose}>
               完成
-            </button>
-          </footer>
+            </Button>
+          </div>
         </div>
       )}
 
       {phase === "edit" && (session.kind === "identify" || session.kind === "config") && (
-        <div className="ai-side-body">
+        <div className="space-y-3 p-3">
           {transcript.length > 0 && (
-            <details className="ai-side-history">
-              <summary>查看 AI 过程（{transcript.length} 条）</summary>
-              <div className="ai-transcript ai-transcript-compact">
-                {transcript.map((line) => (
-                  <div key={line.id} className={`ai-line ai-line-${line.kind}`}>
-                    <span className="ai-line-kind">{kindLabel(line.kind)}</span>
-                    <pre className="ai-line-text">{line.text}</pre>
-                  </div>
-                ))}
-              </div>
+            <details className="rounded-md border border-border">
+              <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
+                查看 AI 过程（{transcript.length} 条）
+              </summary>
+              <div className="border-t border-border p-2">{renderTranscript(true)}</div>
             </details>
           )}
 
-          <p className="ai-side-hint">
+          <p className="text-xs text-muted-foreground">
             {session.kind === "config"
               ? "编辑启动目标。保存后可从运行菜单选择。"
               : "请勾选需要保留的项，可改名称、说明、目录与命令。"}
           </p>
-          {error && (
-            <p className={error.includes("已改用本地") ? "ai-side-warn" : "ai-side-error"}>
+          {error ? (
+            <p
+              className={cn(
+                "text-sm",
+                error.includes("已改用本地") ? "text-amber-400" : "text-destructive",
+              )}
+            >
               {error}
             </p>
-          )}
+          ) : null}
 
-          <div className="run-target-list">
+          <div className="space-y-2">
             {drafts.map((d, idx) => (
               <div
                 key={d.id || idx}
-                className={`run-target-row${d.checked ? " is-checked" : ""}`}
+                className={cn(
+                  "rounded-md border border-border p-3",
+                  d.checked && "border-primary/40 bg-accent/20",
+                )}
               >
-                <input
-                  type="checkbox"
-                  checked={d.checked}
-                  onChange={(e) => updateDraft(idx, { checked: e.target.checked })}
-                  aria-label={`选用 ${d.name}`}
-                />
-                <div className="run-target-fields">
-                  <div className="run-target-name-row">
+                <div className="mb-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={d.checked}
+                    onChange={(e) => updateDraft(idx, { checked: e.target.checked })}
+                    aria-label={`选用 ${d.name}`}
+                  />
+                  <Input
+                    value={d.name}
+                    onChange={(e) => updateDraft(idx, { name: e.target.value })}
+                    placeholder="名称，如：启动 APP"
+                    className="h-8"
+                  />
+                  <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                     <input
-                      type="text"
-                      value={d.name}
-                      onChange={(e) => updateDraft(idx, { name: e.target.value })}
-                      placeholder="名称，如：启动 APP"
+                      type="radio"
+                      name="run-default-side"
+                      checked={Boolean(d.isDefault)}
+                      onChange={() => setDefault(idx)}
                     />
-                    <label className="run-default-check">
-                      <input
-                        type="radio"
-                        name="run-default-side"
-                        checked={Boolean(d.isDefault)}
-                        onChange={() => setDefault(idx)}
-                      />
-                      默认
-                    </label>
-                  </div>
-                  <label className="run-field">
-                    <span>说明</span>
-                    <input
-                      type="text"
+                    默认
+                  </label>
+                </div>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">说明</Label>
+                    <Input
                       value={d.description ?? ""}
                       onChange={(e) =>
                         updateDraft(idx, { description: e.target.value || null })
                       }
                       placeholder="一句话说明用途"
+                      className="h-8"
                     />
-                  </label>
-                  <label className="run-field">
-                    <span>目录</span>
-                    <input
-                      type="text"
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">目录</Label>
+                    <Input
                       value={d.cwd}
                       onChange={(e) => updateDraft(idx, { cwd: e.target.value })}
                       placeholder="."
+                      className="h-8 font-mono text-xs"
                     />
-                  </label>
-                  <label className="run-field">
-                    <span>命令</span>
-                    <input
-                      type="text"
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">命令</Label>
+                    <Input
                       value={d.command}
                       onChange={(e) => updateDraft(idx, { command: e.target.value })}
                       placeholder="pnpm dev"
+                      className="h-8 font-mono text-xs"
                     />
-                  </label>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <footer className="ai-side-footer">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={addRow}
-              disabled={saving}
-            >
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={addRow} disabled={saving}>
               手动添加
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={saving}
-            >
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
               取消
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="btn btn-primary"
+              size="sm"
               onClick={() => void onSaveTargets()}
               disabled={saving}
             >
               {saving ? "保存中…" : "保存"}
-            </button>
-          </footer>
+            </Button>
+          </div>
         </div>
       )}
     </section>

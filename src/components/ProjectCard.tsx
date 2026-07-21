@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { MoreHorizontal, Play } from "lucide-react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import type {
   DocsOverview,
@@ -7,16 +8,26 @@ import type {
   ProjectStatus,
   RunTarget,
 } from "../types";
-import { HelpTip } from "./HelpTip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { DocumentLibraryTab } from "./DocumentLibraryTab";
 import { EvolutionPage } from "./EvolutionPage";
-import "./ProjectCard.css";
+import { HelpTip } from "./HelpTip";
 
 interface Props {
   project: ProjectStatus;
   busy?: string;
-  /** 详情页已有外层标题时隐藏卡片内项目名，避免重复 */
   hideTitle?: boolean;
+  onOpenProject?: () => void;
   onManualCommit: () => void;
   onOneClick: () => void;
   onDiscard: () => void;
@@ -27,7 +38,6 @@ interface Props {
   onConfigureRun: (mode: "identify" | "config") => void;
   onGenerateTasks: () => void;
   onImplementTask: (task: DocsTaskItem) => void;
-  /** 侧栏 AI 完成后递增，用于刷新 DOCS 列表 */
   docsEpoch?: number;
   onError: (msg: string) => void;
   onToast: (msg: string) => void;
@@ -44,15 +54,11 @@ function relativeTime(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString("zh-CN");
 }
 
-function statusLabel(status: string): { text: string; cls: string } {
-  if (status === "done") return { text: "已完成", cls: "done" };
-  return { text: "待做", cls: "" };
-}
-
 export function ProjectCard({
   project,
   busy,
   hideTitle = false,
+  onOpenProject,
   onManualCommit,
   onOneClick,
   onDiscard,
@@ -73,19 +79,15 @@ export function ProjectCard({
   const workingChanges = project.unstaged + project.untracked;
   const [docs, setDocs] = useState<DocsOverview | null>(null);
   const [docsBusy, setDocsBusy] = useState<string | null>(null);
-  const [menuId, setMenuId] = useState<string | null>(null);
-  const [runMenuOpen, setRunMenuOpen] = useState(false);
   const [runBusy, setRunBusy] = useState(false);
-  const [detailTab, setDetailTab] = useState<"run" | "code" | "docs" | "evolution">("run");
-  const docsRef = useRef<HTMLElement>(null);
-  const runRef = useRef<HTMLDivElement>(null);
+  const [detailTab, setDetailTab] = useState("run");
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
+  const locked = disabled || Boolean(docsBusy) || runBusy;
 
   const loadDocs = async () => {
     try {
-      const overview = await api.listDocs(project.id);
-      setDocs(overview);
+      setDocs(await api.listDocs(project.id));
     } catch (e) {
       setDocs(null);
       onError(String(e));
@@ -97,26 +99,7 @@ export function ProjectCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id, project.path, docsEpoch]);
 
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (!docsRef.current?.contains(target)) {
-        setMenuId(null);
-      }
-      if (!runRef.current?.contains(target)) {
-        setRunMenuOpen(false);
-      }
-    };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, []);
-
-  const locked = disabled || Boolean(docsBusy) || runBusy;
-  const needsInit =
-    docs != null && (docs.needsInit ?? (!docs.hasDocs || !docs.goalExists));
-
   const onRunTarget = async (targetId: string) => {
-    setRunMenuOpen(false);
     setRunBusy(true);
     const t = targets.find((x) => x.id === targetId);
     try {
@@ -140,15 +123,11 @@ export function ProjectCard({
   };
 
   const onIdentify = () => {
-    setRunMenuOpen(false);
-    if (hasTargets) {
-      if (
-        !window.confirm(
-          "将用新的识别结果替换当前启动目标，是否继续？",
-        )
-      ) {
-        return;
-      }
+    if (
+      hasTargets &&
+      !window.confirm("将用新的识别结果替换当前启动目标，是否继续？")
+    ) {
+      return;
     }
     onConfigureRun("identify");
   };
@@ -183,387 +162,444 @@ export function ProjectCard({
     }
   };
 
-  const onGenerate = () => {
-    setMenuId(null);
-    onGenerateTasks();
-  };
+  const statusBadge = (
+    <Badge
+      variant="outline"
+      className={cn(
+        "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium",
+        project.clean
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-400",
+      )}
+    >
+      {docsBusy ? "AI 工作中" : project.clean ? "Clean" : "Changed"}
+    </Badge>
+  );
 
-  const openTask = async (task: DocsTaskItem) => {
-    setMenuId(null);
-    if (task.kind === "html") {
-      try {
-        await api.openDocExternal(project.id, task.relativePath);
-        onToast("已用系统应用打开 HTML");
-      } catch (e) {
-        onError(String(e));
-      }
-      return;
-    }
-    onOpenDoc(task.relativePath, `${String(task.number).padStart(3, "0")} ${task.title}`);
-  };
+  const runMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="xs" disabled={locked}>
+          <Play className="h-3 w-3" />
+          运行
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {hasTargets ? (
+          <>
+            {targets.map((t) => (
+              <DropdownMenuItem
+                key={t.id}
+                className="flex-col items-start gap-0.5"
+                onClick={() => void onRunTarget(t.id)}
+              >
+                <span className="text-sm font-medium">
+                  {t.name}
+                  {t.isDefault ? " ★" : ""}
+                </span>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {t.description?.trim() || `${t.cwd} · ${t.command}`}
+                </span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onConfigureRun("config")}>
+              配置启动方式…
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onIdentify}>重新用 AI 识别…</DropdownMenuItem>
+          </>
+        ) : (
+          <>
+            <DropdownMenuItem onClick={onIdentify}>识别启动方式…</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onConfigureRun("config")}>
+              手动添加一条…
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
-  const implementTask = (task: DocsTaskItem) => {
-    setMenuId(null);
-    onImplementTask(task);
-  };
+  const codeModule = (board: boolean) => (
+    <section className="overflow-hidden rounded-md border border-border bg-background/40">
+      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted font-mono text-[10px] font-semibold text-muted-foreground">
+            {"</>"}
+          </span>
+          <span className="text-sm font-semibold">代码</span>
+        </div>
+        <span className="text-[11px] text-muted-foreground">最近 3 次提交</span>
+      </header>
+      {project.commits.length === 0 ? (
+        <p className="px-3 py-4 text-xs text-muted-foreground">暂无提交</p>
+      ) : (
+        <ul className="divide-y divide-border px-3">
+          {project.commits.map((c) => (
+            <li
+              key={c.hash}
+              className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs"
+            >
+              <span className="font-mono text-sky-400">{c.hash}</span>
+              <span className="truncate text-foreground/90" title={c.subject}>
+                {c.subject}
+              </span>
+              <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                {relativeTime(c.timestamp)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2.5">
+        <span className="text-[11px] text-muted-foreground">
+          {project.staged} Staged · {workingChanges} Changes
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {board ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                disabled={locked || !hasChanges}
+                onClick={onOneClick}
+              >
+                全部提交
+              </Button>
+              {runMenu}
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                disabled={locked || workingChanges === 0}
+                onClick={onViewChanges}
+              >
+                查看变更
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                disabled={locked || !hasChanges}
+                onClick={onManualCommit}
+              >
+                提交…
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                disabled={locked || !hasChanges}
+                onClick={onOneClick}
+              >
+                一键提交
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={locked || !hasChanges}
+                onClick={onManualCommit}
+              >
+                手动提交
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10"
+                disabled={locked || !hasChanges}
+                onClick={onDiscard}
+              >
+                Discard
+              </Button>
+            </>
+          )}
+        </div>
+      </footer>
+    </section>
+  );
+
+  if (hideTitle) {
+    return (
+      <div className="space-y-4">
+        <Tabs value={detailTab} onValueChange={setDetailTab}>
+          <TabsList className="h-auto rounded-lg border border-border bg-muted/40 p-1">
+            <TabsTrigger value="run" className="rounded-md px-3 py-1.5">
+              运行
+            </TabsTrigger>
+            <TabsTrigger value="code" className="rounded-md px-3 py-1.5">
+              代码
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="rounded-md px-3 py-1.5">
+              文档
+            </TabsTrigger>
+            <TabsTrigger value="evolution" className="rounded-md px-3 py-1.5">
+              进化
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="run" className="mt-4">
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div>
+                  <h3 className="text-sm font-medium">可运行命令</h3>
+                  <p className="text-xs text-muted-foreground">来自项目配置 / AI 识别</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  disabled={locked}
+                  onClick={() => onConfigureRun("config")}
+                >
+                  配置
+                </Button>
+              </div>
+              {hasTargets ? (
+                <ul className="divide-y divide-border">
+                  {targets.map((target) => (
+                    <li key={target.id}>
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={() => void onRunTarget(target.id)}
+                        className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-accent/50 disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {target.name}
+                          {target.isDefault ? (
+                            <>
+                              {" "}
+                              ★{" "}
+                              <Badge variant="secondary" className="text-[10px]">
+                                default
+                              </Badge>
+                            </>
+                          ) : null}
+                        </div>
+                        <code className="font-mono text-xs text-muted-foreground">
+                          {target.cwd} · {target.command}
+                        </code>
+                        {target.description ? (
+                          <span className="text-xs text-muted-foreground">
+                            {target.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">还没有可运行的命令</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-3"
+                    disabled={locked}
+                    onClick={onIdentify}
+                  >
+                    识别启动方式
+                  </Button>
+                </div>
+              )}
+              {hasTargets ? (
+                <div className="border-t border-border px-4 py-3">
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    onClick={onIdentify}
+                    disabled={locked}
+                  >
+                    识别启动方式
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="code" className="mt-4 space-y-4">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono">
+                  {project.branch || "—"}
+                </code>
+                {statusBadge}
+                {(project.ahead > 0 || project.behind > 0) && (
+                  <span className="text-muted-foreground">
+                    {project.ahead > 0 ? `↑${project.ahead}` : null}
+                    {project.behind > 0 ? ` ↓${project.behind}` : null}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="ml-auto text-muted-foreground"
+                  disabled={locked}
+                  onClick={onRemove}
+                >
+                  从看板移除
+                </Button>
+              </div>
+              <div className="mb-4 grid max-w-md grid-cols-2 gap-3">
+                <div className="rounded-md border border-border p-4 text-center">
+                  <div className="text-3xl font-semibold tabular-nums">{project.staged}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Staged <HelpTip text="已暂存、等待提交的文件数" />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={workingChanges === 0 || locked}
+                  onClick={onViewChanges}
+                  className="rounded-md border border-border p-4 text-center hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <div className="text-3xl font-semibold tabular-nums">{workingChanges}</div>
+                  <div className="text-xs text-muted-foreground">Changes · 点击查看</div>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" disabled={locked || !hasChanges} onClick={onOneClick}>
+                  一键提交
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={locked || !hasChanges}
+                  onClick={onManualCommit}
+                >
+                  手动提交
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-destructive hover:bg-destructive/10"
+                  disabled={locked || !hasChanges}
+                  onClick={onDiscard}
+                >
+                  Discard
+                </Button>
+              </div>
+            </div>
+            {codeModule(false)}
+          </TabsContent>
+
+          <TabsContent value="docs" className="mt-4">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <DocumentLibraryTab
+                projectId={project.id}
+                projectPath={project.path}
+                epoch={docsEpoch}
+                onOpenFile={(relativePath, title) =>
+                  onOpenDoc(relativePath, title, true)
+                }
+                onError={onError}
+                onToast={onToast}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="evolution" className="mt-4">
+            <EvolutionPage
+              overview={docs}
+              busy={locked}
+              onInitialize={() => void onCreateDocs()}
+              onGenerateTasks={onGenerateTasks}
+              onImplementTask={onImplementTask}
+              onOpenGoal={(relativePath, title) => onOpenDoc(relativePath, title)}
+              onOpenTask={(task) => {
+                if (task.kind === "html") {
+                  void api
+                    .openDocExternal(project.id, task.relativePath)
+                    .then(() => onToast("已用系统应用打开 HTML"))
+                    .catch((e) => onError(String(e)));
+                  return;
+                }
+                onOpenDoc(
+                  task.relativePath,
+                  `${String(task.number).padStart(3, "0")} ${task.title}`,
+                );
+              }}
+            />
+          </TabsContent>
+        </Tabs>
+        {(busy || docsBusy || runBusy) && (
+          <p className="text-xs text-muted-foreground">
+            {busy || docsBusy || (runBusy ? "正在启动…" : null)}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <article className={`project-card ${project.clean ? "is-clean" : "is-dirty"}`}>
-      {hideTitle && (
-        <nav className="detail-tabs" aria-label="项目详情">
-          <button type="button" className={detailTab === "run" ? "is-active" : ""} onClick={() => setDetailTab("run")}>运行</button>
-          <button type="button" className={detailTab === "code" ? "is-active" : ""} onClick={() => setDetailTab("code")}>代码</button>
-          <button type="button" className={detailTab === "docs" ? "is-active" : ""} onClick={() => setDetailTab("docs")}>文档</button>
-          <button type="button" className={detailTab === "evolution" ? "is-active" : ""} onClick={() => setDetailTab("evolution")}>进化</button>
-        </nav>
-      )}
-      {hideTitle && detailTab === "run" && (
-        <section className="run-tab" aria-label="运行">
-          <div className="docs-head"><span className="docs-label">可运行命令</span><button type="button" className="btn btn-ghost btn-sm" onClick={() => onConfigureRun("config")} disabled={locked}>配置</button></div>
-          {hasTargets ? <ul className="run-target-list">{targets.map((target) => <li key={target.id}><button type="button" disabled={locked} onClick={() => void onRunTarget(target.id)}><span>{target.name}{target.isDefault ? " ★" : ""}</span><code>{target.cwd} · {target.command}</code>{target.description && <small>{target.description}</small>}</button></li>)}</ul> : <div className="docs-empty"><p>还没有可运行的命令</p><button type="button" className="btn btn-primary btn-sm" disabled={locked} onClick={onIdentify}>识别启动方式</button></div>}
-        </section>
-      )}
-      {hideTitle && detailTab === "docs" && <DocumentLibraryTab projectId={project.id} projectPath={project.path} epoch={docsEpoch} onOpenFile={(relativePath, title) => onOpenDoc(relativePath, title, true)} onError={onError} onToast={onToast} />}
-      {hideTitle && detailTab === "evolution" && <EvolutionPage overview={docs} busy={locked} onInitialize={() => void onCreateDocs()} onOpenGoal={(relativePath, title) => onOpenDoc(relativePath, title)} />}
-      {(!hideTitle || detailTab === "code") && <>
-      <header className="card-header">
-        <div className={`card-title-row${hideTitle ? " is-meta-only" : ""}`}>
-          {!hideTitle && (
-            <h2 className="card-title" title={project.path}>
+    <article className="rounded-lg border border-border bg-card shadow-sm">
+      <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold tracking-tight">
+            <button
+              type="button"
+              className="text-left hover:underline"
+              onClick={onOpenProject}
+              title={project.path}
+            >
               {project.name}
-            </h2>
-          )}
-          <button
-            type="button"
-            className="btn-ghost btn-icon"
-            onClick={onRemove}
-            title="从看板移除"
-            disabled={locked}
-          >
-            ×
-          </button>
+            </button>
+          </h2>
+          <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground" title={project.path}>
+            {project.path}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono">
+              {project.branch || "—"}
+            </code>
+            {project.ahead > 0 ? <span>↑{project.ahead} ahead</span> : null}
+            {project.behind > 0 ? <span>↓{project.behind} behind</span> : null}
+          </div>
         </div>
-        <div className="card-meta">
-          <span className="branch" title="当前分支">
-            {project.branch || "—"}
-          </span>
-          <span className={`badge ${project.clean ? "badge-clean" : "badge-dirty"}`}>
-            {docsBusy ? "AI 工作中" : project.clean ? "Clean" : "Changed"}
-          </span>
-          {(project.ahead > 0 || project.behind > 0) && (
-            <span className="ahead-behind">
-              {project.ahead > 0 && <span>↑{project.ahead}</span>}
-              {project.behind > 0 && <span>↓{project.behind}</span>}
-              <HelpTip text="相对远程分支：Ahead（本地超前）/ Behind（本地落后）" />
-            </span>
-          )}
+        <div className="flex items-center gap-1">
+          {statusBadge}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-sm" disabled={locked}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onRemove}>从看板移除</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
-      {project.error && <p className="card-error">{project.error}</p>}
+      {project.error ? (
+        <p className="border-b border-border px-4 py-2 text-xs text-destructive">{project.error}</p>
+      ) : null}
 
-      <div className="counts counts-2">
-        <div className="count">
-          <span className="count-num">{project.staged}</span>
-          <span className="count-label">
-            Staged <HelpTip text="已暂存、等待提交的文件数" />
-          </span>
-        </div>
-        <button
-          type="button"
-          className={`count count-btn${workingChanges > 0 ? " is-clickable" : ""}`}
-          disabled={workingChanges === 0 || locked}
-          onClick={onViewChanges}
-          title={
-            workingChanges > 0
-              ? "查看 Unstaged / Untracked 文件列表"
-              : "没有未暂存改动"
-          }
-        >
-          <span className="count-num">{workingChanges}</span>
-          <span className="count-label">
-            Changes{" "}
-            <span
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <HelpTip text="合并 Unstaged（已跟踪但未暂存的改动）与 Untracked（新文件）。点击查看文件名及 M/U/D 等状态标识。" />
-            </span>
-          </span>
-        </button>
+      <div className="space-y-3 p-3">
+        {codeModule(true)}
+        <section className="overflow-hidden rounded-md border border-border bg-background/40">
+          <DocumentLibraryTab
+            projectId={project.id}
+            projectPath={project.path}
+            epoch={docsEpoch}
+            onOpenFile={(relativePath, title) => onOpenDoc(relativePath, title, true)}
+            onError={onError}
+            onToast={onToast}
+          />
+        </section>
       </div>
 
-      {!hideTitle && <section className="docs-block" ref={docsRef} aria-label="DOCS">
-        <div className="docs-head">
-          <span className="docs-label">
-            DOCS <HelpTip text="Goal 写目标；生成任务拆成 Task；⋯ 可打开或实现" />
-          </span>
-          {docs == null ? null : needsInit ? (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={locked}
-              onClick={() => void onCreateDocs()}
-            >
-              初始化
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={locked || !docs.goalExists}
-              onClick={() => void onGenerate()}
-            >
-              生成任务
-            </button>
-          )}
+      {(busy || docsBusy || runBusy) && (
+        <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+          {busy || docsBusy || (runBusy ? "正在启动…" : null)}
         </div>
-
-        {docsBusy && <p className="docs-busy">{docsBusy}</p>}
-
-        {!docs ? (
-          <p className="docs-empty">加载中…</p>
-        ) : needsInit ? (
-          <div className="docs-empty">
-            <p>未检测到 Goal / Task 或 goal.md</p>
-            <p className="docs-empty-hint">点击「初始化」自动创建文件夹与 goal.md</p>
-          </div>
-        ) : docs.tasks.length === 0 ? (
-          <div className="docs-empty">
-            <p>暂无 Task · {docs.goalExists ? "已有 goal.md" : "请先写 goal.md"}</p>
-            {docs.goalRelativePath && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={locked}
-                onClick={() => onOpenDoc(docs.goalRelativePath!, "goal.md")}
-              >
-                打开 goal.md
-              </button>
-            )}
-          </div>
-        ) : (
-          <>
-            <ul className="task-list">
-              {docs.tasks.map((task) => {
-                const st =
-                  docsBusy?.includes(String(task.number).padStart(3, "0")) &&
-                  docsBusy.startsWith("正在实现")
-                    ? { text: "实现中…", cls: "busy" }
-                    : statusLabel(task.status);
-                const key = task.relativePath;
-                const open = menuId === key;
-                return (
-                  <li key={key} className={`task-row${open ? " is-open" : ""}`}>
-                    <span className="task-num">
-                      {String(task.number).padStart(3, "0")}
-                    </span>
-                    <button
-                      type="button"
-                      className="task-title"
-                      disabled={locked}
-                      onClick={() => void openTask(task)}
-                      title={task.relativePath}
-                    >
-                      {task.title}
-                    </button>
-                    <span className={`task-status ${st.cls}`}>{st.text}</span>
-                    <div className="more-wrap">
-                      <button
-                        type="button"
-                        className={`more-btn${open ? " is-open" : ""}`}
-                        disabled={locked}
-                        aria-label="更多"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMenuId(open ? null : key);
-                        }}
-                      >
-                        ⋯
-                      </button>
-                      {open && (
-                        <div className="more-menu" role="menu">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => void openTask(task)}
-                          >
-                            打开
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => void implementTask(task)}
-                          >
-                            实现
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            {docs.goalRelativePath && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm docs-goal-link"
-                disabled={locked}
-                onClick={() => onOpenDoc(docs.goalRelativePath!, "goal.md")}
-              >
-                打开 goal.md
-              </button>
-            )}
-          </>
-        )}
-      </section>}
-
-      <section className="commits">
-        <div className="commits-label">
-          最近提交 <HelpTip text="仅显示最近 3 条，不读取完整历史" />
-        </div>
-        {project.commits.length === 0 ? (
-          <p className="commits-empty">暂无提交</p>
-        ) : (
-          <ul>
-            {project.commits.map((c) => (
-              <li key={c.hash}>
-                <code className="hash">{c.hash}</code>
-                <span className="when">{relativeTime(c.timestamp)}</span>
-                <span className="subject" title={c.subject}>
-                  {c.subject}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <footer className="card-actions">
-        {(busy || docsBusy || runBusy) && (
-          <span className="busy-label">
-            {busy || docsBusy || (runBusy ? "正在打开终端…" : null)}
-          </span>
-        )}
-        {!hideTitle && <div className="run-wrap" ref={runRef}>
-          <button
-            type="button"
-            className="btn btn-run"
-            disabled={locked}
-            onClick={(e) => {
-              e.stopPropagation();
-              setRunMenuOpen((v) => !v);
-              setMenuId(null);
-            }}
-          >
-            运行 ▾
-          </button>
-          {runMenuOpen && (
-            <div className="run-menu" role="menu">
-              {hasTargets ? (
-                <>
-                  {targets.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      role="menuitem"
-                      className="run-menu-item"
-                      onClick={() => void onRunTarget(t.id)}
-                    >
-                      <span className="run-menu-name">
-                        {t.name}
-                        {t.isDefault ? <span className="run-star"> ★</span> : null}
-                      </span>
-                      <span
-                        className={
-                          t.description?.trim() ? "run-menu-desc" : "run-menu-cmd"
-                        }
-                        title={
-                          t.description?.trim()
-                            ? `${t.cwd} · ${t.command}`
-                            : undefined
-                        }
-                      >
-                        {t.description?.trim() || `${t.cwd} · ${t.command}`}
-                      </span>
-                    </button>
-                  ))}
-                  <div className="run-menu-sep" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="run-menu-item muted"
-                    onClick={() => {
-                      setRunMenuOpen(false);
-                      onConfigureRun("config");
-                    }}
-                  >
-                    配置启动方式…
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="run-menu-item muted"
-                    onClick={onIdentify}
-                  >
-                    重新用 AI 识别…
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="run-menu-item"
-                    onClick={onIdentify}
-                  >
-                    <span className="run-menu-name">识别启动方式…</span>
-                    <span className="run-menu-cmd">用 AI 分析本项目</span>
-                  </button>
-                  <div className="run-menu-sep" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="run-menu-item muted"
-                    onClick={() => {
-                      setRunMenuOpen(false);
-                      onConfigureRun("config");
-                    }}
-                  >
-                    手动添加一条…
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>}
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={locked || !hasChanges}
-          onClick={onManualCommit}
-        >
-          手动提交
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={locked || !hasChanges}
-          onClick={onOneClick}
-        >
-          一键提交
-        </button>
-        <HelpTip text="点击后自动暂存全部改动（含 Unstaged / Untracked），再 AI 生成 message → Commit → Push；任一步失败即停止" />
-        <button
-          type="button"
-          className="btn btn-danger"
-          disabled={locked || !hasChanges}
-          onClick={onDiscard}
-        >
-          Discard
-        </button>
-      </footer>
-      </>}
+      )}
     </article>
   );
 }

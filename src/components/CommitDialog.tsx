@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { NewLogDiaryEntry } from "../types";
 import { HelpTip } from "./HelpTip";
-import "./Dialog.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface Props {
   projectId: string;
@@ -104,39 +114,31 @@ export function CommitDialog({
   };
 
   return (
-    <div className="dialog-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="commit-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="dialog-header">
-          <h3 id="commit-title">手动提交 · {projectName}</h3>
-          <button type="button" className="btn-ghost btn-icon" onClick={onClose}>
-            ×
-          </button>
-        </header>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>手动提交 · {projectName}</DialogTitle>
+          <DialogDescription>
+            {stagedHint}{" "}
+            <HelpTip text="打开本对话框或点 AI Generate / Commit 时，会自动 git add -A（含 Unstaged 与 Untracked）。AI 根据暂存区 Diff 生成文案；具体走 Codex 还是 Cursor Agent，在设置中选择。" />
+          </DialogDescription>
+        </DialogHeader>
 
-        <p className="dialog-hint">
-          {stagedHint}{" "}
-          <HelpTip text="打开本对话框或点 AI Generate / Commit 时，会自动 git add -A（含 Unstaged 与 Untracked）。AI 根据暂存区 Diff 生成文案；具体走 Codex 还是 Cursor Agent，在设置中选择。" />
-        </p>
-
-        <label className="field">
-          <span className="field-label">
-            Commit message
-            <button
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="commit-message">Commit message</Label>
+            <Button
               type="button"
-              className="btn btn-secondary btn-sm"
+              variant="secondary"
+              size="sm"
               onClick={() => void onGenerate()}
               disabled={generating || submitting}
             >
               {generating ? "生成中…" : "AI Generate"}
-            </button>
-          </span>
-          <textarea
+            </Button>
+          </div>
+          <Textarea
+            id="commit-message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={5}
@@ -144,11 +146,12 @@ export function CommitDialog({
             disabled={submitting}
             autoFocus
           />
-        </label>
+        </div>
 
-        <label className="check-row">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
+            className="size-4 rounded border border-input"
             checked={alsoPush}
             onChange={(e) => setAlsoPush(e.target.checked)}
             disabled={submitting}
@@ -159,22 +162,26 @@ export function CommitDialog({
           </span>
         </label>
 
-        {error && <p className="dialog-error">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <footer className="dialog-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-            取消
-          </button>
-          <button
+        <DialogFooter className="border-t pt-4">
+          <Button
             type="button"
-            className="btn btn-primary"
+            variant="ghost"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            取消
+          </Button>
+          <Button
+            type="button"
             onClick={() => void onSubmit()}
             disabled={submitting || generating}
           >
             {submitting ? "提交中…" : alsoPush ? "Commit & Push" : "Commit"}
-          </button>
-        </footer>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

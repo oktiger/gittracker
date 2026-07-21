@@ -1,6 +1,30 @@
 # AGENTS.md
 
-本文件约束 GitTracker 项目中 AI 相关实现、以及 AI Agent 完成改动后的 Git 提交与发布流程。
+本文件约束 GitTracker 项目中 AI 相关实现、前端 UI 规范、以及 AI Agent 完成改动后的 Git 提交与发布流程。
+
+## 前端 UI（强制 · shadcn/ui）
+
+本项目的 **所有前端界面与交互** 必须基于 [shadcn/ui](https://ui.shadcn.com) 实现（含后续新增页面、对话框、侧栏、表单、表格等）。
+
+要求：
+
+1. 使用项目内已初始化的 shadcn/ui（`components.json` + `src/components/ui/*`），优先组合现有组件，不够再 `npx shadcn@latest add <component>`
+2. 样式走 shadcn / Tailwind 主题 token（如 `bg-background`、`text-muted-foreground`、`border-border`），禁止为新界面另起一套自定义 CSS 设计系统
+3. 交互模式优先采用 shadcn 标准模式：`Dialog` / `AlertDialog`、`Sheet`、`Tabs`、`Card`、`Button`、`Badge`、`DropdownMenu`、`Command`、`Table`、`Form` 等
+4. 运行中心 / AI 过程侧栏继续用侧栏形态时，应基于 `Sheet`（或等价 shadcn 滑出面板）实现，不得另造进度 UI
+5. 新增或改版页面时，保持与现有 shadcn 风格一致（建议 `new-york` + zinc/neutral；开发者工具默认深色）
+
+禁止：
+
+- 用原生 `button` / `input` / `select` 或手写 `div + border + radius` 替代已有 shadcn 组件
+- 为单个功能引入另一套 UI 库（如 Ant Design、MUI）或平行设计语言
+- 在业务页面用自定义进度条 / toast / modal 绕过统一组件与侧栏约定
+
+参考 mockup：
+
+- 完整应用稿：`mockups/gittracker-shadcn.html`（看板 = 代码/文档双模块；侧栏顺序：看板 → 总结 → 日志 → 设置）
+- 信息架构源：`docs/mockups/ui-information-architecture.html`
+- 看板专项稿：`docs/mockups/gittracker-shadcn-ia-v2.html`
 
 ## AI 调用通道（强制）
 

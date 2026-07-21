@@ -524,6 +524,11 @@ pub fn run_project_target(
         .find(|t| t.id == target_id)
         .cloned()
         .ok_or_else(|| AppError::msg("未找到该启动目标"))?;
+    // 对本仓库的「升级 APP」走专用自升级（先退出再替换），避免覆盖正在运行的自身。
+    if target.kind.as_deref() == Some("upgrade") && crate::upgrade::is_self_repo(Path::new(&project.path))
+    {
+        return crate::upgrade::start_self_upgrade(app, &manager);
+    }
     manager.start(
         app,
         project.id,
@@ -531,6 +536,12 @@ pub fn run_project_target(
         Path::new(&project.path),
         target,
     )
+}
+
+/// 升级当前 GitTracker：打包 → 退出 → 替换 .app → 自动重开。
+#[tauri::command]
+pub fn upgrade_self(app: AppHandle, manager: State<run::RunManager>) -> AppResult<RunSession> {
+    crate::upgrade::start_self_upgrade(app, &manager)
 }
 
 #[tauri::command]

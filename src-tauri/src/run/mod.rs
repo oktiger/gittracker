@@ -43,11 +43,14 @@ impl RunManager {
         validate_command(&target.command)?;
         let cwd = resolve_cwd(repo, &target.cwd)?;
         let id = uuid::Uuid::new_v4().to_string();
+        // 不用 login shell（-l）：macOS path_helper 会冲掉我们补好的 PATH。
+        // GUI 进程本身也没有 nvm，必须显式注入 augmented_path。
         let mut command = Command::new("/bin/zsh");
         command
-            .arg("-lc")
+            .arg("-c")
             .arg(&target.command)
             .current_dir(&cwd)
+            .env("PATH", crate::path_env::augmented_path())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         unsafe {
@@ -752,6 +755,7 @@ pub fn suggest_from_fs(repo: &Path) -> AppResult<Vec<RunTarget>> {
     push_shell_scripts(repo, &mut out);
     push_macos_apps(repo, &mut out);
     push_python_targets(repo, &mut out);
+    push_tauri_upgrade_targets(repo, &mut out);
 
     if out.is_empty() {
         return Err(AppError::msg(
@@ -775,6 +779,38 @@ fn push_unique(out: &mut Vec<RunTarget>, target: RunTarget) {
         return;
     }
     out.push(target);
+}
+
+fn push_tauri_upgrade_targets(repo: &Path, out: &mut Vec<RunTarget>) {
+    for (rel, dir) in package_dirs(repo) {
+        if !is_tauri_dir(&dir) {
+            continue;
+        }
+        let Some(command) = crate::upgrade::tauri_upgrade_shell_command(repo, &rel) else {
+            continue;
+        };
+        let product = crate::upgrade::read_tauri_product_name(&dir)
+            .unwrap_or_else(|| "桌面应用".into());
+        let name = if rel == "." {
+            "升级 APP".into()
+        } else {
+            format!("升级 APP · {rel}")
+        };
+        push_unique(
+            out,
+            RunTarget {
+                id: uuid::Uuid::new_v4().to_string(),
+                name,
+                description: Some(format!(
+                    "打包 {product}，替换 /Applications 中的旧版并打开"
+                )),
+                cwd: rel,
+                command,
+                kind: Some("upgrade".into()),
+                is_default: false,
+            },
+        );
+    }
 }
 
 fn push_shell_scripts(repo: &Path, out: &mut Vec<RunTarget>) {
@@ -991,6 +1027,23 @@ fn push_python_targets(repo: &Path, out: &mut Vec<RunTarget>) {
                 cwd: ".".into(),
                 command: format!("{py} setup.py py2app -A"),
                 kind: Some("build".into()),
+                is_default: false,
+            },
+        );
+        // 正式打包并安装到 /Applications（非 -A），替换后打开
+        push_unique(
+            out,
+            RunTarget {
+                id: uuid::Uuid::new_v4().to_string(),
+                name: "升级 APP".into(),
+                description: Some(
+                    "用 py2app 正式打包，替换 /Applications 中的旧版并打开".into(),
+                ),
+                cwd: ".".into(),
+                command: format!(
+                    r#"{py} setup.py py2app && APP=$(ls -d dist/*.app 2>/dev/null | head -1) && test -n "$APP" && NAME=$(basename "$APP" .app) && DEST="/Applications/$(basename "$APP")" && {{ osascript -e "tell application \"$NAME\" to quit" 2>/dev/null || true; sleep 1; }} && rm -rf "$DEST" && ditto "$APP" "$DEST" && open "$DEST""#
+                ),
+                kind: Some("upgrade".into()),
                 is_default: false,
             },
         );

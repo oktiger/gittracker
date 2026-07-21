@@ -2,7 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { HelpTip } from "./HelpTip";
 import type { FileChange, NewLogDiaryEntry } from "../types";
-import "./Dialog.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Props {
   projectId: string;
@@ -118,33 +128,30 @@ export function DiscardDialog({
   };
 
   return (
-    <div className="dialog-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="dialog dialog-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="discard-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="dialog-header">
-          <h3 id="discard-title">Discard · {projectName}</h3>
-          <button type="button" className="btn-ghost btn-icon" onClick={onClose}>
-            ×
-          </button>
-        </header>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Discard · {projectName}</DialogTitle>
+          <DialogDescription className="sr-only">
+            丢弃选中文件的本地修改
+          </DialogDescription>
+        </DialogHeader>
 
-        <p className="dialog-warn">
+        <div className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-sm text-destructive">
           此操作会丢弃选中文件的本地修改，且默认不可撤销。
           <HelpTip text="执行前会尽量写入 Recovery Patch，便于手动恢复" />
-        </p>
+        </div>
 
         {recoveryDir && (
-          <p className="dialog-hint">恢复补丁目录：{recoveryDir}</p>
+          <p className="text-sm text-muted-foreground">
+            恢复补丁目录：{recoveryDir}
+          </p>
         )}
 
-        <label className="check-row">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
+            className="size-4 rounded border border-input"
             checked={includeUntracked}
             onChange={(e) => setIncludeUntracked(e.target.checked)}
             disabled={submitting}
@@ -155,43 +162,59 @@ export function DiscardDialog({
           </span>
         </label>
 
-        <div className="file-list-header">
-          <button type="button" className="btn-link" onClick={toggleAll}>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
+            onClick={toggleAll}
+          >
             {selected.size === visibleFiles.length ? "取消全选" : "全选"}
-          </button>
+          </Button>
           <span>
             已选 {selected.size} / {visibleFiles.length}
           </span>
         </div>
 
         {loading ? (
-          <p className="dialog-hint">加载变更文件…</p>
+          <p className="text-sm text-muted-foreground">加载变更文件…</p>
         ) : (
-          <ul className="file-list">
+          <ul className="max-h-60 list-none overflow-auto rounded-md border border-border bg-muted/30 p-0">
             {visibleFiles.map((f) => (
-              <li key={f.path}>
-                <label>
+              <li key={f.path} className="border-b border-border last:border-b-0">
+                <label className="grid cursor-pointer grid-cols-[auto_auto_1fr_auto] items-center gap-2 px-2.5 py-2 text-xs">
                   <input
                     type="checkbox"
+                    className="size-4 rounded border border-input"
                     checked={selected.has(f.path)}
                     onChange={() => toggle(f.path)}
                     disabled={submitting}
                   />
-                  <code className="file-status">{f.status}</code>
-                  <span className="file-path">{f.path}</span>
-                  {f.untracked && <span className="tag">untracked</span>}
+                  <code className="font-mono text-[0.72rem] whitespace-pre text-muted-foreground">
+                    {f.status}
+                  </code>
+                  <span className="truncate">{f.path}</span>
+                  {f.untracked && (
+                    <span className="text-[0.68rem] text-amber-600 dark:text-amber-400">
+                      untracked
+                    </span>
+                  )}
                 </label>
               </li>
             ))}
             {visibleFiles.length === 0 && (
-              <li className="empty">没有可丢弃的文件</li>
+              <li className="px-3 py-3 text-sm text-muted-foreground">
+                没有可丢弃的文件
+              </li>
             )}
           </ul>
         )}
 
-        <label className="field">
-          <span className="field-label">输入 DISCARD 确认</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="discard-confirm">输入 DISCARD 确认</Label>
+          <Input
+            id="discard-confirm"
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
@@ -199,25 +222,32 @@ export function DiscardDialog({
             disabled={submitting}
             autoComplete="off"
           />
-        </label>
+        </div>
 
-        {error && <p className="dialog-error">{error}</p>}
-        {resultNote && <p className="dialog-ok">{resultNote}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {resultNote && (
+          <p className="text-sm text-green-600 dark:text-green-400">{resultNote}</p>
+        )}
 
-        <footer className="dialog-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-            取消
-          </button>
-          <button
+        <DialogFooter className="border-t pt-4">
+          <Button
             type="button"
-            className="btn btn-danger"
+            variant="ghost"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            取消
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
             onClick={() => void onConfirm()}
             disabled={submitting || loading}
           >
             {submitting ? "处理中…" : "确认 Discard"}
-          </button>
-        </footer>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
