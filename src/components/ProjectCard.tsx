@@ -81,6 +81,8 @@ export function ProjectCard({
   const [docsBusy, setDocsBusy] = useState<string | null>(null);
   const [runBusy, setRunBusy] = useState(false);
   const [detailTab, setDetailTab] = useState("run");
+  const [changedFiles, setChangedFiles] = useState<Awaited<ReturnType<typeof api.listChangedFiles>>>([]);
+  const [changesLoading, setChangesLoading] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
   const locked = disabled || Boolean(docsBusy) || runBusy;
@@ -98,6 +100,12 @@ export function ProjectCard({
     void loadDocs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id, project.path, docsEpoch]);
+
+  useEffect(() => {
+    if (detailTab !== "code") return;
+    setChangesLoading(true);
+    void api.listChangedFiles(project.id).then(setChangedFiles).catch((e) => onError(String(e))).finally(() => setChangesLoading(false));
+  }, [detailTab, project.id, project.clean, project.staged, project.unstaged, project.untracked]);
 
   const onRunTarget = async (targetId: string) => {
     setRunBusy(true);
@@ -228,14 +236,14 @@ export function ProjectCard({
           <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted font-mono text-[10px] font-semibold text-muted-foreground">
             {"</>"}
           </span>
-          <span className="text-sm font-semibold">代码</span>
+          <span className="text-sm font-semibold">代码变更</span>
         </div>
-        <span className="text-[11px] text-muted-foreground">最近 3 次提交</span>
+        <span className="text-[11px] text-muted-foreground">全部提交历史</span>
       </header>
       {project.commits.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">暂无提交</p>
       ) : (
-        <ul className="divide-y divide-border px-3">
+        <ul className="max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto px-3">
           {project.commits.map((c) => (
             <li
               key={c.hash}
@@ -332,7 +340,7 @@ export function ProjectCard({
               运行
             </TabsTrigger>
             <TabsTrigger value="code" className="rounded-md px-3 py-1.5">
-              代码
+              代码变更
             </TabsTrigger>
             <TabsTrigger value="docs" className="rounded-md px-3 py-1.5">
               文档
@@ -446,22 +454,12 @@ export function ProjectCard({
                   从看板移除
                 </Button>
               </div>
-              <div className="mb-4 grid max-w-md grid-cols-2 gap-3">
-                <div className="rounded-md border border-border p-4 text-center">
-                  <div className="text-3xl font-semibold tabular-nums">{changeCount}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Changes <HelpTip text="当前 Worktree 中全部尚未提交的文件改动。" />
-                  </div>
+              <div className="mb-4 rounded-md border border-border">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                  <span className="text-xs font-medium">变更文件 ({changeCount})</span>
+                  <HelpTip text="当前 Worktree 中全部尚未提交的文件改动。点击文件可查看 Changes diff。" />
                 </div>
-                <button
-                  type="button"
-                  disabled={changeCount === 0 || locked}
-                  onClick={onViewChanges}
-                  className="rounded-md border border-border p-4 text-center hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-                >
-                  <div className="text-3xl font-semibold tabular-nums">{changeCount}</div>
-                  <div className="text-xs text-muted-foreground">Changes · 点击查看</div>
-                </button>
+                {changesLoading ? <p className="px-3 py-4 text-xs text-muted-foreground">加载变更文件…</p> : changedFiles.length === 0 ? <p className="px-3 py-4 text-xs text-muted-foreground">当前没有 Changes</p> : <ul className="max-h-56 divide-y divide-border overflow-y-auto">{changedFiles.map((file) => <li key={file.path}><button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-accent/50" onClick={onViewChanges}><span className="min-w-0 truncate font-mono text-muted-foreground" title={file.path}>{file.path}</span><span className="shrink-0 font-mono text-amber-500">{file.status.trim() || "U"}</span></button></li>)}</ul>}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" disabled={locked || !hasChanges} onClick={onOneClick}>

@@ -51,6 +51,9 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
   const [files, setFiles] = useState<FileChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [diff, setDiff] = useState("");
+  const [diffLoading, setDiffLoading] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -73,6 +76,18 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
       return a.path.localeCompare(b.path);
     });
   }, [files]);
+
+  const openDiff = async (file: FileChange) => {
+    setSelectedPath(file.path);
+    setDiffLoading(true);
+    try {
+      setDiff(await api.getFileDiff(projectId, file.path, file.staged));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setDiffLoading(false);
+    }
+  };
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
@@ -107,7 +122,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
               const badge = workingTreeBadge(f);
               return (
                 <li key={f.path} className="border-b border-border last:border-b-0">
-                  <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent/50" onClick={() => void openDiff(f)}>
                     <span
                       className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
                       title={f.path}
@@ -117,7 +132,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
                     <span title={badge.label}>
                       <GitBadge letter={badge.letter} kind={badge.kind} />
                     </span>
-                  </div>
+                  </button>
                 </li>
               );
             })}
@@ -128,6 +143,13 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
             )}
           </ul>
         )}
+
+        {selectedPath ? (
+          <div className="rounded-md border border-border bg-muted/30">
+            <div className="border-b border-border px-3 py-2 font-mono text-xs text-muted-foreground">{selectedPath}</div>
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed">{diffLoading ? "加载 Changes diff…" : diff || "没有可显示的 diff"}</pre>
+          </div>
+        ) : null}
 
         <DialogFooter className="border-t pt-4 sm:justify-between">
           <span className="text-sm text-muted-foreground">

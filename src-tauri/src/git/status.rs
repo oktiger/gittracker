@@ -123,7 +123,7 @@ fn parse_branch_header(header: &str) -> (String, u32, u32) {
 
 fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
     let (code, stdout, _) =
-        run_git_allow_fail(repo, &["log", "-3", "--pretty=format:%h\t%ct\t%s"])?;
+        run_git_allow_fail(repo, &["log", "--pretty=format:%h\t%ct\t%s"])?;
     if code != 0 || stdout.trim().is_empty() {
         return Ok(vec![]);
     }
