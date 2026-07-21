@@ -243,7 +243,7 @@ function App() {
     return {
       eyebrow: null,
       title: "设置",
-      desc: "AI Provider 与提示词模板",
+      desc: "外观、AI Provider 与提示词模板",
     };
   })();
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { AiPanelSession } from "../lib/aiPanel";
 import { HelpTip } from "./HelpTip";
+import { ThemeModePicker } from "./ThemeModePicker";
 import type { AiProvider, AppSettings } from "../types";
 import { Button } from "@/components/ui/button";
 import {
@@ -155,12 +156,27 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
         </Button>
       </div>
 
-      <Tabs defaultValue="provider">
+      <Tabs defaultValue="appearance">
         <TabsList>
+          <TabsTrigger value="appearance">外观</TabsTrigger>
           <TabsTrigger value="provider">AI Provider</TabsTrigger>
           <TabsTrigger value="prompts">提示词</TabsTrigger>
           <TabsTrigger value="summary">总结</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="appearance" className="mt-4">
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm font-medium">主题</CardTitle>
+              <CardDescription className="text-xs">
+                选择日间、夜间或跟随系统。立即生效，偏好保存在本机，无需点保存。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4">
+              <ThemeModePicker />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="provider" className="mt-4 space-y-3">
           <Card className="gap-0 py-4">
