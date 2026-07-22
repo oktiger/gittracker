@@ -1,6 +1,6 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { X } from "lucide-react";
+import { PanelRight } from "lucide-react";
 import { api } from "../api";
 import type { AiPanelSession } from "../lib/aiPanel";
 import type { NewLogDiaryEntry, RunProgressEvent, RunSession, RunTarget } from "../types";
@@ -20,7 +20,7 @@ interface Props {
   width: number;
   aiSessions: AiActivity[];
   runSessions: RunSession[];
-  onClose: () => void;
+  onHide: () => void;
   onDismissAi: (id: string, session: AiPanelSession) => void;
   onRunSessionsChange: Dispatch<SetStateAction<RunSession[]>>;
   onLog: (entry: NewLogDiaryEntry) => void;
@@ -150,11 +150,11 @@ export function ActivitySidePanel(props: Props) {
   useEffect(() => {
     if (!props.open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") props.onClose();
+      if (event.key === "Escape") props.onHide();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [props.open, props.onClose]);
+  }, [props.open, props.onHide]);
 
   return (
     <aside
@@ -170,33 +170,30 @@ export function ActivitySidePanel(props: Props) {
         className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
         style={{ width: props.width }}
       >
-        <header className="shrink-0 border-b border-border px-4 py-3 text-left">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">运行中心</h2>
-              <p className="text-xs text-muted-foreground">AI 过程与命令输出</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={copyAll}
-                disabled={props.runSessions.length + props.aiSessions.length === 0}
-              >
-                {copied === "all" ? "已复制" : "复制全部"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={props.onClose}
-                aria-label="关闭运行中心"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-sm font-semibold">运行中心</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={copyAll}
+              disabled={props.runSessions.length + props.aiSessions.length === 0}
+            >
+              {copied === "all" ? "已复制" : "复制全部"}
+            </Button>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon-sm"
+            onClick={props.onHide}
+            title="隐藏运行中心"
+            aria-label="隐藏运行中心"
+            aria-pressed={true}
+          >
+            <PanelRight className="h-4 w-4" />
+          </Button>
         </header>
 
         <ScrollArea className="min-h-0 min-w-0 flex-1 [&>[data-slot=scroll-area-viewport]]:max-w-full [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">

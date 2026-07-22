@@ -380,32 +380,35 @@ function App() {
               </div>
             </div>
             <div className="flex flex-1 justify-end" data-tauri-drag-region>
-              <div className="flex items-center gap-2" data-tauri-drag-region={undefined}>
-                <Button
-                  type="button"
-                  variant={activityOpen ? "secondary" : "ghost"}
-                  size="icon-sm"
-                  className="relative"
-                  title="打开右侧运行中心"
-                  aria-label="打开右侧运行中心"
-                  onClick={() => setActivityOpen(true)}
-                >
-                  <PanelRight className="h-4 w-4" />
-                  {activityIndicator ? (
-                    <span
-                      aria-hidden="true"
-                      className={
-                        "absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-background " +
-                        (activityIndicator === "running"
-                          ? "bg-amber-400"
-                          : activityIndicator === "completed"
-                            ? "bg-emerald-400"
-                            : "bg-destructive")
-                      }
-                    />
-                  ) : null}
-                </Button>
-              </div>
+              {!activityOpen ? (
+                <div className="flex items-center gap-2" data-tauri-drag-region={undefined}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="relative"
+                    title="显示运行中心"
+                    aria-label="显示运行中心"
+                    aria-pressed={false}
+                    onClick={() => setActivityOpen(true)}
+                  >
+                    <PanelRight className="h-4 w-4" />
+                    {activityIndicator ? (
+                      <span
+                        aria-hidden="true"
+                        className={
+                          "absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-background " +
+                          (activityIndicator === "running"
+                            ? "bg-amber-400"
+                            : activityIndicator === "completed"
+                              ? "bg-emerald-400"
+                              : "bg-destructive")
+                        }
+                      />
+                    ) : null}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </header>
 
@@ -512,7 +515,7 @@ function App() {
           width={activityWidth}
           aiSessions={aiSessions}
           runSessions={runSessions}
-          onClose={() => setActivityOpen(false)}
+          onHide={() => setActivityOpen(false)}
           onDismissAi={(id, session) => {
             if (session.kind === "oneClick") setBusy(session.projectId, null);
             setAiSessions((items) => items.filter((item) => item.id !== id));
