@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitTracker · Daily sink 极简项目 block</title>
+  <style>
+    :root { --bg:#0b0c0f; --surface:#111318; --line:#252a32; --text:#f4f5f7; --muted:#8b919c; --soft:#c7cbd2; --accent:#55d6a3; --blue:#60b8ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .shell { max-width:1180px; margin:auto; padding:42px 42px 72px; }
+    .eyebrow { color:var(--muted); font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { margin:5px 0 8px; font-size:26px; letter-spacing:-.03em; }
+    .intro { margin:0 0 34px; color:var(--muted); }
+    .board { display:grid; grid-template-columns:minmax(0, 1fr) 270px; gap:42px; align-items:start; }
+    .project { min-width:0; }
+    .project-head { display:flex; align-items:center; justify-content:space-between; gap:18px; padding-bottom:18px; border-bottom:1px solid var(--line); }
+    .title-wrap { display:flex; align-items:center; gap:10px; min-width:0; }
+    .status { width:8px; height:8px; flex:none; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(85,214,163,.1); }
+    .project-title { margin:0; font-size:19px; font-weight:650; letter-spacing:-.02em; }
+    .project-actions { display:flex; align-items:center; gap:8px; }
+    button { border:0; color:var(--soft); background:transparent; cursor:pointer; }
+    .quiet { padding:6px 8px; border-radius:6px; color:var(--muted); }
+    .quiet:hover { background:#191c22; color:var(--text); }
+    .clean { padding:4px 8px; border-radius:999px; color:var(--accent); background:rgba(85,214,163,.1); font-size:11px; }
+    .section { padding:20px 0 4px; }
+    .section + .section { border-top:1px solid var(--line); margin-top:14px; }
+    .section-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .section-title { margin:0; color:var(--soft); font-size:13px; font-weight:650; }
+    .section-note { color:var(--muted); font-size:11px; }
+    .commit { display:grid; grid-template-columns:72px minmax(0,1fr) auto; gap:14px; align-items:center; min-height:38px; border-bottom:1px solid rgba(37,42,50,.7); }
+    .commit:last-child { border-bottom:0; }
+    .hash { color:var(--blue); font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .message { overflow:hidden; color:var(--soft); text-overflow:ellipsis; white-space:nowrap; }
+    .time { color:var(--muted); font-size:11px; white-space:nowrap; }
+    .doc-list { display:grid; gap:2px; }
+    .doc { display:flex; align-items:center; gap:9px; min-height:34px; color:var(--soft); }
+    .doc::before { content:""; width:6px; height:6px; border:1px solid var(--muted); border-radius:2px; }
+    .doc small { margin-left:auto; color:var(--muted); font-size:11px; }
+    .side-note { padding-top:13px; color:var(--muted); font-size:12px; line-height:1.7; }
+    .side-note strong { display:block; color:var(--soft); font-size:13px; margin-bottom:5px; }
+    @media (max-width:800px) { .shell{padding:28px 20px 50px}.board{display:block}.side-note{border-top:1px solid var(--line);margin-top:28px;padding-top:18px}.commit{grid-template-columns:62px minmax(0,1fr)}.time{display:none} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">GitTracker / 看板 block</div>
+    <h1>Daily sink</h1>
+    <p class="intro">把项目身份和工作内容放在同一条清晰的信息流里。</p>
+
+    <div class="board">
+      <article class="project" aria-label="Daily sink 项目">
+        <header class="project-head">
+          <div class="title-wrap"><span class="status" aria-label="工作区干净"></span><h2 class="project-title">Daily sink</h2></div>
+          <div class="project-actions"><span class="clean">Clean</span><button class="quiet" aria-label="更多操作" onclick="alert('更多项目操作')">•••</button></div>
+        </header>
+
+        <section class="section" aria-labelledby="code-title">
+          <div class="section-head"><h3 id="code-title" class="section-title">代码</h3><span class="section-note">最近 3 次提交</span></div>
+          <div class="commit"><span class="hash">77604b3</span><span class="message">添加项目目标文档模板</span><span class="time">5 分钟前</span></div>
+          <div class="commit"><span class="hash">d76445d</span><span class="message">精简 Git 看板为只读提交版本视图</span><span class="time">1 天前</span></div>
+          <div class="commit"><span class="hash">21e9eec</span><span class="message">恢复启动后自动打开控制面板</span><span class="time">1 天前</span></div>
+        </section>
+
+        <section class="section" aria-labelledby="docs-title">
+          <div class="section-head"><h3 id="docs-title" class="section-title">文档</h3><span class="section-note">项目文档库</span></div>
+          <div class="doc-list"><div class="doc">Goal <small>•••</small></div><div class="doc">goal.md <small>•••</small></div><div class="doc">Task <small>•••</small></div><div class="doc">合并方案.md <small>•••</small></div></div>
+        </section>
+      </article>
+
+      <aside class="side-note"><strong>设计原则</strong>只显示项目名称，不展示本地路径与 main 分支。<br />项目本身不再包住代码和文档；用留白与细分隔线表达层级，减少视觉噪音。</aside>
+    </div>
+  </main>
+</body>
+</html>

@@ -230,20 +230,17 @@ export function ProjectCard({
   );
 
   const codeModule = (board: boolean) => (
-    <section className="overflow-hidden rounded-md border border-border bg-background/40">
-      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+    <section className={cn("overflow-hidden", board ? "" : "rounded-md border border-border bg-background/40")}>
+      <header className={cn("flex items-center justify-between gap-2", board ? "mb-2 pt-1" : "border-b border-border px-3 py-2.5")}>
         <div className="flex items-center gap-2">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-muted font-mono text-[10px] font-semibold text-muted-foreground">
-            {"</>"}
-          </span>
-          <span className="text-sm font-semibold">代码变更</span>
+          <span className="text-sm font-semibold">代码</span>
         </div>
-        <span className="text-[11px] text-muted-foreground">全部提交历史</span>
+        <span className="text-[11px] text-muted-foreground">最近 3 次提交</span>
       </header>
       {project.commits.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">暂无提交</p>
       ) : (
-        <ul className="max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto px-3">
+        <ul className={cn("max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto", board ? "" : "px-3")}>
           {project.commits.map((c) => (
             <li
               key={c.hash}
@@ -260,7 +257,7 @@ export function ProjectCard({
           ))}
         </ul>
       )}
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-3 py-2.5">
+      <footer className={cn("flex flex-wrap items-center justify-between gap-2", board ? "pt-3" : "border-t border-border bg-card px-3 py-2.5")}>
         <span className="text-[11px] text-muted-foreground">
           {changeCount} Changes
         </span>
@@ -536,10 +533,11 @@ export function ProjectCard({
   }
 
   return (
-    <article className="rounded-lg border border-border bg-card shadow-sm">
-      <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
+    <article className="bg-card">
+      <header className="flex items-center justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold tracking-tight">
+          <h2 className="flex items-center gap-2 truncate text-base font-semibold tracking-tight">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_0_4px_hsl(var(--primary)/.08)]" />
             <button
               type="button"
               className="text-left hover:underline"
@@ -549,13 +547,7 @@ export function ProjectCard({
               {project.name}
             </button>
           </h2>
-          <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground" title={project.path}>
-            {project.path}
-          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono">
-              {project.branch || "—"}
-            </code>
             {project.ahead > 0 ? <span>↑{project.ahead} ahead</span> : null}
             {project.behind > 0 ? <span>↓{project.behind} behind</span> : null}
           </div>
@@ -579,9 +571,9 @@ export function ProjectCard({
         <p className="border-b border-border px-4 py-2 text-xs text-destructive">{project.error}</p>
       ) : null}
 
-      <div className="space-y-3 p-3">
+      <div className="space-y-4 pt-4">
         {codeModule(true)}
-        <section className="overflow-hidden rounded-md border border-border bg-background/40">
+        <section className="overflow-hidden border-t border-border pt-4">
           <DocumentLibraryTab
             projectId={project.id}
             projectPath={project.path}
