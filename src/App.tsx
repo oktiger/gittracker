@@ -475,6 +475,33 @@ function App() {
           </div>
         </div>
 
+        <ActivitySidePanel
+          open={activityOpen}
+          aiSessions={aiSessions}
+          runSessions={runSessions}
+          onClose={() => setActivityOpen(false)}
+          onDismissAi={(id, session) => {
+            if (session.kind === "oneClick") setBusy(session.projectId, null);
+            setAiSessions((items) => items.filter((item) => item.id !== id));
+          }}
+          onRunSessionsChange={setRunSessions}
+          onLog={appendLog}
+          onTargetsSaved={(projectId, targets) => {
+            showToast(`已保存 ${targets.length} 个启动目标`);
+            void refreshOne(projectId);
+          }}
+          onProjectRefresh={(projectId, session) => {
+            if (session.kind === "oneClick") {
+              setBusy(projectId, null);
+            }
+            if (session.kind === "generateTasks" || session.kind === "runTask") {
+              setDocsEpoch((n) => n + 1);
+            }
+            void refreshOne(projectId);
+          }}
+          onToast={showToast}
+        />
+
         {dialog?.type === "commit" && (
           <CommitDialog
             projectId={dialog.id}
@@ -530,33 +557,6 @@ function App() {
             onSaved={() => showToast("文档已保存")}
           />
         )}
-
-        <ActivitySidePanel
-          open={activityOpen}
-          aiSessions={aiSessions}
-          runSessions={runSessions}
-          onClose={() => setActivityOpen(false)}
-          onDismissAi={(id, session) => {
-            if (session.kind === "oneClick") setBusy(session.projectId, null);
-            setAiSessions((items) => items.filter((item) => item.id !== id));
-          }}
-          onRunSessionsChange={setRunSessions}
-          onLog={appendLog}
-          onTargetsSaved={(projectId, targets) => {
-            showToast(`已保存 ${targets.length} 个启动目标`);
-            void refreshOne(projectId);
-          }}
-          onProjectRefresh={(projectId, session) => {
-            if (session.kind === "oneClick") {
-              setBusy(projectId, null);
-            }
-            if (session.kind === "generateTasks" || session.kind === "runTask") {
-              setDocsEpoch((n) => n + 1);
-            }
-            void refreshOne(projectId);
-          }}
-          onToast={showToast}
-        />
 
         {toast ? (
           <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-md border border-border bg-card px-4 py-2 text-sm shadow-lg">

@@ -7,13 +7,6 @@ import type { NewLogDiaryEntry, RunProgressEvent, RunSession, RunTarget } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { AiSidePanel } from "./AiSidePanel";
 
@@ -153,22 +146,30 @@ export function ActivitySidePanel(props: Props) {
     });
   };
 
+  useEffect(() => {
+    if (!props.open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") props.onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [props.open, props.onClose]);
+
   return (
-    <Sheet
-      modal={false}
-      open={props.open}
-      onOpenChange={(open) => !open && props.onClose()}
+    <aside
+      aria-hidden={!props.open}
+      aria-label="运行中心"
+      className={cn(
+        "flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-background transition-[width] duration-300 ease-in-out",
+        props.open ? "w-[min(24rem,36vw)]" : "w-0 border-l-0",
+      )}
     >
-      <SheetContent
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
-        showCloseButton={false}
-        showOverlay={false}
-      >
-        <SheetHeader className="border-b border-border px-4 py-3 text-left">
+      <div className="flex min-w-[18rem] flex-1 flex-col">
+        <header className="border-b border-border px-4 py-3 text-left">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <SheetTitle className="text-sm">运行中心</SheetTitle>
-              <SheetDescription className="text-xs">AI 过程与命令输出</SheetDescription>
+              <h2 className="text-sm font-semibold">运行中心</h2>
+              <p className="text-xs text-muted-foreground">AI 过程与命令输出</p>
             </div>
             <div className="flex items-center gap-1">
               <Button
@@ -191,7 +192,7 @@ export function ActivitySidePanel(props: Props) {
               </Button>
             </div>
           </div>
-        </SheetHeader>
+        </header>
 
         <ScrollArea className="flex-1">
           <div className="space-y-3 p-4">
@@ -332,7 +333,7 @@ export function ActivitySidePanel(props: Props) {
             ) : null}
           </div>
         </ScrollArea>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </aside>
   );
 }
