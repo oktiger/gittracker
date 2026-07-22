@@ -232,22 +232,13 @@ export function AiSidePanel({
           case "dailyCompletion": {
             const result = await api.generateDailyCompletion(session.period, sessionId, outputLanguage);
             if (cancelled) return;
-            const periodLabel = t(`projects:daily.${session.period}`);
-            const rangeLine = result.split("\n").find((line) => line.trim())?.trim() ?? "";
-            const range =
-              rangeLine.match(/^时间范围[：:]\s*(.+)$/)?.[1]?.trim()
-              ?? rangeLine.match(/^Period[：:]\s*(.+)$/i)?.[1]?.trim()
-              ?? periodLabel;
             onLog({
               kind: "dailyCompletion",
               status: "ok",
-              title: t("activity:ai.log.dailyTitle", {
-                mode: t(session.automatic ? "activity:ai.log.automatic" : "activity:ai.log.manual"),
-                period: range,
-              }),
-              detail: result,
+              title: result.title,
+              detail: result.body,
             });
-            setResultSummary(result);
+            setResultSummary(result.body);
             session.onResult?.(result);
             session.onComplete?.();
             onToast?.(session.automatic ? t("activity:ai.done.dailyAutomatic") : t("activity:ai.done.daily"));

@@ -160,8 +160,8 @@ function App() {
         const key = "gittracker.daily-completion.last-run";
         if (time < settings.dailyCompletionTime || localStorage.getItem(key) === today) return;
         localStorage.setItem(key, today);
-        // 到点自动生成时汇总「上一自然日」00:00–今日 00:00，避免 00:00 触发时 today/midnight 几乎无提交。
-        openAiSession({ kind: "dailyCompletion", period: "yesterday", automatic: true });
+        // 与手动「本日做了什么」同一流程：当天 00:00 → 触发时刻。
+        openAiSession({ kind: "dailyCompletion", period: "today", automatic: true });
       } catch {
         /* 下次轮询重试；不打断主界面 */
       }

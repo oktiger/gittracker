@@ -578,7 +578,7 @@
             <div class="mt-4 space-y-3 border-t border-border pt-4">
               <label class="block text-sm font-medium" for="daily-time">每日总结时间</label>
               <input id="daily-time" type="time" value="00:00" class="h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-              <p class="text-xs text-muted-foreground">应用常驻运行时，会在每天该时间自动生成上一自然日总结。默认 00:00。</p>
+              <p class="text-xs text-muted-foreground">应用常驻运行时，会在每天该时间自动生成「本日」总结（当天 00:00 至触发时刻），格式与手动生成相同。默认 00:00。</p>
               <div class="flex gap-2">
                 <button type="button" class="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent" onclick="showToast('已取消')">取消</button>
                 <button type="button" class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground" onclick="showToast('已开启每日 00:00 自动生成')">确认</button>
@@ -599,24 +599,6 @@
               <div class="mt-1 text-xs text-muted-foreground">滚动 7 日窗口</div>
             </button>
           </div>
-          <div class="rounded-lg border border-border bg-card p-4">
-            <div class="mb-3 flex items-center justify-between gap-3">
-              <h3 class="text-sm font-medium">今日完成 · 7月21日 00:00 – 7月22日 00:00 · 预览</h3>
-              <div class="flex gap-2">
-                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已复制总结')">复制</button>
-                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已下载分享图（mock）')">下载 SVG</button>
-              </div>
-            </div>
-            <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">时间范围：7月21日 00:00 – 7月22日 00:00
-
-gittracker
-- 看板卡片拆成代码 / 文档双模块
-- 接入 Activity Sheet 展示 AI / 运行过程
-
-docs-site
-- 设置页改为 Tabs + Card 分组</pre>
-          </div>
-
           <div class="space-y-3">
             <div>
               <h3 class="text-sm font-medium">总结记录</h3>
@@ -625,17 +607,12 @@ docs-site
             <div class="rounded-lg border border-border bg-card p-4">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <h3 class="text-sm font-medium">7月21日 00:00 – 7月22日 00:00</h3>
-                  <p class="mt-1 text-xs text-muted-foreground">刚刚 · 自动总结 · 7月21日 00:00 – 7月22日 00:00</p>
+                  <h3 class="text-sm font-medium">2026/07/22</h3>
+                  <p class="mt-1 text-xs text-muted-foreground">刚刚</p>
                 </div>
-                <div class="flex gap-2">
-                  <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已复制总结')">复制</button>
-                  <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已下载分享图（mock）')">下载 SVG</button>
-                </div>
+                <button type="button" class="rounded-md px-2 py-1.5 text-muted-foreground hover:bg-accent" onclick="showToast('⋯ 菜单：复制 / 生成图片')" aria-label="更多操作">⋯</button>
               </div>
-              <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">时间范围：7月21日 00:00 – 7月22日 00:00
-
-gittracker
+              <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">gittracker
 - 看板卡片拆成代码 / 文档双模块
 - 接入 Activity Sheet 展示 AI / 运行过程
 
@@ -645,14 +622,12 @@ docs-site
             <div class="rounded-lg border border-border bg-card p-4">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <h3 class="text-sm font-medium">7月20日 00:00 – 7月21日 00:00</h3>
-                  <p class="mt-1 text-xs text-muted-foreground">昨天 00:00 · 自动总结 · 7月20日 00:00 – 7月21日 00:00</p>
+                  <h3 class="text-sm font-medium">2026/07/21</h3>
+                  <p class="mt-1 text-xs text-muted-foreground">昨天 00:00</p>
                 </div>
-                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已复制总结')">复制</button>
+                <button type="button" class="rounded-md px-2 py-1.5 text-muted-foreground hover:bg-accent" onclick="showToast('⋯ 菜单：复制 / 生成图片')" aria-label="更多操作">⋯</button>
               </div>
-              <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">时间范围：7月20日 00:00 – 7月21日 00:00
-
-gittracker
+              <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">gittracker
 - 完善每日总结自动生成与日志持久化</pre>
             </div>
           </div>
@@ -746,7 +721,7 @@ gittracker
             <div class="rounded-lg border border-border bg-card p-4">
               <label class="mb-2 block text-sm font-medium">自动生成时间</label>
               <input type="time" value="21:00" class="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-              <p class="mt-2 text-xs text-muted-foreground">到达时间后自动打开运行中心并生成上一自然日总结。</p>
+              <p class="mt-2 text-xs text-muted-foreground">到达时间后自动打开运行中心并生成「本日」总结（与手动相同）。</p>
             </div>
           </div>
         </section>

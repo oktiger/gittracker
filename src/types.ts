@@ -166,6 +166,11 @@ export interface RunTaskResult {
   overview: DocsOverview;
 }
 
+export interface DailyCompletionResult {
+  title: string;
+  body: string;
+}
+
 export interface SuggestRunTargetsResult {
   targets: RunTarget[];
   source: "ai" | "heuristic" | string;

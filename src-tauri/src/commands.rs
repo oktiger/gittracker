@@ -4,10 +4,11 @@ use crate::error::{AppError, AppResult};
 use crate::git;
 use crate::log_diary;
 use crate::models::{
-    AiConnectionTestResult, AiProvider, AppSettings, DiscardPreview, DiscardResult, DocsOverview,
-    DocumentLibrary, GenerateTasksResult, LanguagePreference, LogDiaryEntry, NewLogDiaryEntry,
-    OneClickResult, ProjectRecord, ProjectStatus, PromptTemplateSet, ResolvedLanguage, RunSession,
-    RunTarget, RunTaskResult, SuggestRunTargetsResult, UpdateLogDiaryByRunSession,
+    AiConnectionTestResult, AiProvider, AppSettings, DailyCompletionResult, DiscardPreview,
+    DiscardResult, DocsOverview, DocumentLibrary, GenerateTasksResult, LanguagePreference,
+    LogDiaryEntry, NewLogDiaryEntry, OneClickResult, ProjectRecord, ProjectStatus, PromptTemplateSet,
+    ResolvedLanguage, RunSession, RunTarget, RunTaskResult, SuggestRunTargetsResult,
+    UpdateLogDiaryByRunSession,
 };
 use crate::run;
 use crate::store;
@@ -682,71 +683,34 @@ pub async fn generate_daily_completion(
     period: String,
     session_id: String,
     locale: ResolvedLanguage,
-) -> AppResult<String> {
+) -> AppResult<DailyCompletionResult> {
     tauri::async_runtime::spawn_blocking(move || {
-        use chrono::{Datelike, Duration, Local, Timelike};
+        use chrono::{Datelike, Duration, Local};
 
         let progress = ai::make_progress_sink(app, session_id);
         let now = Local::now();
         let today = now.date_naive();
-        let today_start = today
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .single()
-            .ok_or_else(|| AppError::msg("无法解析本地时间"))?;
 
-        let fmt_dt = |dt: chrono::DateTime<Local>| -> String {
-            if locale.is_zh() {
-                format!(
-                    "{}月{}日 {:02}:{:02}",
-                    dt.month(),
-                    dt.day(),
-                    dt.hour(),
-                    dt.minute()
-                )
-            } else {
-                format!(
-                    "{} {} {:02}:{:02}",
-                    dt.format("%b"),
-                    dt.day(),
-                    dt.hour(),
-                    dt.minute()
-                )
-            }
-        };
-        let range_label = |start: chrono::DateTime<Local>, end: chrono::DateTime<Local>| -> String {
-            format!("{} – {}", fmt_dt(start), fmt_dt(end))
-        };
-
-        let (period_label, since, until, range) = match period.as_str() {
+        // 自动与手动「本日」走同一流程：总结日当天 00:00 → 当前时刻；标题为 YYYY/MM/DD。
+        let (period_label, since, until, title) = match period.as_str() {
             "today" => (
                 if locale.is_zh() { "今天" } else { "today" },
                 "midnight",
                 None,
-                range_label(today_start, now),
+                today.format("%Y/%m/%d").to_string(),
             ),
-            "yesterday" => {
-                let yesterday_start = today_start - Duration::days(1);
-                (
-                    if locale.is_zh() { "昨日" } else { "yesterday" },
-                    "yesterday",
-                    Some("midnight"),
-                    range_label(yesterday_start, today_start),
-                )
-            }
             "week" => {
                 let weekday = today.weekday().num_days_from_monday() as i64;
-                let week_start = today_start - Duration::days(weekday);
+                let week_start = today - Duration::days(weekday);
                 (
                     if locale.is_zh() { "本周" } else { "this week" },
                     "monday",
                     None,
-                    range_label(week_start, now),
+                    format!("{} – {}", week_start.format("%Y/%m/%d"), today.format("%Y/%m/%d")),
                 )
             }
             "sevenDays" => {
-                let start = today_start - Duration::days(7);
+                let start = today - Duration::days(7);
                 (
                     if locale.is_zh() {
                         "过去 7 天"
@@ -755,7 +719,7 @@ pub async fn generate_daily_completion(
                     },
                     "7 days ago",
                     None,
-                    range_label(start, now),
+                    format!("{} – {}", start.format("%Y/%m/%d"), today.format("%Y/%m/%d")),
                 )
             }
             _ => return Err(AppError::msg("不支持的总结时间范围")),
@@ -781,12 +745,7 @@ pub async fn generate_daily_completion(
         }
         let commits = blocks.join("\n\n");
         let body = ai::summarize_daily_completion(period_label, &commits, locale, Some(&progress))?;
-        let text = if locale.is_zh() {
-            format!("时间范围：{range}\n\n{body}")
-        } else {
-            format!("Period: {range}\n\n{body}")
-        };
-        Ok(text)
+        Ok(DailyCompletionResult { title, body })
     })
     .await
     .map_err(|e| AppError::msg(format!("总结任务中断：{e}")))?

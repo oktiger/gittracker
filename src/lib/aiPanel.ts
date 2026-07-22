@@ -5,9 +5,9 @@ import type { AiProvider, ResolvedLanguage, RunTarget } from "../types";
 export type AiPanelSession = (
   | {
       kind: "dailyCompletion";
-      period: "today" | "yesterday" | "week" | "sevenDays";
+      period: "today" | "week" | "sevenDays";
       automatic?: boolean;
-      onResult?: (summary: string) => void;
+      onResult?: (result: { title: string; body: string }) => void;
       onComplete?: () => void;
     }
   | {
@@ -106,9 +106,7 @@ export function aiSessionSubtitle(session: AiPanelSession, t: TFunction<any>): s
         ? t("activity:ai.subtitles.week")
         : session.period === "sevenDays"
           ? t("activity:ai.subtitles.sevenDays")
-          : session.period === "yesterday"
-            ? t("activity:ai.subtitles.yesterday")
-            : t("activity:ai.subtitles.today");
+          : t("activity:ai.subtitles.today");
     case "identify":
     case "config":
     case "generateCommit":

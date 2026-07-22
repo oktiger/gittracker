@@ -439,6 +439,14 @@ pub struct RunTaskResult {
     pub overview: DocsOverview,
 }
 
+/// 每日 / 周期工作总结结果：标题为日期（如 2026/07/21），正文按项目分组。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyCompletionResult {
+    pub title: String,
+    pub body: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestRunTargetsResult {

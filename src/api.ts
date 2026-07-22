@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AiConnectionTestResult,
   AppSettings,
+  DailyCompletionResult,
   DiscardPreview,
   DiscardResult,
   DocsOverview,
@@ -125,8 +126,8 @@ export const api = {
   reconcileLogDiary: () => invoke<LogDiaryEntry[]>("reconcile_log_diary"),
   clearLogDiary: () => invoke<void>("clear_log_diary"),
   generateDailyCompletion: (
-    period: "today" | "yesterday" | "week" | "sevenDays",
+    period: "today" | "week" | "sevenDays",
     sessionId: string,
     locale: ResolvedLanguage,
-  ) => invoke<string>("generate_daily_completion", { period, sessionId, locale }),
+  ) => invoke<DailyCompletionResult>("generate_daily_completion", { period, sessionId, locale }),
 };

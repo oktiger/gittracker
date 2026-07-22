@@ -35,7 +35,7 @@
   },
   "summary": {
     "title": "Automatic generation time",
-    "description": "At this time, GitTracker opens the activity center and generates the previous calendar day’s summary. Enable it on the Summary page.",
+    "description": "At this time, GitTracker opens the activity center and generates today’s summary (same as manual). Enable it on the Summary page.",
     "time": "Daily generation time",
     "hint": "Generation runs at this time while the app remains open."
   }
