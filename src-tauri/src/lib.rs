@@ -11,6 +11,7 @@ mod store;
 mod upgrade;
 mod watch;
 
+use models::{LanguagePreference, ResolvedLanguage};
 use run::RunManager;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -45,7 +46,10 @@ pub fn run() {
             commands::discard_changes,
             commands::sync_file_watchers,
             commands::get_settings,
+            commands::get_default_prompt_templates,
             commands::update_settings,
+            commands::set_language_preference,
+            commands::sync_native_language,
             commands::test_ai_connection,
             commands::list_docs,
             commands::ensure_docs,
@@ -89,11 +93,16 @@ pub fn run() {
 }
 
 fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let show_i = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
-    let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let initial = match store::get_settings().map(|settings| settings.language) {
+        Ok(LanguagePreference::ZhCn) => ResolvedLanguage::ZhCn,
+        _ => ResolvedLanguage::En,
+    };
+    let (show, quit) = tray_labels(initial);
+    let show_i = MenuItem::with_id(app, "show", show, true, None::<&str>)?;
+    let quit_i = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
-    let _tray = TrayIconBuilder::new()
+    let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -131,5 +140,27 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         })
         .build(app)?;
 
+    Ok(())
+}
+
+fn tray_labels(locale: ResolvedLanguage) -> (&'static str, &'static str) {
+    if locale.is_zh() {
+        ("显示窗口", "退出")
+    } else {
+        ("Show window", "Quit")
+    }
+}
+
+pub fn update_tray_language(
+    app: &tauri::AppHandle,
+    locale: ResolvedLanguage,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (show, quit) = tray_labels(locale);
+    let show_i = MenuItem::with_id(app, "show", show, true, None::<&str>)?;
+    let quit_i = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        tray.set_menu(Some(menu))?;
+    }
     Ok(())
 }

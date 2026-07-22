@@ -1,0 +1,10 @@
+{
+  "unknown": "发生了未知错误。",
+  "backend": "操作失败。",
+  "notGitRepository": "所选目录不是 Git 仓库。",
+  "projectNotFound": "未找到该项目。",
+  "runTargetNotFound": "未找到启动目标 {{id}}。",
+  "cliUnavailable": "所选 AI CLI 当前不可用。",
+  "copyFailed": "无法复制到剪贴板。",
+  "saveFailed": "无法保存更改。"
+}

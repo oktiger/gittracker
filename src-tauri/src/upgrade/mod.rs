@@ -23,7 +23,10 @@ pub fn is_self_repo(repo: &Path) -> bool {
 }
 
 /// 启动自升级：先在运行中心展示打包过程，成功后退出并由脚本替换、重开。
-pub fn start_self_upgrade(app: AppHandle, manager: &RunManager) -> AppResult<crate::models::RunSession> {
+pub fn start_self_upgrade(
+    app: AppHandle,
+    manager: &RunManager,
+) -> AppResult<crate::models::RunSession> {
     let source = resolve_source_repo()?;
     let dest = resolve_install_dest()?;
     let product = read_tauri_product_name(&source).unwrap_or_else(|| SELF_PRODUCT_NAME.into());
@@ -116,7 +119,9 @@ impl UpgradeEmit for AppHandle {
                 session_id: session_id.into(),
                 kind: "output".into(),
                 stream: Some("stdout".into()),
-                text: text.into(),
+                text: Some(text.into()),
+                message: None,
+                success: None,
             },
         )
     }
@@ -159,8 +164,7 @@ open "$DST"
 echo "done"
 "#
     );
-    fs::write(&script_path, script)
-        .map_err(|e| AppError::msg(format!("无法写入升级脚本：{e}")))?;
+    fs::write(&script_path, script).map_err(|e| AppError::msg(format!("无法写入升级脚本：{e}")))?;
 
     #[cfg(unix)]
     {
@@ -235,12 +239,14 @@ fn find_repo_from_exe() -> Option<PathBuf> {
 }
 
 fn resolve_install_dest() -> AppResult<PathBuf> {
-    let exe = std::env::current_exe()
-        .map_err(|e| AppError::msg(format!("无法定位当前程序：{e}")))?;
+    let exe =
+        std::env::current_exe().map_err(|e| AppError::msg(format!("无法定位当前程序：{e}")))?;
     if let Some(bundle) = find_enclosing_app_bundle(&exe) {
         return Ok(bundle);
     }
-    Ok(PathBuf::from(format!("/Applications/{SELF_PRODUCT_NAME}.app")))
+    Ok(PathBuf::from(format!(
+        "/Applications/{SELF_PRODUCT_NAME}.app"
+    )))
 }
 
 fn find_enclosing_app_bundle(path: &Path) -> Option<PathBuf> {

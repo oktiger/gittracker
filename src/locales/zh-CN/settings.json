@@ -1,0 +1,39 @@
+{
+  "tabs": { "appearance": "外观", "provider": "AI Provider", "prompts": "提示词", "summary": "总结" },
+  "appearance": {
+    "theme": "主题",
+    "themeDescription": "选择日间、夜间或跟随系统。立即生效，偏好保存在本机。",
+    "language": "语言",
+    "languageDescription": "选择界面及 AI 输出语言。更改会立即生效。",
+    "languageError": "无法保存语言偏好，已恢复之前的语言。",
+    "modeLabel": "外观模式",
+    "system": { "title": "跟随系统", "description": "自动匹配操作系统的浅色或深色外观。" },
+    "light": { "title": "日间", "description": "始终使用浅色界面。" },
+    "dark": { "title": "夜间", "description": "始终使用深色界面。" }
+  },
+  "provider": {
+    "title": "AI 调用通道",
+    "help": "生成 Commit、生成任务、实现任务等所有 AI 能力都会走此处选择的 CLI，不会混用。",
+    "aria": "AI 调用通道",
+    "codexDescription": "调用本机 codex，走 OpenAI / Codex 账号与额度。",
+    "cursorDescription": "调用本机 agent，走 Cursor 订阅额度。",
+    "testSuccess": "✓ 测试成功",
+    "testFailed": "测试失败",
+    "saved": "设置已保存（AI：{{provider}}）"
+  },
+  "prompts": {
+    "goalTitle": "生成任务 · 提示词模板",
+    "goalHelp": "点「生成任务」时：模板 + goal.md + 项目现状 → AI",
+    "goalReset": "恢复「生成任务」默认模板",
+    "taskTitle": "实现任务 · 提示词模板",
+    "taskHelp": "点「⋯ → 实现」时使用；AI 会在项目目录改代码",
+    "taskReset": "恢复「实现任务」默认模板",
+    "editingLanguage": "正在编辑{{language}}模板"
+  },
+  "summary": {
+    "title": "自动生成时间",
+    "description": "到达时间后自动打开运行中心并生成今日总结。开关请在「总结」页设置。",
+    "time": "每日生成时间",
+    "hint": "应用常驻运行时会按此时间自动生成。"
+  }
+}

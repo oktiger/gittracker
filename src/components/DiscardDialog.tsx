@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { HelpTip } from "./HelpTip";
 import type { FileChange, NewLogDiaryEntry } from "../types";
@@ -13,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatBackendError } from "../i18n";
 
 interface Props {
   projectId: string;
@@ -29,6 +31,7 @@ export function DiscardDialog({
   onDone,
   onLog,
 }: Props) {
+  const { t } = useTranslation(["projects", "common", "errors"]);
   const [files, setFiles] = useState<FileChange[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [includeUntracked, setIncludeUntracked] = useState(false);
@@ -51,7 +54,7 @@ export function DiscardDialog({
         );
         setSelected(initial);
       } catch (e) {
-        setError(String(e));
+        setError(formatBackendError(e, t));
       } finally {
         setLoading(false);
       }
@@ -82,12 +85,12 @@ export function DiscardDialog({
 
   const onConfirm = async () => {
     if (confirmText !== "DISCARD") {
-      setError('请输入 DISCARD 以确认危险操作');
+      setError(t("projects:discard.confirmRequired"));
       return;
     }
     const paths = [...selected];
     if (paths.length === 0) {
-      setError("请至少选择一个文件");
+      setError(t("projects:discard.selectRequired"));
       return;
     }
     setSubmitting(true);
@@ -95,30 +98,30 @@ export function DiscardDialog({
     try {
       const result = await api.discardChanges(projectId, paths, includeUntracked);
       const note = result.recoveryPatch
-        ? `已创建恢复补丁：${result.recoveryPatch}`
-        : "未生成恢复补丁（可能无可用 diff），更改仍已丢弃";
+        ? t("projects:discard.patchCreated", { path: result.recoveryPatch })
+        : t("projects:discard.patchMissing");
       setResultNote(note);
       onLog({
         kind: "discard",
         status: "ok",
-        title: `放弃更改 · ${projectName}`,
+        title: t("projects:discard.logTitle", { name: projectName }),
         projectId,
         projectName,
-        detail: `丢弃文件 (${result.discarded.length}):\n${result.discarded.map((p) => `- ${p}`).join("\n")}\n\n${note}`,
+        detail: t("projects:discard.logDetail", { count: result.discarded.length, files: result.discarded.map((p) => `- ${p}`).join("\n"), note }),
       });
       setTimeout(() => {
         onDone();
         onClose();
       }, 900);
     } catch (e) {
-      const err = String(e);
+      const err = formatBackendError(e, t);
       onLog({
         kind: "discard",
         status: "error",
-        title: `放弃更改失败 · ${projectName}`,
+        title: t("projects:discard.failed", { name: projectName }),
         projectId,
         projectName,
-        detail: `拟丢弃:\n${paths.map((p) => `- ${p}`).join("\n")}`,
+        detail: t("projects:discard.planned", { files: paths.map((p) => `- ${p}`).join("\n") }),
         error: err,
       });
       setError(err);
@@ -131,20 +134,20 @@ export function DiscardDialog({
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>放弃所有更改 · {projectName}</DialogTitle>
+          <DialogTitle>{t("projects:discard.title", { name: projectName })}</DialogTitle>
           <DialogDescription className="sr-only">
-            丢弃选中文件的本地修改
+            {t("projects:discard.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-sm text-destructive">
-          此操作会丢弃选中文件的本地修改，且默认不可撤销。
-          <HelpTip text="执行前会尽量写入 Recovery Patch，便于手动恢复" />
+          {t("projects:discard.warning")}
+          <HelpTip text={t("projects:discard.help")} />
         </div>
 
         {recoveryDir && (
           <p className="text-sm text-muted-foreground">
-            恢复补丁目录：{recoveryDir}
+            {t("projects:discard.recoveryDirectory", { path: recoveryDir })}
           </p>
         )}
 
@@ -157,8 +160,8 @@ export function DiscardDialog({
             disabled={submitting}
           />
           <span>
-            同时删除 Untracked 文件{" "}
-            <HelpTip text="默认关闭：未跟踪文件不会被删除" />
+            {t("projects:discard.untracked")}{" "}
+            <HelpTip text={t("projects:discard.untrackedHelp")} />
           </span>
         </label>
 
@@ -170,15 +173,15 @@ export function DiscardDialog({
             className="h-auto p-0"
             onClick={toggleAll}
           >
-            {selected.size === visibleFiles.length ? "取消全选" : "全选"}
+            {selected.size === visibleFiles.length ? t("projects:discard.clearSelection") : t("projects:discard.selectAll")}
           </Button>
           <span>
-            已选 {selected.size} / {visibleFiles.length}
+            {t("projects:discard.selected", { selected: selected.size, total: visibleFiles.length })}
           </span>
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载变更文件…</p>
+          <p className="text-sm text-muted-foreground">{t("projects:discard.loading")}</p>
         ) : (
           <ul className="max-h-60 list-none overflow-auto rounded-md border border-border bg-muted/30 p-0">
             {visibleFiles.map((f) => (
@@ -197,7 +200,7 @@ export function DiscardDialog({
                   <span className="truncate">{f.path}</span>
                   {f.untracked && (
                     <span className="text-[0.68rem] text-amber-600 dark:text-amber-400">
-                      untracked
+                      {t("projects:status.untracked")}
                     </span>
                   )}
                 </label>
@@ -205,14 +208,14 @@ export function DiscardDialog({
             ))}
             {visibleFiles.length === 0 && (
               <li className="px-3 py-3 text-sm text-muted-foreground">
-                没有可丢弃的文件
+                {t("projects:discard.empty")}
               </li>
             )}
           </ul>
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="discard-confirm">输入 DISCARD 确认</Label>
+          <Label htmlFor="discard-confirm">{t("projects:discard.confirmLabel")}</Label>
           <Input
             id="discard-confirm"
             type="text"
@@ -236,7 +239,7 @@ export function DiscardDialog({
             onClick={onClose}
             disabled={submitting}
           >
-            取消
+            {t("common:actions.cancel")}
           </Button>
           <Button
             type="button"
@@ -244,7 +247,7 @@ export function DiscardDialog({
             onClick={() => void onConfirm()}
             disabled={submitting || loading}
           >
-            {submitting ? "处理中…" : "确认放弃"}
+            {submitting ? t("projects:discard.submitting") : t("projects:discard.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

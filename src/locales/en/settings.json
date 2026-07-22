@@ -1,0 +1,39 @@
+{
+  "tabs": { "appearance": "Appearance", "provider": "AI Provider", "prompts": "Prompts", "summary": "Summary" },
+  "appearance": {
+    "theme": "Theme",
+    "themeDescription": "Choose light, dark, or system appearance. Changes apply immediately and are saved locally.",
+    "language": "Language",
+    "languageDescription": "Choose the interface and AI output language. Changes apply immediately.",
+    "languageError": "Could not save the language preference. The previous language was restored.",
+    "modeLabel": "Appearance mode",
+    "system": { "title": "Follow system", "description": "Match the operating system’s light or dark appearance." },
+    "light": { "title": "Light", "description": "Always use the light appearance." },
+    "dark": { "title": "Dark", "description": "Always use the dark appearance." }
+  },
+  "provider": {
+    "title": "AI provider",
+    "help": "Commit generation, task generation, task implementation, and all other AI features use the selected CLI.",
+    "aria": "AI provider",
+    "codexDescription": "Use the local codex command with your OpenAI / Codex account and quota.",
+    "cursorDescription": "Use the local agent command with your Cursor subscription.",
+    "testSuccess": "✓ Test successful",
+    "testFailed": "Test failed",
+    "saved": "Settings saved (AI: {{provider}})"
+  },
+  "prompts": {
+    "goalTitle": "Generate tasks · Prompt template",
+    "goalHelp": "When you select Generate tasks: template + goal.md + repository context → AI",
+    "goalReset": "Restore the default Generate tasks template",
+    "taskTitle": "Implement task · Prompt template",
+    "taskHelp": "Used by … → Implement; AI can modify files in the project directory",
+    "taskReset": "Restore the default Implement task template",
+    "editingLanguage": "Editing the {{language}} templates"
+  },
+  "summary": {
+    "title": "Automatic generation time",
+    "description": "At this time, GitTracker opens the activity center and generates today’s summary. Enable it on the Summary page.",
+    "time": "Daily generation time",
+    "hint": "Generation runs at this time while the app remains open."
+  }
+}

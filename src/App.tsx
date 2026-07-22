@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ArrowLeft, ArrowRight, Folder, PanelLeft, PanelRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Folder, Loader2, PanelLeft, PanelRight, RefreshCw } from "lucide-react";
 import { api } from "./api";
 import { ActivitySidePanel, type AiActivity } from "./components/ActivitySidePanel";
 import { AppSidebar, type NavView } from "./components/AppSidebar";
@@ -19,6 +20,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useLogDiary } from "./hooks/useLogDiary";
 import { useProjects } from "./hooks/useProjects";
 import { newAiSessionId, type AiPanelSession } from "./lib/aiPanel";
+import { useLanguage } from "./contexts/LanguageContext";
+import { formatBackendError } from "./i18n";
 import type { NewLogDiaryEntry, RunSession, RunTarget } from "./types";
 
 type AppView = NavView | "project";
@@ -42,9 +45,12 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function App() {
+  const { t } = useTranslation(["common", "navigation", "projects", "activity", "errors"]);
+  const { language } = useLanguage();
   const {
     projects,
     loading,
+    refreshing,
     error,
     setError,
     busyIds,
@@ -73,6 +79,17 @@ function App() {
     setTimeout(() => setToast(null), 3200);
   };
 
+  const onBoardRefresh = async () => {
+    const ok = await refresh();
+    if (ok) showToast(t("projects:board.refreshed"));
+  };
+
+  const onProjectRefreshClick = async () => {
+    if (!selectedProjectId) return;
+    const ok = await refreshOne(selectedProjectId);
+    if (ok) showToast(t("projects:board.projectRefreshed"));
+  };
+
   const appendLog = useCallback(
     (entry: NewLogDiaryEntry) => {
       void logDiary.append(entry);
@@ -88,9 +105,9 @@ function App() {
   );
 
   const openAiSession = useCallback((session: AiPanelSession) => {
-    setAiSessions((items) => [...items, { id: newAiSessionId(), session }]);
+    setAiSessions((items) => [...items, { id: newAiSessionId(), session: { ...session, outputLanguage: session.outputLanguage ?? language } }]);
     setActivityOpen(true);
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     void api.listRunSessions().then(setRunSessions).catch(() => undefined);
@@ -125,14 +142,14 @@ function App() {
       appendLog({
         kind: "runTarget",
         status: "running",
-        title: `运行 · ${target.name}`,
+        title: `${t("projects:card.run")} · ${target.name}`,
         projectId: project.id,
         projectName: project.name,
         runSessionId: session.id,
-        detail: `cwd: ${target.cwd}\ncommand: ${target.command}\n\n已在运行中心启动，输出会实时显示。`,
+        detail: `cwd: ${target.cwd}\ncommand: ${target.command}\n\n${t("activity:center.runStarted")}`,
       });
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e, t));
     }
   };
 
@@ -203,14 +220,14 @@ function App() {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "选择 Git 项目目录",
+        title: t("projects:board.chooseDirectory"),
       });
       if (!selected || Array.isArray(selected)) return;
       await api.addProject(selected);
       await refresh();
-      showToast("已添加项目");
+      showToast(t("projects:board.added"));
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e, t));
     }
   };
 
@@ -222,16 +239,16 @@ function App() {
         setView("board");
       }
       await refresh();
-      showToast(`已移除「${name}」`);
+      showToast(t("projects:board.removed", { name }));
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e, t));
     }
   };
 
   const onOneClick = (id: string) => {
     const project = projects.find((p) => p.id === id);
     const projectName = project?.name ?? id;
-    setBusy(id, "一键提交中…");
+    setBusy(id, t("projects:card.oneClickBusy"));
     setError(null);
     openAiSession({
       kind: "oneClick",
@@ -247,18 +264,18 @@ function App() {
 
   const pageTitle = (() => {
     if (view === "board") {
-      return "看板";
+      return t("navigation:board");
     }
     if (view === "project") {
-      return selectedProject?.name ?? "项目详情";
+      return selectedProject?.name ?? t("navigation:projectDetails");
     }
     if (view === "dailyCompletion") {
-      return "总结";
+      return t("navigation:summary");
     }
     if (view === "logDiary") {
-      return "日志";
+      return t("navigation:logDiary");
     }
-    return "设置";
+    return t("navigation:settings");
   })();
 
   const renderProjectCard = (p: (typeof projects)[number]) => (
@@ -349,7 +366,7 @@ function App() {
 
         {sidebarOpen ? (
           <ResizableDivider
-            ariaLabel="调整左侧导航宽度"
+            ariaLabel={t("navigation:resize")}
             onDrag={(deltaX) => setSidebarWidth((width) => clamp(width + deltaX, 220, 420))}
           />
         ) : null}
@@ -360,24 +377,24 @@ function App() {
               {!sidebarOpen ? (
                 <>
                   <div className="mr-2 flex items-center gap-1.5">
-                    <button type="button" className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90" onClick={() => void windowControls.close()} aria-label="关闭窗口" title="关闭窗口" />
-                    <button type="button" className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90" onClick={() => void windowControls.minimize()} aria-label="最小化窗口" title="最小化窗口" />
-                    <button type="button" className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90" onClick={() => void windowControls.toggleMaximize()} aria-label="最大化窗口" title="最大化窗口" />
+                    <button type="button" className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90" onClick={() => void windowControls.close()} aria-label={t("common:window.close")} title={t("common:window.close")} />
+                    <button type="button" className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90" onClick={() => void windowControls.minimize()} aria-label={t("common:window.minimize")} title={t("common:window.minimize")} />
+                    <button type="button" className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90" onClick={() => void windowControls.toggleMaximize()} aria-label={t("common:window.maximize")} title={t("common:window.maximize")} />
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setSidebarOpen(true)}
-                    aria-label="展开左侧导航"
-                    title="展开左侧导航"
+                    aria-label={t("navigation:expand")}
+                    title={t("navigation:expand")}
                   >
                     <PanelLeft className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => goHistory(-1)} disabled={!canGoBack} aria-label="返回上一页" title="返回上一页">
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => goHistory(-1)} disabled={!canGoBack} aria-label={t("common:window.back")} title={t("common:window.back")}>
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => goHistory(1)} disabled={!canGoForward} aria-label="前进下一页" title="前进下一页">
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => goHistory(1)} disabled={!canGoForward} aria-label={t("common:window.forward")} title={t("common:window.forward")}>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </>
@@ -395,8 +412,8 @@ function App() {
                     variant="ghost"
                     size="icon-sm"
                     className="relative"
-                    title="显示运行中心"
-                    aria-label="显示运行中心"
+                    title={t("activity:center.show")}
+                    aria-label={t("activity:center.show")}
                     aria-pressed={false}
                     onClick={() => setActivityOpen(true)}
                   >
@@ -428,7 +445,7 @@ function App() {
             >
               <span className="min-w-0 truncate">{error}</span>
               <Button type="button" variant="ghost" size="xs" onClick={() => setError(null)}>
-                关闭
+                {t("common:actions.close")}
               </Button>
             </div>
           ) : null}
@@ -437,23 +454,34 @@ function App() {
             {view === "board" && (
               <>
                 <div className="mb-5 flex items-center justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
-                    刷新
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={refreshing || loading}
+                    onClick={() => void onBoardRefresh()}
+                  >
+                    {refreshing ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <RefreshCw className="size-3.5" aria-hidden />
+                    )}
+                    {refreshing ? t("common:actions.refreshing") : t("common:actions.refresh")}
                   </Button>
                   <Button type="button" size="sm" onClick={() => void onAdd()}>
-                    添加项目
+                    {t("projects:board.add")}
                   </Button>
                 </div>
                 {loading ? (
-                <div className="px-2 py-16 text-center text-sm text-muted-foreground">加载中…</div>
+                <div className="px-2 py-16 text-center text-sm text-muted-foreground">{t("common:state.loading")}</div>
               ) : projects.length === 0 ? (
                 <div className="mx-auto max-w-md px-2 py-16 text-center">
-                  <h2 className="text-lg font-semibold">还没有项目</h2>
+                  <h2 className="text-lg font-semibold">{t("projects:board.emptyTitle")}</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    添加本地 Git 仓库，即可在同一窗口查看状态并提交。
+                    {t("projects:board.emptyDescription")}
                   </p>
                   <Button type="button" className="mt-4" onClick={() => void onAdd()}>
-                    添加第一个项目
+                    {t("projects:board.addFirst")}
                   </Button>
                 </div>
               ) : (
@@ -465,18 +493,29 @@ function App() {
             {view === "project" && (
               <>
                 <div className="mb-5 flex items-center justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={() => selectedProjectId && void refreshOne(selectedProjectId)} disabled={!selectedProjectId}>
-                    刷新
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!selectedProjectId || refreshing || loading}
+                    onClick={() => void onProjectRefreshClick()}
+                  >
+                    {refreshing ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <RefreshCw className="size-3.5" aria-hidden />
+                    )}
+                    {refreshing ? t("common:actions.refreshing") : t("common:actions.refresh")}
                   </Button>
                 </div>
                 {loading ? (
-                <div className="px-2 py-16 text-center text-sm text-muted-foreground">加载中…</div>
+                <div className="px-2 py-16 text-center text-sm text-muted-foreground">{t("common:state.loading")}</div>
               ) : !selectedProject ? (
                 <div className="mx-auto max-w-md px-2 py-16 text-center">
-                  <h2 className="text-lg font-semibold">项目不存在</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">该项目可能已被移除。</p>
+                  <h2 className="text-lg font-semibold">{t("projects:board.missingTitle")}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">{t("projects:board.missingDescription")}</p>
                   <Button type="button" className="mt-4" onClick={() => goNav("board")}>
-                    返回看板
+                    {t("projects:board.back")}
                   </Button>
                 </div>
               ) : (
@@ -513,7 +552,7 @@ function App() {
 
         {activityOpen ? (
           <ResizableDivider
-            ariaLabel="调整运行中心宽度"
+            ariaLabel={t("activity:center.resize")}
             onDrag={(deltaX) => setActivityWidth((width) => clamp(width - deltaX, 300, 640))}
           />
         ) : null}
@@ -532,7 +571,7 @@ function App() {
           onLog={appendLog}
           onUpdateRunLog={updateRunLog}
           onTargetsSaved={(projectId, targets) => {
-            showToast(`已保存 ${targets.length} 个启动目标`);
+            showToast(t("activity:center.targetsSaved", { count: targets.length }));
             void refreshOne(projectId);
           }}
           onProjectRefresh={(projectId, session) => {
@@ -554,7 +593,7 @@ function App() {
             onClose={() => setDialog(null)}
             onDone={() => {
               void refreshOne(dialog.id);
-              showToast("提交完成");
+              showToast(t("projects:commit.done"));
             }}
             onLog={appendLog}
             onAiGenerate={() =>
@@ -578,7 +617,7 @@ function App() {
             onClose={() => setDialog(null)}
             onDone={() => {
               void refreshOne(dialog.id);
-              showToast("已放弃所有更改");
+              showToast(t("projects:discard.done"));
             }}
             onLog={appendLog}
           />
@@ -599,7 +638,7 @@ function App() {
             title={dialog.title}
             libraryFile={dialog.libraryFile}
             onClose={() => setDialog(null)}
-            onSaved={() => showToast("文档已保存")}
+            onSaved={() => showToast(t("projects:docs.saved"))}
           />
         )}
 

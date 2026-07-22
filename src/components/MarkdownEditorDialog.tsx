@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { formatBackendError } from "../i18n";
 import { api } from "../api";
 import {
   Dialog,
@@ -28,6 +30,7 @@ export function MarkdownEditorDialog({
   onClose,
   onSaved,
 }: Props) {
+  const { t } = useTranslation("common");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,7 +45,7 @@ export function MarkdownEditorDialog({
           ? await api.readDocumentLibraryFile(projectId, relativePath)
           : await api.readDocFile(projectId, relativePath));
       } catch (e) {
-        setError(String(e));
+        setError(formatBackendError(e, t));
       } finally {
         setLoading(false);
       }
@@ -58,7 +61,7 @@ export function MarkdownEditorDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e, t));
     } finally {
       setSaving(false);
     }
@@ -73,7 +76,7 @@ export function MarkdownEditorDialog({
         </DialogHeader>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载中…</p>
+          <p className="text-sm text-muted-foreground">{t("state.loading")}</p>
         ) : (
           <Textarea
             className="min-h-[280px] font-mono text-sm leading-relaxed"
@@ -88,14 +91,14 @@ export function MarkdownEditorDialog({
 
         <DialogFooter className="border-t pt-4">
           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
-            取消
+            {t("actions.cancel")}
           </Button>
           <Button
             type="button"
             onClick={() => void onSave()}
             disabled={loading || saving}
           >
-            {saving ? "保存中…" : "保存"}
+            {saving ? t("actions.saving") : t("actions.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

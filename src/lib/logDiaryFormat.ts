@@ -1,85 +1,57 @@
 import type { LogDiaryEntry, LogDiaryKind, LogDiaryStatus } from "../types";
+import type { TFunction } from "i18next";
+import type { ResolvedLanguage } from "../types";
+import { formatDateTime } from "./formatters";
 
 /** 小白可读的操作类型；表格与复制文案共用 */
-const KIND_LABELS: Record<string, string> = {
-  oneClick: "一键提交",
-  generateCommit: "生成提交说明",
-  commit: "手动提交",
-  ensureDocs: "创建文档",
-  generateTasks: "生成任务",
-  runTask: "实现任务",
-  suggestRunTargets: "识别启动方式",
-  saveRunTargets: "保存启动方式",
-  runTarget: "运行 / 升级",
-  discard: "放弃更改",
-  testConnection: "测试 AI 连接",
-  dailyCompletion: "每日完成情况",
-};
-
-const STATUS_LABELS: Record<LogDiaryStatus, string> = {
-  ok: "成功",
-  error: "失败",
-  running: "进行中",
-  ended: "已结束",
-};
-
-export function kindLabel(kind: LogDiaryKind): string {
-  return KIND_LABELS[kind] ?? String(kind);
+export function kindLabel(kind: LogDiaryKind, t: TFunction<any>): string {
+  return t(`activity:logs.kinds.${kind}`, { defaultValue: String(kind) });
 }
 
-export function statusLabel(status: LogDiaryStatus): string {
-  return STATUS_LABELS[status] ?? status;
+export function statusLabel(status: LogDiaryStatus, t: TFunction<any>): string {
+  return t(`activity:logs.statuses.${status}`, { defaultValue: status });
 }
 
-export function formatLogTime(ms: number): string {
-  if (!ms) return "—";
-  return new Date(ms).toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+export function formatLogTime(ms: number, locale: ResolvedLanguage): string {
+  return formatDateTime(ms, locale);
 }
 
 /** 拼成便于粘贴给 AI 的反馈文本 */
-export function formatLogForCopy(entry: LogDiaryEntry): string {
+export function formatLogForCopy(entry: LogDiaryEntry, locale: ResolvedLanguage, t: TFunction<any>): string {
   const lines = [
-    "# GitTracker 操作日志（反馈用）",
+    t("activity:copy.logTitle"),
     "",
-    `时间: ${formatLogTime(entry.createdAt)}`,
-    `操作: ${kindLabel(entry.kind)}`,
-    `状态: ${statusLabel(entry.status)}`,
+    t("activity:copy.time", { value: formatLogTime(entry.createdAt, locale) }),
+    t("activity:copy.operation", { value: kindLabel(entry.kind, t) }),
+    t("activity:copy.logStatus", { value: statusLabel(entry.status, t) }),
   ];
 
   if (entry.projectName || entry.projectId) {
     lines.push(
-      `项目: ${entry.projectName ?? "—"}${entry.projectId ? ` (${entry.projectId})` : ""}`,
+      t("activity:copy.logProject", { value: `${entry.projectName ?? "—"}${entry.projectId ? ` (${entry.projectId})` : ""}` }),
     );
   }
 
-  lines.push(`标题: ${entry.title}`, "");
+  lines.push(t("activity:copy.logEntryTitle", { value: entry.title }), "");
 
   if (entry.detail?.trim()) {
-    lines.push("## 详情", "", entry.detail.trim(), "");
+    lines.push(t("activity:copy.details"), "", entry.detail.trim(), "");
   }
 
   if (entry.error?.trim()) {
     lines.push(
-      entry.status === "ok" ? "## 警告 / 补充信息" : "## 问题 / 错误反馈",
+      entry.status === "ok" ? t("activity:copy.warning") : t("activity:copy.issue"),
       "",
       entry.error.trim(),
       "",
     );
   } else if (entry.status === "error") {
-    lines.push("## 问题 / 错误反馈", "", "（无额外错误信息）", "");
+    lines.push(t("activity:copy.issue"), "", t("activity:copy.noError"), "");
   }
 
   lines.push(
     "---",
-    "请根据以上日志帮忙分析问题原因，并给出可执行的修复建议。",
+    t("activity:copy.feedback"),
   );
 
   return lines.join("\n");

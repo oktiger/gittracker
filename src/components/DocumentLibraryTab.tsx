@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { File, Folder, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { DocumentLibrary, DocumentNode } from "../types";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { formatBackendError } from "../i18n";
 
 interface Props {
   projectId: string;
@@ -35,6 +37,7 @@ function NodeRow({
   onOpenFile: (node: DocumentNode) => void;
   onToast: (message: string) => void;
 }) {
+  const { t } = useTranslation(["projects", "common"]);
   const isHtml = /\.html?$/i.test(node.name);
   return (
     <li>
@@ -72,7 +75,7 @@ function NodeRow({
               variant="ghost"
               size="icon-sm"
               className="h-7 w-7 text-muted-foreground"
-              aria-label={`${node.name} 的更多操作`}
+              aria-label={t("projects:docs.moreActions", { name: node.name })}
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -81,16 +84,16 @@ function NodeRow({
           <DropdownMenuContent align="end" className="w-44">
             {!node.isDirectory ? (
               <DropdownMenuItem onClick={() => onOpenFile(node)}>
-                {isHtml ? "用浏览器打开" : "打开并编辑"}
+                {isHtml ? t("projects:docs.openBrowser") : t("projects:docs.openEdit")}
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuItem
               onClick={() => {
                 void navigator.clipboard.writeText(node.relativePath);
-                onToast("已复制路径");
+                onToast(t("projects:docs.pathCopied"));
               }}
             >
-              复制路径
+              {t("projects:docs.copyPath")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -121,6 +124,7 @@ export function DocumentLibraryTab({
   onError,
   onToast,
 }: Props) {
+  const { t } = useTranslation(["projects", "common"]);
   const [library, setLibrary] = useState<DocumentLibrary | null>(null);
   const [root, setRoot] = useState("DOCS");
   const [busy, setBusy] = useState(false);
@@ -129,7 +133,7 @@ export function DocumentLibraryTab({
     try {
       setLibrary(await api.listDocumentLibrary(projectId));
     } catch (e) {
-      onError(String(e));
+      onError(formatBackendError(e, t));
     }
   };
 
@@ -140,13 +144,13 @@ export function DocumentLibraryTab({
 
   const saveRoot = async (value: string) => {
     const clean = value.trim().replace(/^\/+|\/+$/g, "");
-    if (!clean) return onError("请输入项目内的文档库文件夹名称");
+    if (!clean) return onError(t("projects:docs.folderRequired"));
     setBusy(true);
     try {
       setLibrary(await api.setDocumentLibrary(projectId, clean));
-      onToast(`已设置文档库：${clean}`);
+      onToast(t("projects:docs.configured", { root: clean }));
     } catch (e) {
-      onError(String(e));
+      onError(formatBackendError(e, t));
     } finally {
       setBusy(false);
     }
@@ -156,11 +160,11 @@ export function DocumentLibraryTab({
     const chosen = await open({
       directory: true,
       multiple: false,
-      title: "选择项目内的文档库",
+      title: t("projects:docs.chooseTitle"),
     });
     if (!chosen || Array.isArray(chosen)) return;
     const prefix = projectPath.endsWith("/") ? projectPath : `${projectPath}/`;
-    if (!chosen.startsWith(prefix)) return onError("请选择当前项目目录内的文件夹");
+    if (!chosen.startsWith(prefix)) return onError(t("projects:docs.folderOutside"));
     await saveRoot(chosen.slice(prefix.length));
   };
 
@@ -168,9 +172,9 @@ export function DocumentLibraryTab({
     if (/\.html?$/i.test(node.name)) {
       try {
         await api.openDocumentLibraryHtml(projectId, node.relativePath);
-        onToast("已用默认浏览器打开 HTML");
+        onToast(t("projects:docs.htmlOpened"));
       } catch (e) {
-        onError(String(e));
+        onError(formatBackendError(e, t));
       }
       return;
     }
@@ -178,7 +182,7 @@ export function DocumentLibraryTab({
   };
 
   if (!library) {
-    return <p className="px-3 py-4 text-xs text-muted-foreground">加载中…</p>;
+    return <p className="px-3 py-4 text-xs text-muted-foreground">{t("common:state.loading")}</p>;
   }
 
   if (!library.root) {
@@ -187,17 +191,15 @@ export function DocumentLibraryTab({
         <div className="mx-auto mb-2 inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/15 text-xs font-bold text-emerald-400">
           D
         </div>
-        <div className="text-sm font-medium">尚未设置文档库</div>
+        <div className="text-sm font-medium">{t("projects:docs.notConfigured")}</div>
         <p className="mt-1 text-xs text-muted-foreground">
-          读取项目内文件夹（默认{" "}
-          <code className="rounded bg-muted px-1 font-mono">DOCS</code>
-          ），按层级列出全部文件
+          {t("projects:docs.libraryDescription")}
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <Input
             value={root}
             onChange={(e) => setRoot(e.target.value)}
-            placeholder="例如 DOCS"
+            placeholder={t("projects:docs.folderPlaceholder")}
             disabled={busy}
             className="h-8 w-28 text-xs"
           />
@@ -207,7 +209,7 @@ export function DocumentLibraryTab({
             disabled={busy}
             onClick={() => void saveRoot(root)}
           >
-            创建文档库
+            {t("projects:docs.createLibrary")}
           </Button>
           <Button
             type="button"
@@ -216,7 +218,7 @@ export function DocumentLibraryTab({
             disabled={busy}
             onClick={() => void chooseExisting()}
           >
-            选择已有文件夹
+            {t("projects:docs.chooseLibrary")}
           </Button>
         </div>
       </div>
@@ -224,23 +226,23 @@ export function DocumentLibraryTab({
   }
 
   return (
-    <section aria-label="文档库">
+    <section aria-label={t("projects:docs.libraryAria")}>
       {!compact ? (
         <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/15 text-[10px] font-bold text-emerald-400">
               D
             </span>
-            <span className="text-sm font-semibold">文档</span>
+            <span className="text-sm font-semibold">{t("projects:docs.library")}</span>
             <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               {library.root}
             </code>
           </div>
-          <span className="text-[11px] text-muted-foreground">项目文档库 · 文件夹层级</span>
+          <span className="text-[11px] text-muted-foreground">{t("projects:docs.subtitle")}</span>
         </header>
       ) : null}
       {library.entries.length === 0 ? (
-        <div className="px-4 py-6 text-center text-xs text-muted-foreground">文档库为空</div>
+        <div className="px-4 py-6 text-center text-xs text-muted-foreground">{t("projects:docs.empty")}</div>
       ) : (
         <ul>
           {library.entries.map((node) => (

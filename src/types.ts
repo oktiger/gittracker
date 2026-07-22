@@ -34,7 +34,9 @@ export interface RunProgressEvent {
   sessionId: string;
   kind: "status" | "output" | "exit" | "error" | string;
   stream?: "stdout" | "stderr" | string | null;
-  text: string;
+  text?: string;
+  message?: LocalizedMessage;
+  success?: boolean;
 }
 
 export interface ProjectRecord {
@@ -47,12 +49,31 @@ export interface ProjectRecord {
 
 export type AiProvider = "codex" | "cursorAgent";
 
+export type AppLanguagePreference = "system" | "zh-CN" | "en";
+export type ResolvedLanguage = Exclude<AppLanguagePreference, "system">;
+
+export interface PromptTemplateSet {
+  goal: string;
+  task: string;
+}
+
 export interface AppSettings {
   aiProvider: AiProvider;
+  language: AppLanguagePreference;
   dailyCompletionEnabled: boolean;
   dailyCompletionTime: string;
-  goalPromptTemplate: string;
-  taskPromptTemplate: string;
+  promptTemplates: Record<ResolvedLanguage, PromptTemplateSet>;
+}
+
+export interface LocalizedMessage {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
+export interface BackendError {
+  code: string;
+  params?: Record<string, string | number>;
+  detail?: string;
 }
 
 export interface AiConnectionTestResult {
@@ -155,7 +176,8 @@ export interface AiProgressEvent {
   sessionId: string;
   /** status | thinking | assistant | log | error */
   kind: "status" | "thinking" | "assistant" | "log" | "error" | string;
-  text: string;
+  text?: string;
+  message?: LocalizedMessage;
 }
 
 export interface AiTranscriptLine {

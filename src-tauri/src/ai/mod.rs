@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{AiConnectionTestResult, AiProvider};
+use crate::models::{AiConnectionTestResult, AiProvider, LocalizedMessage, ResolvedLanguage};
 use crate::store;
 use serde::Serialize;
 use serde_json::Value;
@@ -20,19 +20,34 @@ pub struct AiProgressEvent {
     pub session_id: String,
     /// status | thinking | assistant | log | error
     pub kind: String,
-    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<LocalizedMessage>,
 }
 
 pub type ProgressSink = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
 pub fn make_progress_sink(app: AppHandle, session_id: String) -> ProgressSink {
     Arc::new(move |kind: &str, text: &str| {
+        let (text, message) = if let Some(key) = text.strip_prefix("i18n:") {
+            (
+                None,
+                Some(LocalizedMessage {
+                    key: key.to_string(),
+                    params: Default::default(),
+                }),
+            )
+        } else {
+            (Some(text.to_string()), None)
+        };
         let _ = app.emit(
             "ai-progress",
             AiProgressEvent {
                 session_id: session_id.clone(),
                 kind: kind.to_string(),
-                text: text.to_string(),
+                text,
+                message,
             },
         );
     })
@@ -50,13 +65,25 @@ fn emit(progress: Option<&ProgressSink>, kind: &str, text: &str) {
 /// 传入的 `provider` 为当前界面选中项（可尚未保存），便于切换后立刻验证。
 pub fn test_connection(
     provider: AiProvider,
+    locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
 ) -> AppResult<AiConnectionTestResult> {
     let label = label_for(provider);
-    emit(progress, "status", &format!("正在测试 {label}…"));
+    emit(
+        progress,
+        "status",
+        &if locale.is_zh() {
+            format!("正在测试 {label}…")
+        } else {
+            format!("Testing {label}…")
+        },
+    );
 
-    let prompt =
-        "你是连通性测试助手。请只回复两个字：连通。不要解释、不要代码块、不要执行任何命令。";
+    let prompt = if locale.is_zh() {
+        "你是连通性测试助手。请只回复两个字：连通。不要解释、不要代码块、不要执行任何命令。"
+    } else {
+        "You are a connection test assistant. Reply only with: Connected. Do not explain, use code blocks, or execute commands."
+    };
     let reply = match provider {
         AiProvider::Codex => run_codex(prompt, None, false, progress)?,
         AiProvider::CursorAgent => run_cursor_agent(prompt, None, false, progress)?,
@@ -92,17 +119,24 @@ fn truncate_for_ui(s: &str, max_chars: usize) -> String {
 /// 本项目所有需要调用 AI 的能力都必须走此通道，禁止绕过。
 pub fn generate_commit_message(
     changes_diff: &str,
+    locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
     if changes_diff.trim().is_empty() {
-        return Err(AppError::msg("当前没有可提交的 Changes，无法生成 Commit message"));
+        return Err(AppError::msg(
+            "当前没有可提交的 Changes，无法生成 Commit message",
+        ));
     }
 
     let label = provider_label().unwrap_or("AI");
     emit(
         progress,
         "status",
-        &format!("使用 {label} 生成 Commit message…"),
+        &if locale.is_zh() {
+            format!("使用 {label} 生成 Commit message…")
+        } else {
+            format!("Generating a Commit message with {label}…")
+        },
     );
 
     let truncated = if changes_diff.len() > MAX_DIFF_CHARS {
@@ -115,17 +149,33 @@ pub fn generate_commit_message(
         changes_diff.to_string()
     };
 
-    let prompt = format!(
-        "你是 Git commit message 助手。根据下方全部 Changes 的 diff，生成一条简体中文的 commit message。\n\
-         要求：\n\
-         1. 只输出 commit message 本身，不要解释、不要代码块、不要引号\n\
-         2. 第一行尽量不超过 60 个中文字符，简洁说明实际修改\n\
-         3. 如有必要可加简短正文，用空行分隔\n\
-         4. 不要执行任何命令，不要修改文件\n\n\
-         Changes diff:\n{truncated}"
-    );
+    let prompt = commit_message_prompt(&truncated, locale);
 
     run_readonly(&prompt, None, progress)
+}
+
+fn commit_message_prompt(changes: &str, locale: ResolvedLanguage) -> String {
+    if locale.is_zh() {
+        format!(
+            "你是 Git commit message 助手。根据下方全部 Changes 的 diff，生成一条简体中文 commit message。\n\
+             要求：\n\
+             1. 只输出 commit message 本身，不要解释、不要代码块、不要引号\n\
+             2. 第一行尽量不超过 60 个中文字符，简洁说明实际修改\n\
+             3. 如有必要可加简短正文，用空行分隔\n\
+             4. 不要执行任何命令，不要修改文件\n\n\
+             Changes diff:\n{changes}"
+        )
+    } else {
+        format!(
+            "You are a Git commit-message assistant. Create one English commit message from the complete Changes diff below.\n\
+             Requirements:\n\
+             1. Output only the commit message, with no explanation, code fence, or quotation marks\n\
+             2. Keep the subject concise, preferably under 72 characters, and describe the actual change\n\
+             3. Add a short body separated by a blank line only when useful\n\
+             4. Do not execute commands or modify files\n\n\
+             Changes diff:\n{changes}"
+        )
+    }
 }
 
 /// 根据多个仓库的 commit message 生成面向用户的工作总结。
@@ -133,26 +183,48 @@ pub fn generate_commit_message(
 pub fn summarize_daily_completion(
     period_label: &str,
     commits: &str,
+    locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
     if commits.trim().is_empty() {
-        return Ok("这段时间还没有新的提交。".to_string());
+        return Ok(if locale.is_zh() {
+            "这段时间还没有新的提交。"
+        } else {
+            "There were no new commits during this period."
+        }
+        .to_string());
     }
     let label = provider_label().unwrap_or("AI");
     emit(
         progress,
         "status",
-        &format!("使用 {label} 整理{period_label}完成事项…"),
+        &if locale.is_zh() {
+            format!("使用 {label} 整理{period_label}完成事项…")
+        } else {
+            format!("Using {label} to summarize work from {period_label}…")
+        },
     );
-    let prompt = format!(
-        "你是 Git 工作总结助手。仅依据下方 commit message，总结用户{period_label}做了什么。\n\
-         要求：\n\
-         1. 使用简体中文，输出 3-6 条简短要点；若工作不足 3 项则按实际输出\n\
-         2. 合并同类提交，写清完成的功能、修复或改进，不要臆测\n\
-         3. 不要标题、前言、代码块、项目名或 commit hash\n\
-         4. 每条以「- 」开头，适合放入手机分享卡片\n\n\
-         Commit messages:\n{commits}"
-    );
+    let prompt = if locale.is_zh() {
+        format!(
+            "你是 Git 工作总结助手。仅依据下方 commit message，总结用户{period_label}做了什么。\n\
+             要求：\n\
+             1. 使用简体中文，输出 3-6 条简短要点；若工作不足 3 项则按实际输出\n\
+             2. 合并同类提交，写清完成的功能、修复或改进，不要臆测\n\
+             3. 不要标题、前言、代码块、项目名或 commit hash\n\
+             4. 每条以「- 」开头，适合放入手机分享卡片\n\n\
+             Commit messages:\n{commits}"
+        )
+    } else {
+        format!(
+            "You are a Git work-summary assistant. Using only the commit messages below, summarize what the user completed {period_label}.\n\
+             Requirements:\n\
+             1. Write 3-6 concise bullet points in English, or fewer when there is less work\n\
+             2. Combine related commits and describe completed features, fixes, or improvements without speculation\n\
+             3. Do not include a title, preface, code fence, project name, or commit hash\n\
+             4. Start every item with '- ' so it fits a mobile sharing card\n\n\
+             Commit messages:\n{commits}"
+        )
+    };
     run_readonly(&truncate_prompt(&prompt), None, progress)
 }
 
@@ -162,17 +234,25 @@ pub fn run_goal(
     template: &str,
     goal_md: &str,
     project_context: &str,
+    locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
     let label = provider_label().unwrap_or("AI");
     emit(
         progress,
         "status",
-        &format!("使用 {label} 根据目标拆分任务…"),
+        &if locale.is_zh() {
+            format!("使用 {label} 根据目标拆分任务…")
+        } else {
+            format!("Using {label} to plan tasks from the goal…")
+        },
     );
 
-    let prompt =
-        format!("{template}\n\n【项目目标】\n{goal_md}\n\n【项目现状】\n{project_context}\n");
+    let prompt = if locale.is_zh() {
+        format!("{template}\n\n所有任务内容必须使用简体中文。\n\n【项目目标】\n{goal_md}\n\n【项目现状】\n{project_context}\n")
+    } else {
+        format!("{template}\n\nWrite all task content in English.\n\nProject goal:\n{goal_md}\n\nRepository context:\n{project_context}\n")
+    };
     let prompt = truncate_prompt(&prompt);
     run_readonly(&prompt, Some(project_path), progress)
 }
@@ -183,16 +263,25 @@ pub fn run_task(
     template: &str,
     task_md: &str,
     task_path: &str,
+    locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
     let label = provider_label().unwrap_or("AI");
     emit(
         progress,
         "status",
-        &format!("使用 {label} 实现任务（{task_path}）…"),
+        &if locale.is_zh() {
+            format!("使用 {label} 实现任务（{task_path}）…")
+        } else {
+            format!("Using {label} to implement task {task_path}…")
+        },
     );
 
-    let prompt = format!("{template}\n\n【任务文件】{task_path}\n\n【任务文档】\n{task_md}\n");
+    let prompt = if locale.is_zh() {
+        format!("{template}\n\n最终实现摘要必须使用简体中文。\n\n【任务文件】{task_path}\n\n【任务文档】\n{task_md}\n")
+    } else {
+        format!("{template}\n\nWrite the final implementation summary in English.\n\nTask file: {task_path}\n\nTask document:\n{task_md}\n")
+    };
     let prompt = truncate_prompt(&prompt);
     run_writable(&prompt, project_path, progress)
 }
@@ -274,7 +363,7 @@ fn run_codex(
     }
     args.push(prompt.to_string());
 
-    emit(progress, "status", "正在启动 Codex CLI…");
+    emit(progress, "status", "i18n:activity:backend.startingCodex");
 
     let mut cmd = Command::new(&bin);
     cmd.args(&args)
@@ -301,7 +390,7 @@ fn run_codex(
         ))
     })?;
 
-    emit(progress, "status", "Codex 正在分析项目…");
+    emit(progress, "status", "i18n:activity:backend.codexAnalyzing");
 
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -370,7 +459,7 @@ fn run_codex(
     if message.is_empty() {
         return Err(AppError::msg("Codex 未返回有效内容"));
     }
-    emit(progress, "status", "Codex 已完成，正在整理结果…");
+    emit(progress, "status", "i18n:activity:backend.codexFinishing");
     Ok(message)
 }
 
@@ -428,8 +517,10 @@ fn forward_codex_json_line(progress: &dyn Fn(&str, &str), line: &str) {
                 progress("thinking", &text);
             }
         }
-        "task_started" => progress("status", "Codex 任务已开始…"),
-        "task_complete" | "turn_complete" => progress("status", "Codex 回合完成…"),
+        "task_started" => progress("status", "i18n:activity:backend.codexStarted"),
+        "task_complete" | "turn_complete" => {
+            progress("status", "i18n:activity:backend.codexTurnDone")
+        }
         "error" => {
             if let Some(text) = extract_text_field(&v) {
                 progress("error", &text);
@@ -502,7 +593,7 @@ fn run_cursor_agent(
     }
     args.push(prompt.to_string());
 
-    emit(progress, "status", "正在启动 Cursor Agent CLI…");
+    emit(progress, "status", "i18n:activity:backend.startingCursor");
 
     let mut cmd = Command::new(&bin);
     cmd.args(&args)
@@ -529,7 +620,7 @@ fn run_cursor_agent(
         ))
     })?;
 
-    emit(progress, "status", "Cursor Agent 正在分析项目…");
+    emit(progress, "status", "i18n:activity:backend.cursorAnalyzing");
 
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -596,7 +687,7 @@ fn run_cursor_agent(
     if message.is_empty() {
         return Err(AppError::msg("Cursor Agent 未返回有效内容"));
     }
-    emit(progress, "status", "Cursor Agent 已完成，正在整理结果…");
+    emit(progress, "status", "i18n:activity:backend.cursorFinishing");
     Ok(message)
 }
 
@@ -630,7 +721,7 @@ fn forward_cursor_json_line(progress: &dyn Fn(&str, &str), line: &str, acc: &mut
             progress("status", &format!("已连接 Cursor Agent（模型：{model}）"));
         }
         "user" => {
-            progress("status", "已发送分析请求…");
+            progress("status", "i18n:activity:backend.requestSent");
         }
         "thinking" => {
             if let Some(text) = v.get("text").and_then(|t| t.as_str()) {
@@ -639,7 +730,7 @@ fn forward_cursor_json_line(progress: &dyn Fn(&str, &str), line: &str, acc: &mut
                     progress("thinking", t);
                 }
             } else if subtype == "completed" {
-                progress("status", "思考完成，正在生成建议…");
+                progress("status", "i18n:activity:backend.thinkingDone");
             }
         }
         "assistant" => {
@@ -681,7 +772,7 @@ fn forward_cursor_json_line(progress: &dyn Fn(&str, &str), line: &str, acc: &mut
                 acc.final_result = Some(result.to_string());
             }
             if subtype == "success" {
-                progress("status", "分析完成");
+                progress("status", "i18n:activity:backend.analysisDone");
             } else if v.get("is_error").and_then(|e| e.as_bool()) == Some(true) {
                 let err = v
                     .get("result")
@@ -756,7 +847,10 @@ fn resolve_bin(primary: &str, aliases: &[&str], missing_msg: &str) -> AppResult<
         }
     }
 
-    Err(AppError::msg(missing_msg))
+    Err(AppError::coded(
+        "cliUnavailable",
+        Some(missing_msg.to_string()),
+    ))
 }
 
 fn which_bin(name: &str) -> Option<PathBuf> {
@@ -808,15 +902,25 @@ fn clean_message(raw: &str) -> String {
 pub fn suggest_run_targets(
     project_path: &Path,
     context: &str,
+    locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
 ) -> AppResult<String> {
     let label = provider_label().unwrap_or("AI");
     emit(
         progress,
         "status",
-        &format!("使用 {label} 识别启动方式（只读分析，不会执行命令）"),
+        &if locale.is_zh() {
+            format!("使用 {label} 识别启动方式（只读分析，不会执行命令）")
+        } else {
+            format!("Using {label} to identify run targets (read-only analysis)")
+        },
     );
 
+    let output_language = if locale.is_zh() {
+        "name 和 description 使用简体中文"
+    } else {
+        "write name and description in concise English"
+    };
     let prompt = format!(
         "你是项目启动方式助手。根据下方【仓库上下文】，判断该仓库有哪些常用启动方式。\n\
          可能是网页（Next/Vite 等）、桌面（Tauri/Electron/py2app 等），或 monorepo 多端并存。\n\n\
@@ -842,7 +946,8 @@ pub fn suggest_run_targets(
          12. 若是 macOS 桌面项目（Tauri / Electron / py2app 等），除「打包 APP」外务必再给一条「升级 APP」：\n\
              先 build 出 .app，再退出已安装应用（如有），用 ditto 替换 /Applications 下同名 .app，最后 open 打开。\n\
              kind 必须为 upgrade；不要把「升级 APP」设为默认\n\
-         13. 不要执行任何命令，不要修改文件\n\n\
+         13. {output_language}\n\
+         14. 不要执行任何命令，不要修改文件\n\n\
          【仓库上下文】\n{context}\n"
     );
     let prompt = truncate_prompt(&prompt);
@@ -886,4 +991,18 @@ pub fn write_prompt_via_stdin(prompt: &str) -> AppResult<String> {
     }
 
     Ok(clean_message(&String::from_utf8_lossy(&output.stdout)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn commit_prompts_follow_the_session_language() {
+        let zh = commit_message_prompt("diff", ResolvedLanguage::ZhCn);
+        let en = commit_message_prompt("diff", ResolvedLanguage::En);
+        assert!(zh.contains("简体中文"));
+        assert!(en.contains("English commit message"));
+        assert!(!en.contains("中文字符"));
+    }
 }

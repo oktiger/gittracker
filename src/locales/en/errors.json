@@ -1,0 +1,10 @@
+{
+  "unknown": "An unexpected error occurred.",
+  "backend": "The operation failed.",
+  "notGitRepository": "The selected directory is not a Git repository.",
+  "projectNotFound": "Project not found.",
+  "runTargetNotFound": "Run target {{id}} was not found.",
+  "cliUnavailable": "The selected AI CLI is unavailable.",
+  "copyFailed": "Could not copy to the clipboard.",
+  "saveFailed": "Could not save the changes."
+}

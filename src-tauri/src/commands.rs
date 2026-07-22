@@ -5,9 +5,9 @@ use crate::git;
 use crate::log_diary;
 use crate::models::{
     AiConnectionTestResult, AiProvider, AppSettings, DiscardPreview, DiscardResult, DocsOverview,
-    DocumentLibrary, GenerateTasksResult, LogDiaryEntry, NewLogDiaryEntry, OneClickResult,
-    ProjectRecord, ProjectStatus, RunSession, RunTarget, RunTaskResult, SuggestRunTargetsResult,
-    UpdateLogDiaryByRunSession,
+    DocumentLibrary, GenerateTasksResult, LanguagePreference, LogDiaryEntry, NewLogDiaryEntry,
+    OneClickResult, ProjectRecord, ProjectStatus, PromptTemplateSet, ResolvedLanguage, RunSession,
+    RunTarget, RunTaskResult, SuggestRunTargetsResult, UpdateLogDiaryByRunSession,
 };
 use crate::run;
 use crate::store;
@@ -25,7 +25,7 @@ pub fn list_projects() -> AppResult<Vec<ProjectRecord>> {
 pub fn add_project(app: AppHandle, path: String, name: Option<String>) -> AppResult<ProjectRecord> {
     let path_buf = Path::new(&path);
     if !git::is_git_repo(path_buf) {
-        return Err(AppError::msg("所选目录不是 Git 仓库"));
+        return Err(AppError::coded("notGitRepository", None));
     }
     let record = store::add_project(path, name)?;
     let _ = watch::sync_watches(&app);
@@ -74,17 +74,18 @@ pub async fn generate_commit_message(
     app: AppHandle,
     id: String,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app.clone(), session_id);
-        progress("status", "正在读取项目信息…");
+        progress("status", "i18n:activity:backend.readingProject");
         let project = store::find_project(&id)?;
         let repo = Path::new(&project.path);
         let operations = app.state::<git::GitOperationState>();
         let _operation = operations.try_acquire(repo)?;
-        progress("status", "正在汇总全部 Changes…");
+        progress("status", "i18n:activity:backend.collectingChanges");
         let diff = git::working_tree_diff(repo)?;
-        ai::generate_commit_message(&diff, Some(&progress))
+        ai::generate_commit_message(&diff, locale, Some(&progress))
     })
     .await
     .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
@@ -127,29 +128,30 @@ pub async fn one_click_commit(
     app: AppHandle,
     id: String,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<OneClickResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app.clone(), session_id);
-        progress("status", "正在读取项目信息…");
+        progress("status", "i18n:activity:backend.readingProject");
         let project = store::find_project(&id)?;
         let repo = Path::new(&project.path);
         let operations = app.state::<git::GitOperationState>();
         let _operation = operations.try_acquire(repo)?;
 
-        progress("status", "正在汇总全部 Changes…");
+        progress("status", "i18n:activity:backend.collectingChanges");
         let diff = git::working_tree_diff(repo)?;
 
-        progress("status", "AI 正在生成 Commit message…");
-        let message = ai::generate_commit_message(&diff, Some(&progress))?;
+        progress("status", "i18n:activity:backend.generatingCommit");
+        let message = ai::generate_commit_message(&diff, locale, Some(&progress))?;
 
-        progress("status", "正在创建 Commit 快照…");
+        progress("status", "i18n:activity:backend.creatingSnapshot");
         git::stage_all(repo)?;
         git::commit_staged(repo, &message)?;
 
-        progress("status", "正在推送到远程…");
+        progress("status", "i18n:activity:backend.pushing");
         git::push(repo)?;
 
-        progress("status", "一键提交完成");
+        progress("status", "i18n:activity:backend.oneClickDone");
         Ok(OneClickResult {
             message,
             pushed: true,
@@ -191,8 +193,36 @@ pub fn get_settings() -> AppResult<AppSettings> {
 }
 
 #[tauri::command]
+pub fn get_default_prompt_templates(locale: ResolvedLanguage) -> PromptTemplateSet {
+    crate::models::PromptTemplates::default()
+        .for_language(locale)
+        .clone()
+}
+
+#[tauri::command]
 pub fn update_settings(settings: AppSettings) -> AppResult<AppSettings> {
     store::update_settings(settings)
+}
+
+#[tauri::command]
+pub fn set_language_preference(
+    app: AppHandle,
+    preference: LanguagePreference,
+    resolved_language: ResolvedLanguage,
+) -> AppResult<AppSettings> {
+    let previous = store::get_settings()?.language;
+    let settings = store::set_language(preference)?;
+    if let Err(error) = crate::update_tray_language(&app, resolved_language) {
+        let _ = store::set_language(previous);
+        return Err(AppError::msg(error.to_string()));
+    }
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn sync_native_language(app: AppHandle, resolved_language: ResolvedLanguage) -> AppResult<()> {
+    crate::update_tray_language(&app, resolved_language)
+        .map_err(|error| AppError::msg(error.to_string()))
 }
 
 #[tauri::command]
@@ -200,10 +230,11 @@ pub async fn test_ai_connection(
     app: AppHandle,
     provider: AiProvider,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<AiConnectionTestResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app, session_id);
-        ai::test_connection(provider, Some(&progress))
+        ai::test_connection(provider, locale, Some(&progress))
     })
     .await
     .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
@@ -216,9 +247,9 @@ pub fn list_docs(id: String) -> AppResult<DocsOverview> {
 }
 
 #[tauri::command]
-pub fn ensure_docs(id: String) -> AppResult<DocsOverview> {
+pub fn ensure_docs(id: String, locale: ResolvedLanguage) -> AppResult<DocsOverview> {
     let project = store::find_project(&id)?;
-    docs::ensure_docs(Path::new(&project.path))
+    docs::ensure_docs(Path::new(&project.path), locale)
 }
 
 #[tauri::command]
@@ -333,10 +364,11 @@ pub async fn generate_tasks_from_goal(
     app: AppHandle,
     id: String,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<GenerateTasksResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app, session_id);
-        progress("status", "正在读取项目与 goal.md…");
+        progress("status", "i18n:activity:backend.readingGoal");
         let project = store::find_project(&id)?;
         let repo = Path::new(&project.path);
         let settings = store::get_settings()?;
@@ -364,18 +396,20 @@ pub async fn generate_tasks_from_goal(
             }
         );
 
-        progress("status", "AI 正在根据目标拆分任务…");
-        let ai_out = ai::run_goal(
-            repo,
-            &settings.goal_prompt_template,
-            &goal_md,
-            &context,
-            Some(&progress),
-        )?;
-        progress("status", "正在写入任务文件…");
+        progress("status", "i18n:activity:backend.planningTasks");
+        let template = &settings.prompt_templates.for_language(locale).goal;
+        let ai_out = ai::run_goal(repo, template, &goal_md, &context, locale, Some(&progress))?;
+        progress("status", "i18n:activity:backend.writingTasks");
         let created = docs::write_tasks_from_ai_output(repo, &ai_out)?;
         let overview = docs::list_docs(repo)?;
-        progress("status", &format!("已生成 {created} 个任务"));
+        progress(
+            "status",
+            &if locale.is_zh() {
+                format!("已生成 {created} 个任务")
+            } else {
+                format!("Generated {created} tasks")
+            },
+        );
         Ok(GenerateTasksResult { created, overview })
     })
     .await
@@ -388,10 +422,11 @@ pub async fn run_docs_task(
     id: String,
     relative_path: String,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<RunTaskResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app, session_id);
-        progress("status", "正在读取任务文档…");
+        progress("status", "i18n:activity:backend.readingTask");
         let project = store::find_project(&id)?;
         let repo = Path::new(&project.path);
         let settings = store::get_settings()?;
@@ -401,18 +436,20 @@ pub async fn run_docs_task(
             return Err(AppError::msg("任务文档为空"));
         }
 
-        progress("status", "AI 正在实现任务…");
+        progress("status", "i18n:activity:backend.implementingTask");
+        let template = &settings.prompt_templates.for_language(locale).task;
         let summary = ai::run_task(
             repo,
-            &settings.task_prompt_template,
+            template,
             &task_md,
             &relative_path,
+            locale,
             Some(&progress),
         )?;
-        progress("status", "正在写入任务结果…");
+        progress("status", "i18n:activity:backend.writingResult");
         docs::append_task_result(repo, &relative_path, &summary)?;
         let overview = docs::list_docs(repo)?;
-        progress("status", "任务执行完成");
+        progress("status", "i18n:activity:backend.taskDone");
         Ok(RunTaskResult { summary, overview })
     })
     .await
@@ -429,38 +466,27 @@ pub async fn suggest_run_targets(
     app: AppHandle,
     id: String,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<SuggestRunTargetsResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app, session_id);
         let emit = |kind: &str, text: &str| progress(kind, text);
 
-        emit("status", "正在读取项目信息…");
+        emit("status", "i18n:activity:backend.readingProject");
         let project = store::find_project(&id)?;
         let project_name = project.name.clone();
         let repo_path = project.path.clone();
 
-        emit(
-            "status",
-            &format!("正在扫描「{project_name}」的仓库结构与脚本…"),
-        );
+        emit("status", &if locale.is_zh() { format!("正在扫描「{project_name}」的仓库结构与脚本…") } else { format!("Scanning repository structure and scripts for “{project_name}”…") });
         let context = run::gather_context(Path::new(&repo_path))?;
-        emit(
-            "log",
-            &format!(
-                "已收集约 {} 字上下文，准备交给 AI…",
-                context.chars().count()
-            ),
-        );
+        emit("log", &if locale.is_zh() { format!("已收集约 {} 字上下文，准备交给 AI…", context.chars().count()) } else { format!("Collected about {} characters of context for AI analysis…", context.chars().count()) });
 
-        match ai::suggest_run_targets(Path::new(&repo_path), &context, Some(&progress)) {
+        match ai::suggest_run_targets(Path::new(&repo_path), &context, locale, Some(&progress)) {
             Ok(raw) => {
-                emit("status", "正在解析 AI 返回的启动目标…");
+                emit("status", "i18n:activity:backend.parsingTargets");
                 match run::parse_suggested_targets(&raw) {
                     Ok(targets) => {
-                        emit(
-                            "status",
-                            &format!("识别完成，共建议 {} 条启动目标", targets.len()),
-                        );
+                        emit("status", &if locale.is_zh() { format!("识别完成，共建议 {} 条启动目标", targets.len()) } else { format!("Identification complete with {} run-target suggestions", targets.len()) });
                         Ok(SuggestRunTargetsResult {
                             targets,
                             source: "ai".into(),
@@ -468,43 +494,30 @@ pub async fn suggest_run_targets(
                         })
                     }
                     Err(parse_err) => {
-                        emit(
-                            "log",
-                            &format!("AI 返回无法解析（{parse_err}），改用本地扫描…"),
-                        );
-                        let targets = run::suggest_from_fs(Path::new(&repo_path))?;
-                        emit(
-                            "status",
-                            &format!("已用本地扫描得到 {} 条建议", targets.len()),
-                        );
+                        emit("log", &if locale.is_zh() { format!("AI 返回无法解析（{parse_err}），改用本地扫描…") } else { format!("Could not parse the AI response ({parse_err}); using local scanning…") });
+                        let targets = run::suggest_from_fs(Path::new(&repo_path), locale)?;
+                        emit("status", &if locale.is_zh() { format!("已用本地扫描得到 {} 条建议", targets.len()) } else { format!("Local scanning produced {} suggestions", targets.len()) });
                         Ok(SuggestRunTargetsResult {
                             targets,
                             source: "heuristic".into(),
-                            warning: Some(format!(
-                                "AI 返回无法解析（{parse_err}），已改用本地 package.json 扫描结果"
-                            )),
+                            warning: Some(if locale.is_zh() { format!("AI 返回无法解析（{parse_err}），已改用本地 package.json 扫描结果") } else { format!("Could not parse the AI response ({parse_err}); using local package.json results") }),
                         })
                     }
                 }
             }
             Err(ai_err) => {
-                emit("error", &format!("AI 不可用：{ai_err}"));
-                emit("status", "正在回退到本地 package.json 扫描…");
-                let targets = run::suggest_from_fs(Path::new(&repo_path)).map_err(|scan_err| {
+                emit("error", &if locale.is_zh() { format!("AI 不可用：{ai_err}") } else { format!("AI is unavailable: {ai_err}") });
+                emit("status", "i18n:activity:backend.fallbackScan");
+                let targets = run::suggest_from_fs(Path::new(&repo_path), locale).map_err(|scan_err| {
                     AppError::msg(format!(
                         "{ai_err}\n\n本地扫描也失败：{scan_err}\n\n可在设置中切换 AI 通道，或运行 agent login / codex login 后重试；也可点「手动添加一条」。"
                     ))
                 })?;
-                emit(
-                    "status",
-                    &format!("已用本地扫描得到 {} 条建议", targets.len()),
-                );
+                emit("status", &if locale.is_zh() { format!("已用本地扫描得到 {} 条建议", targets.len()) } else { format!("Local scanning produced {} suggestions", targets.len()) });
                 Ok(SuggestRunTargetsResult {
                     targets,
                     source: "heuristic".into(),
-                    warning: Some(format!(
-                        "AI 不可用（{ai_err}）。已改用本地 package.json 扫描；可在「设置」登录对应 CLI 或切换通道后再识别。"
-                    )),
+                    warning: Some(if locale.is_zh() { format!("AI 不可用（{ai_err}）。已改用本地 package.json 扫描；可在「设置」登录对应 CLI 或切换通道后再识别。") } else { format!("AI is unavailable ({ai_err}). Local package.json scanning was used; sign in to the CLI or switch providers in Settings to retry.") }),
                 })
             }
         }
@@ -526,9 +539,18 @@ pub fn run_project_target(
         .iter()
         .find(|t| t.id == target_id)
         .cloned()
-        .ok_or_else(|| AppError::msg("未找到该启动目标"))?;
+        .ok_or_else(|| {
+            AppError::coded_with_params(
+                "runTargetNotFound",
+                [("id".into(), serde_json::json!(target_id))]
+                    .into_iter()
+                    .collect(),
+                None,
+            )
+        })?;
     // 对本仓库的「升级 APP」走专用自升级（先退出再替换），避免覆盖正在运行的自身。
-    if target.kind.as_deref() == Some("upgrade") && crate::upgrade::is_self_repo(Path::new(&project.path))
+    if target.kind.as_deref() == Some("upgrade")
+        && crate::upgrade::is_self_repo(Path::new(&project.path))
     {
         return crate::upgrade::start_self_upgrade(app, &manager);
     }
@@ -600,16 +622,31 @@ pub async fn generate_daily_completion(
     app: AppHandle,
     period: String,
     session_id: String,
+    locale: ResolvedLanguage,
 ) -> AppResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let progress = ai::make_progress_sink(app, session_id);
         let (period_label, since) = match period.as_str() {
-            "today" => ("今天", "midnight"),
-            "week" => ("本周", "monday"),
-            "sevenDays" => ("过去 7 天", "7 days ago"),
+            "today" => (if locale.is_zh() { "今天" } else { "today" }, "midnight"),
+            "week" => (
+                if locale.is_zh() {
+                    "本周"
+                } else {
+                    "this week"
+                },
+                "monday",
+            ),
+            "sevenDays" => (
+                if locale.is_zh() {
+                    "过去 7 天"
+                } else {
+                    "the past 7 days"
+                },
+                "7 days ago",
+            ),
             _ => return Err(AppError::msg("不支持的总结时间范围")),
         };
-        progress("status", "正在收集各项目的 commit message…");
+        progress("status", "i18n:activity:backend.collectingCommits");
         let mut lines = Vec::new();
         for project in store::list_projects()? {
             match git::commit_subjects_since(Path::new(&project.path), since) {
@@ -621,7 +658,7 @@ pub async fn generate_daily_completion(
                 Err(err) => progress("log", &format!("跳过 {}：{err}", project.name)),
             }
         }
-        ai::summarize_daily_completion(period_label, &lines.join("\n"), Some(&progress))
+        ai::summarize_daily_completion(period_label, &lines.join("\n"), locale, Some(&progress))
     })
     .await
     .map_err(|e| AppError::msg(format!("总结任务中断：{e}")))?

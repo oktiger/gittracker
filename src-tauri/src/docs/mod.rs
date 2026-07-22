@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{DocsOverview, DocsTaskItem, DocumentLibrary, DocumentNode};
+use crate::models::{DocsOverview, DocsTaskItem, DocumentLibrary, DocumentNode, ResolvedLanguage};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -233,17 +233,19 @@ pub fn list_docs(project_path: &Path) -> AppResult<DocsOverview> {
     })
 }
 
-pub fn ensure_docs(project_path: &Path) -> AppResult<DocsOverview> {
+pub fn ensure_docs(project_path: &Path, locale: ResolvedLanguage) -> AppResult<DocsOverview> {
     let goal_dir = docs_root(project_path).join(GOAL_DIR);
     let td = task_dir(project_path);
     fs::create_dir_all(&goal_dir)?;
     fs::create_dir_all(&td)?;
     let goal = goal_path(project_path);
     if !goal.exists() {
-        fs::write(
-            &goal,
-            "# 项目目标\n\n## 这个项目要达成什么？\n\n请在这里清晰描述项目的长期目标、要解决的问题，以及成功的标准。\n\n## 示例\n\n> 为团队打造一个统一的 Git 项目看板：能够快速了解各项目的变更状态，并通过 AI 协助完成提交、任务拆解和实现，让日常开发流程更清晰、更高效。\n\n你可以直接将以上示例替换为自己的项目目标。\n",
-        )?;
+        let initial = if locale.is_zh() {
+            "# 项目目标\n\n## 这个项目要达成什么？\n\n请在这里清晰描述项目的长期目标、要解决的问题，以及成功的标准。\n\n## 示例\n\n> 为团队打造一个统一的 Git 项目看板：能够快速了解各项目的变更状态，并通过 AI 协助完成提交、任务拆解和实现，让日常开发流程更清晰、更高效。\n\n你可以直接将以上示例替换为自己的项目目标。\n"
+        } else {
+            "# Project Goal\n\n## What should this project achieve?\n\nDescribe the long-term goal, the problem to solve, and the criteria for success.\n\n## Example\n\n> Build a unified Git project board that makes repository status easy to understand and uses AI to assist with commits, task planning, and implementation.\n\nReplace this example with your own project goal.\n"
+        };
+        fs::write(&goal, initial)?;
     }
     list_docs(project_path)
 }
@@ -282,9 +284,7 @@ pub fn write_tasks_from_ai_output(project_path: &Path, ai_output: &str) -> AppRe
         let slug = slugify(&title);
         let filename = format!("{next_num:03}-{slug}.md");
         let path = task_dir(project_path).join(&filename);
-        let content = format!(
-            "---\nstatus: pending\n---\n\n# {title}\n\n{body}\n"
-        );
+        let content = format!("---\nstatus: pending\n---\n\n# {title}\n\n{body}\n");
         fs::write(path, content)?;
         next_num += 1;
         created += 1;
@@ -292,11 +292,7 @@ pub fn write_tasks_from_ai_output(project_path: &Path, ai_output: &str) -> AppRe
     Ok(created)
 }
 
-pub fn append_task_result(
-    project_path: &Path,
-    relative: &str,
-    summary: &str,
-) -> AppResult<()> {
+pub fn append_task_result(project_path: &Path, relative: &str, summary: &str) -> AppResult<()> {
     let path = resolve_docs_path(project_path, relative)?;
     let mut content = if path.is_file() {
         fs::read_to_string(&path)?
@@ -345,10 +341,7 @@ fn next_task_number(project_path: &Path) -> AppResult<u32> {
 }
 
 fn parse_task_filename(name: &str) -> (u32, String) {
-    let stem = name
-        .rsplit_once('.')
-        .map(|(s, _)| s)
-        .unwrap_or(name);
+    let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(name);
     if let Some((num, rest)) = stem.split_once('-') {
         if let Ok(n) = num.parse::<u32>() {
             let title = rest.replace('-', " ");
@@ -432,7 +425,10 @@ pub fn parse_tasks_from_output(raw: &str) -> Vec<(String, String)> {
             if let Some(t) = title {
                 let t = t.trim();
                 if !t.is_empty() && t.len() < 80 {
-                    tasks.push((t.to_string(), format!("- 要做什么：{t}\n- 验收标准：待补充\n")));
+                    tasks.push((
+                        t.to_string(),
+                        format!("- 要做什么：{t}\n- 验收标准：待补充\n"),
+                    ));
                 }
             }
         }
@@ -507,5 +503,18 @@ body: |
         let tasks = parse_tasks_from_output(raw);
         assert_eq!(tasks.len(), 2);
         assert_eq!(tasks[0].0, "调研");
+    }
+
+    #[test]
+    fn initializes_goal_in_requested_language_without_overwriting() {
+        let root = std::env::temp_dir().join(format!("gittracker-i18n-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        ensure_docs(&root, ResolvedLanguage::En).unwrap();
+        let goal = fs::read_to_string(goal_path(&root)).unwrap();
+        assert!(goal.contains("# Project Goal"));
+        fs::write(goal_path(&root), "custom").unwrap();
+        ensure_docs(&root, ResolvedLanguage::ZhCn).unwrap();
+        assert_eq!(fs::read_to_string(goal_path(&root)).unwrap(), "custom");
+        fs::remove_dir_all(root).unwrap();
     }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
 import {
@@ -18,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { formatBackendError, translateMessage } from "../i18n";
+import type { TFunction } from "i18next";
 
 type Draft = RunTarget & { checked: boolean };
 
@@ -42,26 +45,13 @@ function toDraft(targets: RunTarget[], allChecked = true): Draft[] {
   }));
 }
 
-function kindLabel(kind: string): string {
-  switch (kind) {
-    case "status":
-      return "状态";
-    case "thinking":
-      return "思考";
-    case "assistant":
-      return "AI";
-    case "log":
-      return "日志";
-    case "error":
-      return "错误";
-    default:
-      return kind;
-  }
+function kindLabel(kind: string, t: TFunction<any>): string {
+  return t(`activity:transcript.${kind}`, { defaultValue: kind });
 }
 
-function formatTranscriptLines(lines: AiTranscriptLine[]): string {
+function formatTranscriptLines(lines: AiTranscriptLine[], t: TFunction<any>): string {
   return lines
-    .map((line) => `${kindLabel(line.kind)}：${line.text}`)
+    .map((line) => `${kindLabel(line.kind, t)}: ${line.text}`)
     .join("\n");
 }
 
@@ -73,58 +63,58 @@ function formatAiRunForCopy(opts: {
   resultSummary: string | null;
   error: string | null;
   phase: "running" | "done" | "edit";
-}): string {
+}, t: TFunction<any>): string {
   const status =
     opts.error
-      ? "失败"
+      ? t("activity:runStatus.failed")
       : opts.phase === "running"
-        ? "进行中"
-        : "完成";
+        ? t("activity:ai.phase.running")
+        : t("activity:ai.phase.done");
   const lines = [
-    "# GitTracker AI 运行过程（反馈用）",
+    t("activity:copy.aiTitle"),
     "",
-    `标题: ${opts.title}`,
-    `说明: ${opts.subtitle}`,
-    `状态: ${status}`,
+    t("activity:copy.title", { value: opts.title }),
+    t("activity:copy.description", { value: opts.subtitle }),
+    t("activity:copy.status", { value: status }),
     "",
   ];
 
   if (opts.transcript.length > 0) {
-    lines.push("## AI 过程", "", formatTranscriptLines(opts.transcript), "");
+    lines.push(t("activity:copy.process"), "", formatTranscriptLines(opts.transcript, t), "");
   }
 
   if (opts.resultSummary?.trim()) {
-    lines.push("## 结果", "", opts.resultSummary.trim(), "");
+    lines.push(t("activity:copy.result"), "", opts.resultSummary.trim(), "");
   }
 
   if (opts.error?.trim()) {
-    lines.push("## 错误", "", opts.error.trim(), "");
+    lines.push(t("activity:copy.error"), "", opts.error.trim(), "");
   }
 
   lines.push(
     "---",
-    "请根据以上 AI 运行过程帮忙分析问题原因，并给出可执行的修复建议。",
+    t("activity:copy.feedback"),
   );
   return lines.join("\n");
 }
 
-function bootLine(session: AiPanelSession): AiTranscriptLine {
+function bootLine(session: AiPanelSession, t: TFunction<any>): AiTranscriptLine {
   const text = (() => {
     switch (session.kind) {
       case "dailyCompletion":
-        return `开始整理${session.period === "week" ? "本周" : session.period === "sevenDays" ? "过去 7 天" : "本日"}的完成事项…`;
+        return t("activity:ai.boot.daily", { period: t(`projects:daily.${session.period}`) });
       case "identify":
-        return `开始识别「${session.projectName}」的启动方式…`;
+        return t("activity:ai.boot.identify", { project: session.projectName });
       case "testConnection":
-        return `开始测试 ${session.provider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI"}…`;
+        return t("activity:ai.boot.test", { provider: session.provider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI" });
       case "generateCommit":
-        return `开始为「${session.projectName}」生成 Commit message…`;
+        return t("activity:ai.boot.commit", { project: session.projectName });
       case "oneClick":
-        return `一键提交「${session.projectName}」：AI → Commit → Push…`;
+        return t("activity:ai.boot.oneClick", { project: session.projectName });
       case "generateTasks":
-        return `根据 Goal 为「${session.projectName}」生成任务…`;
+        return t("activity:ai.boot.tasks", { project: session.projectName });
       case "runTask":
-        return `实现任务 ${session.taskNumber}「${session.taskTitle}」…`;
+        return t("activity:ai.boot.implement", { number: session.taskNumber, title: session.taskTitle });
       case "config":
         return "";
     }
@@ -142,6 +132,8 @@ export function AiSidePanel({
   onToast,
   onCopyContent,
 }: Props) {
+  const { t } = useTranslation(["activity", "common", "projects", "errors"]);
+  const outputLanguage = session.outputLanguage ?? "en";
   const needsAi = session.kind !== "config";
   const [phase, setPhase] = useState<"running" | "done" | "edit">(
     session.kind === "config"
@@ -159,7 +151,7 @@ export function AiSidePanel({
             : [
                 {
                   id: "",
-                  name: "开发",
+                  name: t("activity:ai.development"),
                   cwd: ".",
                   command: "npm run dev",
                   isDefault: true,
@@ -172,7 +164,7 @@ export function AiSidePanel({
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [transcript, setTranscript] = useState<AiTranscriptLine[]>(() => {
-    const boot = bootLine(session);
+    const boot = bootLine(session, t);
     return boot.text ? [boot] : [];
   });
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
@@ -199,7 +191,7 @@ export function AiSidePanel({
     const unlistenPromise = listen<AiProgressEvent>("ai-progress", (event) => {
       const payload = event.payload;
       if (!payload || payload.sessionId !== sessionId) return;
-      const text = (payload.text || "").trimEnd();
+      const text = translateMessage(payload.message, payload.text || "").trimEnd();
       if (!text) return;
       lineIdRef.current += 1;
       const id = `line-${lineIdRef.current}`;
@@ -236,23 +228,23 @@ export function AiSidePanel({
       try {
         switch (session.kind) {
           case "dailyCompletion": {
-            const result = await api.generateDailyCompletion(session.period, sessionId);
+            const result = await api.generateDailyCompletion(session.period, sessionId, outputLanguage);
             if (cancelled) return;
-            const periodLabel = session.period === "week" ? "本周" : session.period === "sevenDays" ? "过去 7 天" : "本日";
+            const periodLabel = t(`projects:daily.${session.period}`);
             onLog({
               kind: "dailyCompletion",
               status: "ok",
-              title: `${session.automatic ? "自动" : "手动"}总结每日完成 · ${periodLabel}`,
+              title: t("activity:ai.log.dailyTitle", { mode: t(session.automatic ? "activity:ai.log.automatic" : "activity:ai.log.manual"), period: periodLabel }),
               detail: result,
             });
             setResultSummary(result);
             session.onResult?.(result);
-            onToast?.(session.automatic ? "已自动生成每日完成" : "每日完成已生成");
+            onToast?.(session.automatic ? t("activity:ai.done.dailyAutomatic") : t("activity:ai.done.daily"));
             setPhase("done");
             break;
           }
           case "identify": {
-            const result = await api.suggestRunTargets(session.projectId, sessionId);
+            const result = await api.suggestRunTargets(session.projectId, sessionId, outputLanguage);
             if (cancelled) return;
             setDrafts(toDraft(result.targets));
             if (result.warning) setError(result.warning);
@@ -267,39 +259,39 @@ export function AiSidePanel({
             onLog({
               kind: "suggestRunTargets",
               status: "ok",
-              title: `识别启动方式 · ${session.projectName}`,
+              title: t("activity:ai.log.identifyTitle", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: `来源: ${result.source}\n建议 ${result.targets.length} 条:\n${preview || "（空）"}`,
+              detail: t("activity:ai.log.source", { source: result.source, count: result.targets.length, preview: preview || t("activity:ai.log.empty") }),
               error: result.warning ?? undefined,
             });
             setPhase("edit");
             break;
           }
           case "testConnection": {
-            const result = await api.testAiConnection(session.provider, sessionId);
+            const result = await api.testAiConnection(session.provider, sessionId, outputLanguage);
             if (cancelled) return;
             const label = result.providerLabel;
-            const process = formatTranscriptLines(transcriptRef.current);
+            const process = formatTranscriptLines(transcriptRef.current, t);
             onLog({
               kind: "testConnection",
               status: "ok",
-              title: `测试 ${label}`,
+              title: t("activity:ai.log.testTitle", { provider: label }),
               detail: [
                 `Provider: ${label}`,
-                `回复: ${result.reply}`,
-                process ? `\n## AI 过程\n${process}` : "",
+                t("activity:ai.log.reply", { reply: result.reply }),
+                process ? `\n${t("activity:copy.process")}\n${process}` : "",
               ]
                 .filter(Boolean)
                 .join("\n"),
             });
-            setResultSummary(`${label} 回复：${result.reply}`);
+            setResultSummary(`${label}: ${result.reply}`);
             session.onResult(true, result.reply);
             setPhase("done");
             break;
           }
           case "generateCommit": {
-            const msg = await api.generateCommitMessage(session.projectId, sessionId);
+            const msg = await api.generateCommitMessage(session.projectId, sessionId, outputLanguage);
             if (cancelled) return;
             onLog({
               kind: "generateCommit",
@@ -307,7 +299,7 @@ export function AiSidePanel({
               title: `AI Generate · ${session.projectName}`,
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: `生成的 Commit message:\n${msg}`,
+              detail: t("activity:ai.log.generatedCommit", { message: msg }),
             });
             setResultSummary(msg);
             session.onResult(msg);
@@ -315,37 +307,35 @@ export function AiSidePanel({
             break;
           }
           case "oneClick": {
-            const result = await api.oneClickCommit(session.projectId, sessionId);
+            const result = await api.oneClickCommit(session.projectId, sessionId, outputLanguage);
             if (cancelled) return;
             onLog({
               kind: "oneClick",
               status: "ok",
-              title: `一键提交 · ${session.projectName}`,
+              title: t("activity:ai.log.oneClickTitle", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: `Message:\n${result.message}\n\n已推送: ${result.pushed ? "是" : "否"}`,
+              detail: t("activity:ai.log.pushed", { message: result.message, pushed: t(result.pushed ? "common:state.yes" : "common:state.no") }),
             });
-            setResultSummary(
-              `已提交并推送：\n${result.message.split("\n")[0] ?? result.message}`,
-            );
-            onToast?.(`已提交并推送：${result.message.split("\n")[0]}`);
+            setResultSummary(t("activity:ai.done.commitPushed", { message: result.message.split("\n")[0] ?? result.message }));
+            onToast?.(t("activity:ai.done.commitPushed", { message: result.message.split("\n")[0] }));
             onProjectRefresh?.(session.projectId);
             setPhase("done");
             break;
           }
           case "generateTasks": {
-            const result = await api.generateTasksFromGoal(session.projectId, sessionId);
+            const result = await api.generateTasksFromGoal(session.projectId, sessionId, outputLanguage);
             if (cancelled) return;
             onLog({
               kind: "generateTasks",
               status: "ok",
-              title: `生成任务 · ${session.projectName}`,
+              title: t("activity:ai.log.tasksTitle", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: `新建 ${result.created} 条任务\n当前共 ${result.overview.tasks.length} 条`,
+              detail: t("activity:ai.log.tasksDetail", { created: result.created, total: result.overview.tasks.length }),
             });
-            setResultSummary(`已生成 ${result.created} 条任务`);
-            onToast?.(`已生成 ${result.created} 条任务`);
+            setResultSummary(t("activity:ai.done.tasks", { count: result.created }));
+            onToast?.(t("activity:ai.done.tasks", { count: result.created }));
             onProjectRefresh?.(session.projectId);
             setPhase("done");
             break;
@@ -355,18 +345,19 @@ export function AiSidePanel({
               session.projectId,
               session.relativePath,
               sessionId,
+              outputLanguage,
             );
             if (cancelled) return;
             onLog({
               kind: "runTask",
               status: "ok",
-              title: `实现任务 ${session.taskNumber} · ${session.taskTitle}`,
+              title: t("activity:ai.log.taskTitle", { number: session.taskNumber, title: session.taskTitle }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: `路径: ${session.relativePath}\n\n实现摘要:\n${result.summary || "（无摘要）"}`,
+              detail: t("activity:ai.log.taskDetail", { path: session.relativePath, summary: result.summary || t("activity:ai.log.noSummary") }),
             });
-            setResultSummary(result.summary || `已实现 ${session.taskNumber}`);
-            onToast?.(`已实现 ${session.taskNumber}`);
+            setResultSummary(result.summary || t("activity:ai.done.task", { number: session.taskNumber }));
+            onToast?.(t("activity:ai.done.task", { number: session.taskNumber }));
             onProjectRefresh?.(session.projectId);
             setPhase("done");
             break;
@@ -376,15 +367,15 @@ export function AiSidePanel({
         }
       } catch (e) {
         if (cancelled) return;
-        const err = String(e);
+        const err = formatBackendError(e, t);
         setError(err);
         switch (session.kind) {
           case "dailyCompletion":
             onLog({
               kind: "dailyCompletion",
               status: "error",
-              title: "每日完成总结失败",
-              detail: "根据各项目 commit message，经统一 AI 通道生成总结。",
+              title: t("activity:ai.dailyFailed"),
+              detail: t("activity:ai.log.dailyFailure"),
               error: err,
             });
             setPhase("done");
@@ -393,17 +384,17 @@ export function AiSidePanel({
             onLog({
               kind: "suggestRunTargets",
               status: "error",
-              title: `识别启动方式失败 · ${session.projectName}`,
+              title: t("activity:ai.identifyFailed", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: "经统一 AI 通道分析仓库并建议 Run Targets。",
+              detail: t("activity:ai.log.identifyFailure"),
               error: err,
             });
             setDrafts(
               toDraft([
                 {
                   id: "",
-                  name: "开发",
+                  name: t("activity:ai.development"),
                   cwd: ".",
                   command: "npm run dev",
                   isDefault: true,
@@ -415,15 +406,15 @@ export function AiSidePanel({
           case "testConnection": {
             const label =
               session.provider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI";
-            const process = formatTranscriptLines(transcriptRef.current);
+            const process = formatTranscriptLines(transcriptRef.current, t);
             onLog({
               kind: "testConnection",
               status: "error",
-              title: `测试 ${label} 失败`,
+              title: t("activity:ai.testFailed", { provider: label }),
               detail: [
                 `Provider: ${label}`,
-                "验证 CLI 已安装并可返回最小只读回复。",
-                process ? `\n## AI 过程\n${process}` : "",
+                t("activity:ai.log.testFailure"),
+                process ? `\n${t("activity:copy.process")}\n${process}` : "",
               ]
                 .filter(Boolean)
                 .join("\n"),
@@ -437,10 +428,10 @@ export function AiSidePanel({
             onLog({
               kind: "generateCommit",
               status: "error",
-              title: `AI Generate 失败 · ${session.projectName}`,
+              title: t("activity:ai.generateFailed", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: "根据当前 Worktree 的全部 Changes，经统一 AI 通道生成 Commit message。",
+              detail: t("activity:ai.log.generateFailure"),
               error: err,
             });
             session.onError?.(err);
@@ -450,10 +441,10 @@ export function AiSidePanel({
             onLog({
               kind: "oneClick",
               status: "error",
-              title: `一键提交失败 · ${session.projectName}`,
+              title: t("activity:ai.oneClickFailed", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: "流程：AI 生成 Commit Message → Commit → Push",
+              detail: t("activity:ai.log.oneClickFailure"),
               error: err,
             });
             onProjectRefresh?.(session.projectId);
@@ -463,10 +454,10 @@ export function AiSidePanel({
             onLog({
               kind: "generateTasks",
               status: "error",
-              title: `生成任务失败 · ${session.projectName}`,
+              title: t("activity:ai.tasksFailed", { project: session.projectName }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。",
+              detail: t("activity:ai.log.tasksFailure"),
               error: err,
             });
             setPhase("done");
@@ -475,10 +466,10 @@ export function AiSidePanel({
             onLog({
               kind: "runTask",
               status: "error",
-              title: `实现任务失败 ${session.taskNumber} · ${session.taskTitle}`,
+              title: t("activity:ai.taskFailed", { number: session.taskNumber, title: session.taskTitle }),
               projectId: session.projectId,
               projectName: session.projectName,
-              detail: `路径: ${session.relativePath}`,
+              detail: t("activity:ai.log.path", { path: session.relativePath }),
               error: err,
             });
             setPhase("done");
@@ -502,10 +493,10 @@ export function AiSidePanel({
   const handleClose = () => {
     if (closedRef.current) return;
     if (phase === "running" && session.kind === "generateCommit") {
-      session.onError?.("已取消");
+      session.onError?.(t("activity:ai.cancelled"));
     }
     if (phase === "running" && session.kind === "testConnection") {
-      session.onResult(false, "已取消");
+      session.onResult(false, t("activity:ai.cancelled"));
     }
     onClose();
   };
@@ -529,7 +520,7 @@ export function AiSidePanel({
       ...prev,
       {
         id: `new-${Date.now()}`,
-        name: "自定义",
+        name: t("activity:ai.custom"),
         cwd: ".",
         command: "npm run dev",
         isDefault: prev.length === 0,
@@ -542,12 +533,12 @@ export function AiSidePanel({
     if (session.kind !== "identify" && session.kind !== "config") return;
     const kept = drafts.filter((d) => d.checked);
     if (kept.length === 0) {
-      setError("请至少勾选一条启动目标");
+      setError(t("activity:ai.selectRequired"));
       return;
     }
     for (const d of kept) {
       if (!d.name.trim() || !d.command.trim()) {
-        setError("名称和命令不能为空");
+        setError(t("activity:ai.fieldsRequired"));
         return;
       }
     }
@@ -571,7 +562,7 @@ export function AiSidePanel({
       onLog({
         kind: "saveRunTargets",
         status: "ok",
-        title: `保存启动目标 · ${session.projectName}`,
+        title: t("activity:ai.saveTitle", { project: session.projectName }),
         projectId: session.projectId,
         projectName: session.projectName,
         detail: saved
@@ -581,11 +572,11 @@ export function AiSidePanel({
       onTargetsSaved?.(session.projectId, saved);
       onClose();
     } catch (e) {
-      const err = String(e);
+      const err = formatBackendError(e, t);
       onLog({
         kind: "saveRunTargets",
         status: "error",
-        title: `保存启动目标失败 · ${session.projectName}`,
+        title: t("activity:ai.saveFailed", { project: session.projectName }),
         projectId: session.projectId,
         projectName: session.projectName,
         error: err,
@@ -597,9 +588,9 @@ export function AiSidePanel({
   };
 
   const title = phase === "edit" && session.kind === "identify"
-    ? "确认启动目标"
-    : aiSessionTitle(session);
-  const subtitle = aiSessionSubtitle(session);
+    ? t("activity:ai.configTitle")
+    : aiSessionTitle(session, t);
+  const subtitle = aiSessionSubtitle(session, t);
 
   const canCopy =
     transcript.length > 0 || Boolean(resultSummary) || Boolean(error);
@@ -613,7 +604,7 @@ export function AiSidePanel({
       resultSummary,
       error,
       phase,
-    }));
+    }, t));
   }, [error, onCopyContent, phase, resultSummary, subtitle, title, transcript]);
 
   const copyAiRun = async () => {
@@ -625,14 +616,14 @@ export function AiSidePanel({
       resultSummary,
       error,
       phase,
-    });
+    }, t);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      onToast?.("已复制，可粘贴给 AI");
+      onToast?.(t("activity:logs.copySuccess"));
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      onToast?.("复制失败，请手动选择文本");
+      onToast?.(t("activity:center.copyFailed"));
     }
   };
 
@@ -643,7 +634,7 @@ export function AiSidePanel({
           key={line.id}
           className="break-all whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90"
         >
-          {`${kindLabel(line.kind)}：${line.text}`}
+          {`${kindLabel(line.kind, t)}: ${line.text}`}
         </pre>
       ))}
     </div>
@@ -659,7 +650,7 @@ export function AiSidePanel({
           <h3 className="truncate text-sm font-medium">{title}</h3>
           <p className="truncate text-xs text-muted-foreground">
             {subtitle}
-            {phase === "running" ? " · 进行中" : ""}
+            {phase === "running" ? ` · ${t("activity:ai.phase.running")}` : ""}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -669,10 +660,10 @@ export function AiSidePanel({
             size="xs"
             onClick={() => void copyAiRun()}
             disabled={!canCopy || saving}
-            aria-label="复制 AI 运行过程"
-            title="复制整段 AI 过程"
+            aria-label={t("activity:ai.copy")}
+            title={t("activity:ai.copyTitle")}
           >
-            {copied ? "已复制" : "复制"}
+            {copied ? t("common:actions.copied") : t("common:actions.copy")}
           </Button>
           <Button
             type="button"
@@ -680,7 +671,7 @@ export function AiSidePanel({
             size="icon-xs"
             onClick={handleClose}
             disabled={saving}
-            aria-label="关闭会话"
+            aria-label={t("activity:ai.close")}
           >
             ×
           </Button>
@@ -693,13 +684,13 @@ export function AiSidePanel({
             {renderTranscript()}
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-              进行中…
+              {t("activity:ai.phase.running")}…
             </div>
             <div ref={transcriptEndRef} />
           </div>
           <div className="flex justify-end">
             <Button type="button" variant="outline" size="sm" onClick={handleClose}>
-              取消
+              {t("common:actions.cancel")}
             </Button>
           </div>
         </div>
@@ -710,7 +701,7 @@ export function AiSidePanel({
           {transcript.length > 0 && (
             <details open className="rounded-md border border-border">
               <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
-                AI 过程（{transcript.length} 条）
+                {t("activity:ai.processCount", { count: transcript.length })}
               </summary>
               <div className="border-t border-border p-2">{renderTranscript(true)}</div>
             </details>
@@ -723,7 +714,7 @@ export function AiSidePanel({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex justify-end">
             <Button type="button" size="sm" onClick={onClose}>
-              完成
+              {t("activity:ai.phase.done")}
             </Button>
           </div>
         </div>
@@ -734,7 +725,7 @@ export function AiSidePanel({
           {transcript.length > 0 && (
             <details className="rounded-md border border-border">
               <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
-                查看 AI 过程（{transcript.length} 条）
+                {t("activity:ai.showProcess", { count: transcript.length })}
               </summary>
               <div className="border-t border-border p-2">{renderTranscript(true)}</div>
             </details>
@@ -742,14 +733,14 @@ export function AiSidePanel({
 
           <p className="text-xs text-muted-foreground">
             {session.kind === "config"
-              ? "编辑启动目标。保存后可从运行菜单选择。"
-              : "请勾选需要保留的项，可改名称、说明、目录与命令。"}
+              ? t("activity:ai.configDescription")
+              : t("activity:ai.identifyDescription")}
           </p>
           {error ? (
             <p
               className={cn(
                 "text-sm",
-                error.includes("已改用本地") ? "text-amber-400" : "text-destructive",
+                session.kind === "identify" ? "text-amber-400" : "text-destructive",
               )}
             >
               {error}
@@ -771,12 +762,12 @@ export function AiSidePanel({
                     className="size-4 accent-primary"
                     checked={d.checked}
                     onChange={(e) => updateDraft(idx, { checked: e.target.checked })}
-                    aria-label={`选用 ${d.name}`}
+                    aria-label={t("activity:ai.selectTarget", { name: d.name })}
                   />
                   <Input
                     value={d.name}
                     onChange={(e) => updateDraft(idx, { name: e.target.value })}
-                    placeholder="名称，如：启动 APP"
+                    placeholder={t("activity:ai.namePlaceholder")}
                     className="h-8"
                   />
                   <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -786,23 +777,23 @@ export function AiSidePanel({
                       checked={Boolean(d.isDefault)}
                       onChange={() => setDefault(idx)}
                     />
-                    默认
+                    {t("activity:ai.default")}
                   </label>
                 </div>
                 <div className="space-y-2">
                   <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">说明</Label>
+                    <Label className="text-[11px] text-muted-foreground">{t("activity:ai.description")}</Label>
                     <Input
                       value={d.description ?? ""}
                       onChange={(e) =>
                         updateDraft(idx, { description: e.target.value || null })
                       }
-                      placeholder="一句话说明用途"
+                      placeholder={t("activity:ai.descriptionPlaceholder")}
                       className="h-8"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">目录</Label>
+                    <Label className="text-[11px] text-muted-foreground">{t("activity:ai.directory")}</Label>
                     <Input
                       value={d.cwd}
                       onChange={(e) => updateDraft(idx, { cwd: e.target.value })}
@@ -811,7 +802,7 @@ export function AiSidePanel({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">命令</Label>
+                    <Label className="text-[11px] text-muted-foreground">{t("activity:ai.command")}</Label>
                     <Input
                       value={d.command}
                       onChange={(e) => updateDraft(idx, { command: e.target.value })}
@@ -826,10 +817,10 @@ export function AiSidePanel({
 
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={addRow} disabled={saving}>
-              手动添加
+              {t("activity:ai.manualAdd")}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
-              取消
+              {t("common:actions.cancel")}
             </Button>
             <Button
               type="button"
@@ -837,7 +828,7 @@ export function AiSidePanel({
               onClick={() => void onSaveTargets()}
               disabled={saving}
             >
-              {saving ? "保存中…" : "保存"}
+              {saving ? t("common:actions.saving") : t("common:actions.save")}
             </Button>
           </div>
         </div>

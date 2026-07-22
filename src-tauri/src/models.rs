@@ -1,4 +1,13 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalizedMessage {
+    pub key: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub params: HashMap<String, serde_json::Value>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +63,12 @@ pub struct RunProgressEvent {
     pub kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<String>,
-    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<LocalizedMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub success: Option<bool>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -82,6 +96,32 @@ pub enum AiProvider {
     #[default]
     Codex,
     CursorAgent,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum LanguagePreference {
+    #[default]
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+    #[serde(rename = "en")]
+    En,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ResolvedLanguage {
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+    #[default]
+    #[serde(rename = "en")]
+    En,
+}
+
+impl ResolvedLanguage {
+    pub fn is_zh(self) -> bool {
+        matches!(self, Self::ZhCn)
+    }
 }
 
 pub fn default_goal_prompt_template() -> String {
@@ -115,20 +155,92 @@ pub fn default_task_prompt_template() -> String {
     .to_string()
 }
 
+pub fn default_goal_prompt_template_en() -> String {
+    r#"You are a project planning assistant. Break the project goal and repository context below into executable tasks.
+
+You may consult public sources, but the goal and current repository are authoritative. Do not invent modules that do not exist.
+
+Output requirements:
+1. Output only the task list, with no introduction or conclusion
+2. Each task must be small enough for one person or one AI implementation run
+3. Repeat this exact format:
+
+### Task
+title: A title of at most 12 words
+body: |
+  - What to implement
+  - Acceptance criteria
+  - Relevant paths or modules, when known
+"#.to_string()
+}
+
+pub fn default_task_prompt_template_en() -> String {
+    r#"You are an implementation assistant. Implement the task document below in the current project directory.
+
+Requirements:
+1. Modify or create the necessary files and complete the task
+2. Do not run git commit or git push
+3. Finish with a concise implementation summary describing what changed and how to verify it
+"#.to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptTemplateSet {
+    pub goal: String,
+    pub task: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptTemplates {
+    #[serde(rename = "zh-CN")]
+    pub zh_cn: PromptTemplateSet,
+    pub en: PromptTemplateSet,
+}
+
+impl Default for PromptTemplates {
+    fn default() -> Self {
+        Self {
+            zh_cn: PromptTemplateSet {
+                goal: default_goal_prompt_template(),
+                task: default_task_prompt_template(),
+            },
+            en: PromptTemplateSet {
+                goal: default_goal_prompt_template_en(),
+                task: default_task_prompt_template_en(),
+            },
+        }
+    }
+}
+
+impl PromptTemplates {
+    pub fn for_language(&self, locale: ResolvedLanguage) -> &PromptTemplateSet {
+        if locale.is_zh() {
+            &self.zh_cn
+        } else {
+            &self.en
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub ai_provider: AiProvider,
+    #[serde(default)]
+    pub language: LanguagePreference,
     /// 每日完成自动生成开关；默认关闭。
     #[serde(default)]
     pub daily_completion_enabled: bool,
     /// 本地时间，格式 HH:MM。
     #[serde(default = "default_daily_completion_time")]
     pub daily_completion_time: String,
-    #[serde(default = "default_goal_prompt_template")]
-    pub goal_prompt_template: String,
-    #[serde(default = "default_task_prompt_template")]
-    pub task_prompt_template: String,
+    #[serde(default)]
+    pub prompt_templates: PromptTemplates,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal_prompt_template: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_prompt_template: Option<String>,
 }
 
 fn default_daily_completion_time() -> String {
@@ -139,11 +251,58 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             ai_provider: AiProvider::Codex,
+            language: LanguagePreference::System,
             daily_completion_enabled: false,
             daily_completion_time: default_daily_completion_time(),
-            goal_prompt_template: default_goal_prompt_template(),
-            task_prompt_template: default_task_prompt_template(),
+            prompt_templates: PromptTemplates::default(),
+            goal_prompt_template: None,
+            task_prompt_template: None,
         }
+    }
+}
+
+impl AppSettings {
+    pub fn migrate_legacy_prompts(&mut self) {
+        if let Some(goal) = self.goal_prompt_template.take() {
+            self.prompt_templates.zh_cn.goal = goal;
+        }
+        if let Some(task) = self.task_prompt_template.take() {
+            self.prompt_templates.zh_cn.task = task;
+        }
+    }
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_prompts_migrate_without_losing_custom_content() {
+        let raw = r#"{"aiProvider":"codex","dailyCompletionEnabled":false,"dailyCompletionTime":"18:00","goalPromptTemplate":"custom goal","taskPromptTemplate":"custom task"}"#;
+        let mut settings: AppSettings = serde_json::from_str(raw).unwrap();
+        settings.migrate_legacy_prompts();
+        assert_eq!(settings.language, LanguagePreference::System);
+        assert_eq!(settings.prompt_templates.zh_cn.goal, "custom goal");
+        assert_eq!(settings.prompt_templates.zh_cn.task, "custom task");
+        assert!(settings
+            .prompt_templates
+            .en
+            .goal
+            .contains("project planning assistant"));
+        let serialized = serde_json::to_string(&settings).unwrap();
+        assert!(!serialized.contains("goalPromptTemplate"));
+    }
+
+    #[test]
+    fn resolved_language_serializes_as_public_locale_codes() {
+        assert_eq!(
+            serde_json::to_string(&ResolvedLanguage::ZhCn).unwrap(),
+            "\"zh-CN\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ResolvedLanguage::En).unwrap(),
+            "\"en\""
+        );
     }
 }
 

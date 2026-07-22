@@ -17,6 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "../contexts/LanguageContext";
+import { formatBackendError } from "../i18n";
 
 interface Props {
   entries: LogDiaryEntry[];
@@ -48,31 +51,33 @@ export function LogDiaryPage({
   onRefresh,
   onToast,
 }: Props) {
+  const { t } = useTranslation(["activity", "common", "errors"]);
+  const { language } = useLanguage();
   const [clearing, setClearing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const copyEntry = async (entry: LogDiaryEntry) => {
-    const text = formatLogForCopy(entry);
+    const text = formatLogForCopy(entry, language, t);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(entry.id);
-      onToast("已复制，可粘贴给 AI");
+      onToast(t("activity:logs.copySuccess"));
       setTimeout(() => setCopiedId((id) => (id === entry.id ? null : id)), 1600);
     } catch {
-      onToast("复制失败，请手动选择文本");
+      onToast(t("activity:logs.copyFailed"));
     }
   };
 
   const handleClear = async () => {
     if (!entries.length) return;
-    if (!window.confirm(`清空全部 ${entries.length} 条日志日记？`)) return;
+    if (!window.confirm(t("activity:logs.clearConfirm", { count: entries.length }))) return;
     setClearing(true);
     try {
       await onClear();
-      onToast("已清空日志日记");
+      onToast(t("activity:logs.cleared"));
     } catch (e) {
-      onToast(String(e));
+      onToast(formatBackendError(e, t));
     } finally {
       setClearing(false);
     }
@@ -86,7 +91,7 @@ export function LogDiaryPage({
     <div className="mx-auto max-w-4xl">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          记录一键提交、AI 操作与其它事件
+          {t("activity:logs.description")}
         </p>
         <div className="flex gap-2">
           <Button
@@ -96,7 +101,7 @@ export function LogDiaryPage({
             onClick={() => void onRefresh()}
             disabled={loading || clearing}
           >
-            刷新
+            {t("common:actions.refresh")}
           </Button>
           <Button
             type="button"
@@ -106,20 +111,20 @@ export function LogDiaryPage({
             onClick={() => void handleClear()}
             disabled={loading || clearing || entries.length === 0}
           >
-            {clearing ? "清空中…" : "清空"}
+            {clearing ? t("activity:logs.clearing") : t("activity:logs.clear")}
           </Button>
         </div>
       </div>
 
       {loading ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          加载中…
+          {t("common:state.loading")}
         </div>
       ) : entries.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center">
-          <h3 className="text-sm font-medium">还没有日志</h3>
+          <h3 className="text-sm font-medium">{t("activity:logs.empty")}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            在看板里执行一键提交、生成任务、实现、识别启动方式等操作后，会自动出现在这里。
+            {t("activity:logs.emptyDescription")}
           </p>
         </div>
       ) : (
@@ -127,10 +132,10 @@ export function LogDiaryPage({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="px-4 text-xs text-muted-foreground">时间</TableHead>
-                <TableHead className="px-4 text-xs text-muted-foreground">类型</TableHead>
-                <TableHead className="px-4 text-xs text-muted-foreground">标题</TableHead>
-                <TableHead className="px-4 text-xs text-muted-foreground">状态</TableHead>
+                <TableHead className="px-4 text-xs text-muted-foreground">{t("activity:logs.time")}</TableHead>
+                <TableHead className="px-4 text-xs text-muted-foreground">{t("activity:logs.operation")}</TableHead>
+                <TableHead className="px-4 text-xs text-muted-foreground">{t("activity:logs.entryTitle")}</TableHead>
+                <TableHead className="px-4 text-xs text-muted-foreground">{t("activity:logs.status")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -145,7 +150,7 @@ export function LogDiaryPage({
                     >
                       <TableCell className="px-4 font-mono text-xs text-muted-foreground">
                         <time dateTime={new Date(entry.createdAt).toISOString()}>
-                          {formatLogTime(entry.createdAt)}
+                          {formatLogTime(entry.createdAt, language)}
                         </time>
                       </TableCell>
                       <TableCell className="px-4">
@@ -153,14 +158,14 @@ export function LogDiaryPage({
                           variant="secondary"
                           className="rounded-md px-1.5 py-0.5 text-[10px] font-normal"
                         >
-                          {kindLabel(entry.kind)}
+                          {kindLabel(entry.kind, t)}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[280px] truncate px-4">
                         {entry.title}
                       </TableCell>
                       <TableCell className={cn("px-4 text-xs", statusColor(entry.status))}>
-                        {statusLabel(entry.status)}
+                        {statusLabel(entry.status, t)}
                       </TableCell>
                     </TableRow>
                     {expanded && (
@@ -170,7 +175,7 @@ export function LogDiaryPage({
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {(entry.projectName || entry.projectId) && (
                                 <span>
-                                  项目 · {entry.projectName ?? entry.projectId}
+                                  {t("activity:logs.project")} · {entry.projectName ?? entry.projectId}
                                 </span>
                               )}
                             </div>
@@ -191,7 +196,7 @@ export function LogDiaryPage({
                                       : "text-muted-foreground",
                                   )}
                                 >
-                                  {entry.status === "error" ? "问题 / 错误反馈" : "说明"}
+                                  {entry.status === "error" ? t("activity:logs.issue") : t("activity:logs.note")}
                                 </div>
                                 <pre
                                   className={cn(
@@ -214,9 +219,9 @@ export function LogDiaryPage({
                                 e.stopPropagation();
                                 void copyEntry(entry);
                               }}
-                              title="复制本条日志与问题，便于反馈给 AI"
+                              title={t("activity:logs.copyFeedback")}
                             >
-                              {copiedId === entry.id ? "已复制" : "复制"}
+                              {copiedId === entry.id ? t("common:actions.copied") : t("common:actions.copy")}
                             </Button>
                           </div>
                         </TableCell>

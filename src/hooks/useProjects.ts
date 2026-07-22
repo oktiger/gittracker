@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
 import type { ProjectStatus } from "../types";
+import { formatBackendError } from "../i18n";
 
 export function useProjects() {
   const [projects, setProjects] = useState<ProjectStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyIds, setBusyIds] = useState<Record<string, string>>({});
 
@@ -26,29 +28,40 @@ export function useProjects() {
       const statuses = await api.getAllStatuses();
       setProjects(statuses);
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e));
     } finally {
       setLoading(false);
     }
   }, []);
 
   const refresh = useCallback(async () => {
+    setRefreshing(true);
     setError(null);
     try {
       const statuses = await api.refreshAll();
       setProjects(statuses);
+      return true;
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e));
+      return false;
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
   const refreshOne = useCallback(
     async (id: string) => {
+      setRefreshing(true);
+      setError(null);
       try {
         const status = await api.getProjectStatus(id);
         mergeStatus(status);
+        return true;
       } catch (e) {
-        setError(String(e));
+        setError(formatBackendError(e));
+        return false;
+      } finally {
+        setRefreshing(false);
       }
     },
     [mergeStatus],
@@ -85,6 +98,7 @@ export function useProjects() {
   return {
     projects,
     loading,
+    refreshing,
     error,
     setError,
     busyIds,

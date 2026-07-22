@@ -1,5 +1,7 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{RunOutputLine, RunProgressEvent, RunSession, RunTarget};
+use crate::models::{
+    LocalizedMessage, ResolvedLanguage, RunOutputLine, RunProgressEvent, RunSession, RunTarget,
+};
 use chrono::Utc;
 use parking_lot::Mutex;
 use std::fs;
@@ -86,7 +88,13 @@ impl RunManager {
             state.sessions.insert(id.clone(), session.clone());
             state.children.insert(id.clone(), child);
         }
-        self.emit(&app, &id, "status", None, "命令已启动");
+        self.emit(
+            &app,
+            &id,
+            "status",
+            None,
+            "i18n:activity:backend.commandStarted",
+        );
         if let Some(stdout) = stdout {
             self.read_stream(app.clone(), id.clone(), "stdout", stdout);
         }
@@ -119,7 +127,13 @@ impl RunManager {
                 std::io::Error::last_os_error()
             )));
         }
-        self.emit(app, id, "status", None, "正在停止命令…");
+        self.emit(
+            app,
+            id,
+            "status",
+            None,
+            "i18n:activity:backend.commandStopping",
+        );
         Ok(())
     }
 
@@ -240,7 +254,18 @@ impl RunManager {
                             },
                         },
                     );
-                    manager.emit(&app, &id, "exit", None, &message);
+                    let key = if was_stopping {
+                        "activity:backend.commandStopped"
+                    } else if exit.success() {
+                        "activity:backend.commandFinished"
+                    } else {
+                        "activity:backend.commandFailed"
+                    };
+                    let code = exit
+                        .code()
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "—".into());
+                    manager.emit_exit(&app, &id, was_stopping || exit.success(), key, code);
                     return;
                 }
                 Some(Err(err)) => {
@@ -257,13 +282,7 @@ impl RunManager {
                             error: Some(message.clone()),
                         },
                     );
-                    manager.emit(
-                        &app,
-                        &id,
-                        "error",
-                        None,
-                        &message,
-                    );
+                    manager.emit(&app, &id, "error", None, &message);
                     return;
                 }
             }
@@ -289,13 +308,45 @@ impl RunManager {
     }
 
     fn emit(&self, app: &AppHandle, id: &str, kind: &str, stream: Option<&str>, text: &str) {
+        let (text, message) = if let Some(key) = text.strip_prefix("i18n:") {
+            (
+                None,
+                Some(LocalizedMessage {
+                    key: key.to_string(),
+                    params: Default::default(),
+                }),
+            )
+        } else {
+            (Some(text.to_string()), None)
+        };
         let _ = app.emit(
             "run-progress",
             RunProgressEvent {
                 session_id: id.into(),
                 kind: kind.into(),
                 stream: stream.map(str::to_string),
-                text: text.into(),
+                text,
+                message,
+                success: None,
+            },
+        );
+    }
+
+    fn emit_exit(&self, app: &AppHandle, id: &str, success: bool, key: &str, code: String) {
+        let mut params = std::collections::HashMap::new();
+        params.insert("code".into(), serde_json::Value::String(code));
+        let _ = app.emit(
+            "run-progress",
+            RunProgressEvent {
+                session_id: id.into(),
+                kind: "exit".into(),
+                stream: None,
+                text: None,
+                message: Some(LocalizedMessage {
+                    key: key.into(),
+                    params,
+                }),
+                success: Some(success),
             },
         );
     }
@@ -662,7 +713,7 @@ fn is_web_dir(dir: &Path) -> bool {
 }
 
 /// 不依赖 AI：从 package.json scripts 启发式生成启动目标。
-pub fn suggest_from_fs(repo: &Path) -> AppResult<Vec<RunTarget>> {
+pub fn suggest_from_fs(repo: &Path, locale: ResolvedLanguage) -> AppResult<Vec<RunTarget>> {
     let mut out = Vec::new();
     let preferred = ["dev", "start", "tauri:dev", "tauri", "preview"];
 
@@ -794,7 +845,76 @@ pub fn suggest_from_fs(repo: &Path) -> AppResult<Vec<RunTarget>> {
         t.is_default = false;
     }
     out[0].is_default = true;
+    if !locale.is_zh() {
+        localize_heuristic_targets(&mut out);
+    }
     Ok(out)
+}
+
+fn localize_heuristic_targets(targets: &mut [RunTarget]) {
+    for target in targets {
+        let suffix = target
+            .name
+            .split_once(" · ")
+            .map(|(_, suffix)| suffix.to_string());
+        let base = if target.name.starts_with("启动桌面") {
+            "Start desktop"
+        } else if target.name.starts_with("启动网页") {
+            "Start web"
+        } else if target.name.starts_with("升级 APP") {
+            "Upgrade app"
+        } else if target.name.starts_with("打包 APP") {
+            "Build app"
+        } else if target.name.starts_with("启动 APP 入口") {
+            "Start app entry"
+        } else if target.name.starts_with("启动 APP") {
+            "Open app"
+        } else if target.name.starts_with("启动菜单栏") {
+            "Start menu bar"
+        } else if target.name.starts_with("启动后台") {
+            "Start background service"
+        } else if target.name.starts_with("启动主程序") {
+            "Start main program"
+        } else if target.name.starts_with("脚本启动菜单栏") {
+            "Start menu bar script"
+        } else if target.name.starts_with("脚本启动后台") {
+            "Start background script"
+        } else if target.name.starts_with("脚本启动") {
+            "Start script"
+        } else if target.name.starts_with("运行脚本") {
+            "Run script"
+        } else if target.name.starts_with("运行") {
+            "Run"
+        } else {
+            continue;
+        };
+        target.name = suffix
+            .map(|value| format!("{base} · {value}"))
+            .unwrap_or_else(|| base.into());
+        if let Some(description) = target.description.as_mut() {
+            *description = if description.contains("桌面应用的开发模式") {
+                "Start the desktop app in development mode".into()
+            } else if description.contains("本地网页开发服务器") {
+                "Start the local web development server".into()
+            } else if description.contains("替换 /Applications") {
+                "Build the app, replace the installed version in /Applications, and open it".into()
+            } else if description.contains("无界面后台服务") {
+                "Start the headless background service for development".into()
+            } else if description.contains("菜单栏") {
+                "Start the menu bar app for development".into()
+            } else if description.contains("打开已打包") || description.contains("打开 dist")
+            {
+                "Open the packaged macOS app".into()
+            } else if description.contains("py2app") {
+                "Build a macOS app with py2app".into()
+            } else {
+                description
+                    .replace("执行仓库脚本", "Run repository script")
+                    .replace("执行", "Run ")
+                    .replace("运行 npm script：", "Run npm script: ")
+            };
+        }
+    }
 }
 
 fn push_unique(out: &mut Vec<RunTarget>, target: RunTarget) {
@@ -815,8 +935,8 @@ fn push_tauri_upgrade_targets(repo: &Path, out: &mut Vec<RunTarget>) {
         let Some(command) = crate::upgrade::tauri_upgrade_shell_command(repo, &rel) else {
             continue;
         };
-        let product = crate::upgrade::read_tauri_product_name(&dir)
-            .unwrap_or_else(|| "桌面应用".into());
+        let product =
+            crate::upgrade::read_tauri_product_name(&dir).unwrap_or_else(|| "桌面应用".into());
         let name = if rel == "." {
             "升级 APP".into()
         } else {
@@ -827,9 +947,7 @@ fn push_tauri_upgrade_targets(repo: &Path, out: &mut Vec<RunTarget>) {
             RunTarget {
                 id: uuid::Uuid::new_v4().to_string(),
                 name,
-                description: Some(format!(
-                    "打包 {product}，替换 /Applications 中的旧版并打开"
-                )),
+                description: Some(format!("打包 {product}，替换 /Applications 中的旧版并打开")),
                 cwd: rel,
                 command,
                 kind: Some("upgrade".into()),
@@ -1062,9 +1180,7 @@ fn push_python_targets(repo: &Path, out: &mut Vec<RunTarget>) {
             RunTarget {
                 id: uuid::Uuid::new_v4().to_string(),
                 name: "升级 APP".into(),
-                description: Some(
-                    "用 py2app 正式打包，替换 /Applications 中的旧版并打开".into(),
-                ),
+                description: Some("用 py2app 正式打包，替换 /Applications 中的旧版并打开".into()),
                 cwd: ".".into(),
                 command: format!(
                     r#"{py} setup.py py2app && APP=$(ls -d dist/*.app 2>/dev/null | head -1) && test -n "$APP" && NAME=$(basename "$APP" .app) && DEST="/Applications/$(basename "$APP")" && {{ osascript -e "tell application \"$NAME\" to quit" 2>/dev/null || true; sleep 1; }} && rm -rf "$DEST" && ditto "$APP" "$DEST" && open "$DEST""#
@@ -1088,6 +1204,30 @@ fn push_python_targets(repo: &Path, out: &mut Vec<RunTarget>) {
                 kind: Some("dev".into()),
                 is_default: false,
             },
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_fallback_targets_can_be_presented_in_english() {
+        let mut targets = vec![RunTarget {
+            id: "target".into(),
+            name: "启动网页 · apps/web".into(),
+            description: Some("启动本地网页开发服务器".into()),
+            cwd: "apps/web".into(),
+            command: "npm run dev".into(),
+            kind: Some("dev".into()),
+            is_default: true,
+        }];
+        localize_heuristic_targets(&mut targets);
+        assert_eq!(targets[0].name, "Start web · apps/web");
+        assert_eq!(
+            targets[0].description.as_deref(),
+            Some("Start the local web development server")
         );
     }
 }

@@ -1,0 +1,64 @@
+{
+  "actions": {
+    "add": "Add",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "copy": "Copy",
+    "copied": "Copied",
+    "delete": "Delete",
+    "edit": "Edit",
+    "open": "Open",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "remove": "Remove",
+    "rerun": "Run again",
+    "reset": "Reset",
+    "save": "Save",
+    "saving": "Saving…",
+    "stop": "Stop",
+    "test": "Test",
+    "testing": "Testing…"
+  },
+  "state": {
+    "empty": "Nothing here yet",
+    "loading": "Loading…",
+    "unknown": "Unknown",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "window": {
+    "close": "Close window",
+    "minimize": "Minimize window",
+    "maximize": "Maximize window",
+    "back": "Go back",
+    "forward": "Go forward"
+  },
+  "languageName": {
+    "system": "Follow system",
+    "zh-CN": "简体中文",
+    "en": "English"
+  },
+  "counts": {
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "lines_one": "{{count}} line",
+    "lines_other": "{{count}} lines",
+    "tasks_one": "{{count}} task",
+    "tasks_other": "{{count}} tasks",
+    "targets_one": "{{count}} run target",
+    "targets_other": "{{count}} run targets"
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo_one": "{{count}} minute ago",
+    "minutesAgo_other": "{{count}} minutes ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago"
+  }
+}

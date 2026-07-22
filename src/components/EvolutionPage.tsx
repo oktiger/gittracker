@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   overview: DocsOverview | null;
@@ -29,6 +30,7 @@ export function EvolutionPage({
   onOpenGoal,
   onOpenTask,
 }: Props) {
+  const { t } = useTranslation(["projects", "common"]);
   const needsInit = overview?.needsInit ?? true;
   const tasks = overview?.tasks ?? [];
   const done = tasks.filter((t) => t.status === "done").length;
@@ -37,7 +39,7 @@ export function EvolutionPage({
   if (!overview) {
     return (
       <div className="rounded-lg border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-        加载进化信息…
+        {t("projects:docs.loadingEvolution")}
       </div>
     );
   }
@@ -48,10 +50,9 @@ export function EvolutionPage({
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-muted text-lg">
           ↗
         </div>
-        <h3 className="text-sm font-medium">从目标开始进化</h3>
+        <h3 className="text-sm font-medium">{t("projects:docs.startTitle")}</h3>
         <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-          初始化会在此项目的 <code className="rounded bg-muted px-1 font-mono">DOCS</code>{" "}
-          中创建 Goal / Task 文件夹，以及可编辑的 goal.md。
+          {t("projects:docs.startDescription")}
         </p>
         <Button
           type="button"
@@ -59,7 +60,7 @@ export function EvolutionPage({
           onClick={onInitialize}
           disabled={busy}
         >
-          {busy ? "初始化中…" : "初始化"}
+          {busy ? t("projects:docs.initializing") : t("projects:docs.initialize")}
         </Button>
       </div>
     );
@@ -70,7 +71,7 @@ export function EvolutionPage({
       <div className="space-y-4">
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-medium">Goal</h3>
+            <h3 className="text-sm font-medium">{t("projects:docs.goalTitle")}</h3>
             <Button
               type="button"
               variant="ghost"
@@ -81,26 +82,26 @@ export function EvolutionPage({
                 onOpenGoal(overview.goalRelativePath ?? "Goal/goal.md", "goal.md")
               }
             >
-              打开 goal.md
+              {t("projects:docs.openGoal")}
             </Button>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {overview.goalExists
-              ? "已检测到目标文档。打开后可编辑项目目标，再生成可执行任务。"
-              : "尚未写入目标内容，请先编辑 goal.md。"}
+              ? t("projects:docs.goalReady")
+              : t("projects:docs.goalEmpty")}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h3 className="text-sm font-medium">任务列表</h3>
+            <h3 className="text-sm font-medium">{t("projects:docs.taskList")}</h3>
             <Badge variant="secondary" className="text-[10px]">
               {tasks.length}
             </Badge>
           </div>
           {tasks.length === 0 ? (
             <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-              暂无任务 · 可在右侧生成
+              {t("projects:docs.noTasks")}
             </div>
           ) : (
             <ul className="divide-y divide-border">
@@ -128,7 +129,7 @@ export function EvolutionPage({
                         "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
                     )}
                   >
-                    {task.status === "done" ? "已完成" : "待做"}
+                    {task.status === "done" ? t("projects:docs.done") : t("projects:docs.todo")}
                   </Badge>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -137,9 +138,9 @@ export function EvolutionPage({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onOpenTask(task)}>打开</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onOpenTask(task)}>{t("common:actions.open")}</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onImplementTask(task)}>
-                        实现
+                        {t("projects:docs.implement")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -151,9 +152,9 @@ export function EvolutionPage({
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 text-sm font-medium">任务进度</h3>
+        <h3 className="mb-3 text-sm font-medium">{t("projects:docs.progress")}</h3>
         <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-          <span>已完成</span>
+          <span>{t("projects:docs.done")}</span>
           <span>
             {done} / {tasks.length || 0}
           </span>
@@ -171,7 +172,7 @@ export function EvolutionPage({
           disabled={busy || !overview.goalExists}
           onClick={onGenerateTasks}
         >
-          生成任务
+          {t("projects:docs.generate")}
         </Button>
       </div>
     </div>

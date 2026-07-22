@@ -1,5 +1,6 @@
 import { MoreHorizontal, Play } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type {
   DocsOverview,
@@ -33,6 +34,9 @@ import { workingTreeBadge } from "../lib/gitStatusBadge";
 import { DocumentLibraryTab } from "./DocumentLibraryTab";
 import { EvolutionPage } from "./EvolutionPage";
 import { GitStatusIcon } from "./GitStatusIcon";
+import { useLanguage } from "../contexts/LanguageContext";
+import { formatBackendError } from "../i18n";
+import { formatRelativeTime } from "../lib/formatters";
 
 interface Props {
   project: ProjectStatus;
@@ -55,16 +59,6 @@ interface Props {
   onLog: (entry: NewLogDiaryEntry) => void;
 }
 
-function relativeTime(ts: number): string {
-  if (!ts) return "";
-  const diff = Math.max(0, Date.now() / 1000 - ts);
-  if (diff < 60) return "刚刚";
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)} 天前`;
-  return new Date(ts * 1000).toLocaleDateString("zh-CN");
-}
-
 export function ProjectCard({
   project,
   busy,
@@ -85,6 +79,8 @@ export function ProjectCard({
   onToast,
   onLog,
 }: Props) {
+  const { t } = useTranslation(["projects", "common", "errors"]);
+  const { language } = useLanguage();
   const disabled = Boolean(busy);
   const hasChanges = !project.clean;
   const changeCount = project.staged + project.unstaged + project.untracked;
@@ -104,7 +100,7 @@ export function ProjectCard({
       setDocs(await api.listDocs(project.id));
     } catch (e) {
       setDocs(null);
-      onError(String(e));
+      onError(formatBackendError(e, t));
     }
   };
 
@@ -116,24 +112,24 @@ export function ProjectCard({
   useEffect(() => {
     if (detailTab !== "code") return;
     setChangesLoading(true);
-    void api.listChangedFiles(project.id).then(setChangedFiles).catch((e) => onError(String(e))).finally(() => setChangesLoading(false));
+    void api.listChangedFiles(project.id).then(setChangedFiles).catch((e) => onError(formatBackendError(e, t))).finally(() => setChangesLoading(false));
   }, [detailTab, project.id, project.clean, project.staged, project.unstaged, project.untracked]);
 
   const onRunTarget = async (targetId: string) => {
     setRunBusy(true);
-    const t = targets.find((x) => x.id === targetId);
+    const target = targets.find((x) => x.id === targetId);
     try {
-      if (!t) throw new Error("未找到启动目标");
-      onRunTargetFromCenter(t);
+      if (!target) throw new Error("runTargetNotFound");
+      onRunTargetFromCenter(target);
     } catch (e) {
-      const msg = String(e);
+      const msg = e instanceof Error && e.message === "runTargetNotFound" ? t("projects:card.runTargetMissing") : formatBackendError(e, t);
       onLog({
         kind: "runTarget",
         status: "error",
-        title: `运行失败 · ${t?.name ?? targetId}`,
+        title: t("projects:card.runFailed", { name: target?.name ?? targetId }),
         projectId: project.id,
         projectName: project.name,
-        detail: t ? `cwd: ${t.cwd}\ncommand: ${t.command}` : undefined,
+        detail: target ? `cwd: ${target.cwd}\ncommand: ${target.command}` : undefined,
         error: msg,
       });
       onError(msg);
@@ -145,7 +141,7 @@ export function ProjectCard({
   const onIdentify = () => {
     if (
       hasTargets &&
-      !window.confirm("将用新的识别结果替换当前启动目标，是否继续？")
+      !window.confirm(t("projects:card.replaceTargets"))
     ) {
       return;
     }
@@ -153,25 +149,25 @@ export function ProjectCard({
   };
 
   const onCreateDocs = async () => {
-    setDocsBusy("正在初始化…");
+    setDocsBusy(t("projects:docs.initializing"));
     try {
-      const overview = await api.ensureDocs(project.id);
+      const overview = await api.ensureDocs(project.id, language);
       setDocs(overview);
       onLog({
         kind: "ensureDocs",
         status: "ok",
-        title: `初始化 DOCS · ${project.name}`,
+        title: t("projects:docs.initializeLog", { name: project.name }),
         projectId: project.id,
         projectName: project.name,
-        detail: `Goal: ${overview.goalExists ? "已有" : "未检测到"}\nTasks: ${overview.tasks.length}`,
+        detail: `Goal: ${overview.goalExists ? t("projects:docs.goalExisting") : t("projects:docs.goalMissing")}\nTasks: ${overview.tasks.length}`,
       });
-      onToast("已初始化 Goal / Task 与 goal.md");
+      onToast(t("projects:docs.initialized"));
     } catch (e) {
-      const msg = String(e);
+      const msg = formatBackendError(e, t);
       onLog({
         kind: "ensureDocs",
         status: "error",
-        title: `初始化 DOCS 失败 · ${project.name}`,
+        title: t("projects:docs.initializeFailed", { name: project.name }),
         projectId: project.id,
         projectName: project.name,
         error: msg,
@@ -192,7 +188,7 @@ export function ProjectCard({
           : "border-amber-500/30 bg-amber-500/10 text-amber-400",
       )}
     >
-      {docsBusy ? "AI 工作中" : project.clean ? "Clean" : "Changed"}
+      {docsBusy ? t("projects:status.aiWorking") : project.clean ? t("projects:status.clean") : t("projects:status.changed")}
     </Badge>
   );
 
@@ -201,7 +197,7 @@ export function ProjectCard({
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="xs" disabled={locked}>
           <Play className="h-3 w-3" />
-          运行
+          {t("projects:card.run")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
@@ -224,16 +220,16 @@ export function ProjectCard({
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onConfigureRun("config")}>
-              配置启动方式…
+              {t("projects:card.configureTargets")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onIdentify}>重新用 AI 识别…</DropdownMenuItem>
+            <DropdownMenuItem onClick={onIdentify}>{t("projects:card.identifyAgain")}</DropdownMenuItem>
           </>
         ) : (
           <>
-            <DropdownMenuItem onClick={onIdentify}>识别启动方式…</DropdownMenuItem>
+            <DropdownMenuItem onClick={onIdentify}>{t("projects:card.identifyTargets")}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onConfigureRun("config")}>
-              手动添加一条…
+              {t("projects:card.addTarget")}
             </DropdownMenuItem>
           </>
         )}
@@ -249,8 +245,8 @@ export function ProjectCard({
           variant="ghost"
           size="icon-sm"
           disabled={locked}
-          title="项目设置"
-          aria-label="项目设置"
+          title={t("projects:card.projectSettings")}
+          aria-label={t("projects:card.projectSettings")}
         >
           <MoreHorizontal className="h-4 w-4" />
         </Button>
@@ -260,7 +256,7 @@ export function ProjectCard({
           className="text-destructive focus:text-destructive"
           onClick={() => setRemoveConfirmOpen(true)}
         >
-          移除
+          {t("projects:card.remove")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -270,13 +266,13 @@ export function ProjectCard({
     <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>移除「{project.name}」？</AlertDialogTitle>
+          <AlertDialogTitle>{t("projects:card.removeTitle", { name: project.name })}</AlertDialogTitle>
           <AlertDialogDescription>
-            将从 GitTracker 中移除该项目，不会删除磁盘上的仓库。
+            {t("projects:card.removeDescription")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
@@ -284,7 +280,7 @@ export function ProjectCard({
               onRemove();
             }}
           >
-            移除
+            {t("common:actions.remove")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -295,12 +291,12 @@ export function ProjectCard({
     <section className="overflow-hidden">
       <header className="mb-2 flex items-center justify-between gap-2 pt-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">代码</span>
+          <span className="text-sm font-semibold">{t("projects:card.code")}</span>
         </div>
-        <span className="text-[11px] text-muted-foreground">最近 3 次提交</span>
+        <span className="text-[11px] text-muted-foreground">{t("projects:card.recentThree")}</span>
       </header>
       {project.commits.length === 0 ? (
-        <p className="px-3 py-4 text-xs text-muted-foreground">暂无提交</p>
+        <p className="px-3 py-4 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
       ) : (
         <ul className="max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto">
           {project.commits.map((c) => (
@@ -313,7 +309,7 @@ export function ProjectCard({
                 {c.subject}
               </span>
               <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                {relativeTime(c.timestamp)}
+                {formatRelativeTime(c.timestamp, language)}
               </span>
             </li>
           ))}
@@ -321,7 +317,7 @@ export function ProjectCard({
       )}
       <footer className="flex flex-wrap items-center justify-between gap-2 pt-3">
         <span className="text-[11px] text-muted-foreground">
-          {changeCount} 处改动
+          {t("projects:card.changeCount", { count: changeCount })}
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           <Button
@@ -331,7 +327,7 @@ export function ProjectCard({
             disabled={locked || !hasChanges}
             onClick={onOneClick}
           >
-            全部提交
+            {t("projects:card.allCommits")}
           </Button>
           {runMenu}
           <Button
@@ -341,7 +337,7 @@ export function ProjectCard({
             disabled={locked || changeCount === 0}
             onClick={onViewChanges}
           >
-            查看变更
+            {t("projects:card.viewChanges")}
           </Button>
           <Button
             type="button"
@@ -349,7 +345,7 @@ export function ProjectCard({
             disabled={locked || !hasChanges}
             onClick={onManualCommit}
           >
-            提交…
+            {t("projects:card.commitAction")}
           </Button>
         </div>
       </footer>
@@ -364,16 +360,16 @@ export function ProjectCard({
           <div className="flex items-center justify-between gap-2">
             <TabsList className="h-auto rounded-lg border border-border bg-muted/40 p-1">
               <TabsTrigger value="run" className="rounded-md px-3 py-1.5">
-                运行
+                {t("projects:card.tabs.run")}
               </TabsTrigger>
               <TabsTrigger value="code" className="rounded-md px-3 py-1.5">
-                代码
+                {t("projects:card.tabs.code")}
               </TabsTrigger>
               <TabsTrigger value="docs" className="rounded-md px-3 py-1.5">
-                文档
+                {t("projects:card.tabs.documents")}
               </TabsTrigger>
               <TabsTrigger value="evolution" className="rounded-md px-3 py-1.5">
-                进化
+                {t("projects:card.tabs.evolution")}
               </TabsTrigger>
             </TabsList>
             {projectSettingsMenu}
@@ -383,8 +379,8 @@ export function ProjectCard({
             <div className="rounded-lg border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div>
-                  <h3 className="text-sm font-medium">可运行命令</h3>
-                  <p className="text-xs text-muted-foreground">来自项目配置 / AI 识别</p>
+                  <h3 className="text-sm font-medium">{t("projects:card.runnable")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("projects:card.runnableSource")}</p>
                 </div>
                 <Button
                   type="button"
@@ -393,7 +389,7 @@ export function ProjectCard({
                   disabled={locked}
                   onClick={() => onConfigureRun("config")}
                 >
-                  配置
+                  {t("projects:card.configure")}
                 </Button>
               </div>
               {hasTargets ? (
@@ -432,7 +428,7 @@ export function ProjectCard({
                 </ul>
               ) : (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">还没有可运行的命令</p>
+                  <p className="text-sm text-muted-foreground">{t("projects:card.noRunnable")}</p>
                   <Button
                     type="button"
                     size="sm"
@@ -440,7 +436,7 @@ export function ProjectCard({
                     disabled={locked}
                     onClick={onIdentify}
                   >
-                    识别启动方式
+                    {t("projects:card.identify")}
                   </Button>
                 </div>
               )}
@@ -452,7 +448,7 @@ export function ProjectCard({
                     onClick={onIdentify}
                     disabled={locked}
                   >
-                    识别启动方式
+                    {t("projects:card.identify")}
                   </button>
                 </div>
               ) : null}
@@ -478,7 +474,7 @@ export function ProjectCard({
                   disabled={locked || !hasChanges}
                   onClick={onOneClick}
                 >
-                  一键提交
+                  {t("projects:card.oneClick")}
                 </Button>
                 <Button
                   type="button"
@@ -487,7 +483,7 @@ export function ProjectCard({
                   disabled={locked || !hasChanges}
                   onClick={onManualCommit}
                 >
-                  手动提交
+                  {t("projects:card.manualCommit")}
                 </Button>
                 <Button
                   type="button"
@@ -497,22 +493,22 @@ export function ProjectCard({
                   disabled={locked || !hasChanges}
                   onClick={onDiscard}
                 >
-                  放弃所有更改
+                  {t("projects:card.discardAll")}
                 </Button>
               </div>
             </div>
 
             <section className="space-y-1.5">
               <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                当前改动
+                {t("projects:card.currentChanges")}
                 {changeCount > 0 ? (
                   <span className="ml-1.5 font-normal tabular-nums">{changeCount}</span>
                 ) : null}
               </h3>
               {changesLoading ? (
-                <p className="py-3 text-xs text-muted-foreground">加载中…</p>
+                <p className="py-3 text-xs text-muted-foreground">{t("common:state.loading")}</p>
               ) : changedFiles.length === 0 ? (
-                <p className="py-3 text-xs text-muted-foreground">没有变更</p>
+                <p className="py-3 text-xs text-muted-foreground">{t("projects:changesDialog.empty")}</p>
               ) : (
                 <ul className="max-h-64 overflow-y-auto">
                   {changedFiles.map((file) => {
@@ -541,10 +537,10 @@ export function ProjectCard({
 
             <section className="space-y-1.5">
               <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                提交记录
+                {t("projects:card.commitHistory")}
               </h3>
               {project.commits.length === 0 ? (
-                <p className="py-3 text-xs text-muted-foreground">暂无提交</p>
+                <p className="py-3 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
               ) : (
                 <ul className="max-h-[min(45vh,480px)] overflow-y-auto">
                   {project.commits.map((c) => (
@@ -557,7 +553,7 @@ export function ProjectCard({
                         {c.subject}
                       </span>
                       <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                        {relativeTime(c.timestamp)}
+                        {formatRelativeTime(c.timestamp, language)}
                       </span>
                     </li>
                   ))}
@@ -593,8 +589,8 @@ export function ProjectCard({
                 if (task.kind === "html") {
                   void api
                     .openDocExternal(project.id, task.relativePath)
-                    .then(() => onToast("已用系统应用打开 HTML"))
-                    .catch((e) => onError(String(e)));
+                    .then(() => onToast(t("projects:card.htmlOpened")))
+                    .catch((e) => onError(formatBackendError(e, t)));
                   return;
                 }
                 onOpenDoc(
@@ -607,7 +603,7 @@ export function ProjectCard({
         </Tabs>
         {(busy || docsBusy || runBusy) && (
           <p className="text-xs text-muted-foreground">
-            {busy || docsBusy || (runBusy ? "正在启动…" : null)}
+            {busy || docsBusy || (runBusy ? t("projects:card.starting") : null)}
           </p>
         )}
       </div>
@@ -631,8 +627,8 @@ export function ProjectCard({
             </button>
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {project.ahead > 0 ? <span>↑{project.ahead} ahead</span> : null}
-            {project.behind > 0 ? <span>↓{project.behind} behind</span> : null}
+            {project.ahead > 0 ? <span>↑{project.ahead} {t("projects:status.ahead")}</span> : null}
+            {project.behind > 0 ? <span>↓{project.behind} {t("projects:status.behind")}</span> : null}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -661,7 +657,7 @@ export function ProjectCard({
 
       {(busy || docsBusy || runBusy) && (
         <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          {busy || docsBusy || (runBusy ? "正在启动…" : null)}
+          {busy || docsBusy || (runBusy ? t("projects:card.starting") : null)}
         </div>
       )}
     </article>

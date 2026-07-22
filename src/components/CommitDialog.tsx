@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { NewLogDiaryEntry } from "../types";
 import { HelpTip } from "./HelpTip";
@@ -13,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { formatBackendError } from "../i18n";
 
 interface Props {
   projectId: string;
@@ -32,6 +34,7 @@ export function CommitDialog({
   onLog,
   onAiGenerate,
 }: Props) {
+  const { t } = useTranslation(["projects", "common", "errors", "activity"]);
   const [message, setMessage] = useState("");
   const [alsoPush, setAlsoPush] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -44,8 +47,8 @@ export function CommitDialog({
       const msg = await onAiGenerate();
       setMessage(msg);
     } catch (e) {
-      const err = String(e);
-      if (!err.includes("已取消")) {
+      const err = formatBackendError(e, t);
+      if (err !== t("activity:ai.cancelled")) {
         setError(err);
       }
     } finally {
@@ -55,7 +58,7 @@ export function CommitDialog({
 
   const onSubmit = async () => {
     if (!message.trim()) {
-      setError("请填写 Commit message");
+      setError(t("projects:commit.required"));
       return;
     }
     setSubmitting(true);
@@ -78,11 +81,11 @@ export function CommitDialog({
       onDone();
       onClose();
     } catch (e) {
-      const err = String(e);
+      const err = formatBackendError(e, t);
       onLog({
         kind: "commit",
         status: "error",
-        title: `${alsoPush ? "Commit & Push" : "Commit"} 失败 · ${projectName}`,
+        title: t("projects:commit.failed", { action: alsoPush ? "Commit & Push" : "Commit", name: projectName }),
         projectId,
         projectName,
         detail: `Message:\n${trimmed}`,
@@ -98,16 +101,16 @@ export function CommitDialog({
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>手动提交 · {projectName}</DialogTitle>
+          <DialogTitle>{t("projects:card.manualCommit")} · {projectName}</DialogTitle>
           <DialogDescription>
-            将提交当前 Worktree 的全部 Changes。
-            <HelpTip text="GitTracker 不要求你管理暂存区。AI Generate 会只读汇总全部 Changes；确认 Commit 时，应用才在内部创建一次临时提交快照。" />
+            {t("projects:commit.description")}
+            <HelpTip text={t("projects:commit.help")} />
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="commit-message">Commit message</Label>
+            <Label htmlFor="commit-message">{t("projects:commit.message")}</Label>
             <Button
               type="button"
               variant="secondary"
@@ -115,7 +118,7 @@ export function CommitDialog({
               onClick={() => void onGenerate()}
               disabled={generating || submitting}
             >
-              {generating ? "生成中…" : "AI Generate"}
+              {generating ? t("projects:commit.generating") : t("projects:commit.generate")}
             </Button>
           </div>
           <Textarea
@@ -123,7 +126,7 @@ export function CommitDialog({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={5}
-            placeholder="简洁说明本次修改…"
+            placeholder={t("projects:commit.placeholder")}
             disabled={submitting}
             autoFocus
           />
@@ -138,8 +141,8 @@ export function CommitDialog({
             disabled={submitting}
           />
           <span>
-            提交后 Push{" "}
-            <HelpTip text="使用系统 Git 凭证推送到当前跟踪的远程分支" />
+            {t("projects:commit.push")}{" "}
+            <HelpTip text={t("projects:commit.pushHelp")} />
           </span>
         </label>
 
@@ -152,14 +155,14 @@ export function CommitDialog({
             onClick={onClose}
             disabled={submitting}
           >
-            取消
+            {t("common:actions.cancel")}
           </Button>
           <Button
             type="button"
             onClick={() => void onSubmit()}
             disabled={submitting || generating}
           >
-            {submitting ? "提交中…" : alsoPush ? "Commit & Push" : "Commit"}
+            {submitting ? t("projects:commit.submitting") : alsoPush ? "Commit & Push" : "Commit"}
           </Button>
         </DialogFooter>
       </DialogContent>

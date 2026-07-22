@@ -1,31 +1,33 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 const THEME_OPTIONS = [
   {
     value: "system",
-    title: "跟随系统",
-    desc: "自动匹配操作系统的浅色或深色外观。",
+    titleKey: "appearance.system.title",
+    descKey: "appearance.system.description",
     icon: Monitor,
   },
   {
     value: "light",
-    title: "日间",
-    desc: "始终使用浅色界面。",
+    titleKey: "appearance.light.title",
+    descKey: "appearance.light.description",
     icon: Sun,
   },
   {
     value: "dark",
-    title: "夜间",
-    desc: "始终使用深色界面。",
+    titleKey: "appearance.dark.title",
+    descKey: "appearance.dark.description",
     icon: Moon,
   },
 ] as const;
 
 export function ThemeModePicker() {
+  const { t } = useTranslation("settings");
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -40,7 +42,7 @@ export function ThemeModePicker() {
       value={current}
       onValueChange={setTheme}
       className="grid gap-2"
-      aria-label="外观模式"
+      aria-label={t("appearance.modeLabel")}
     >
       {THEME_OPTIONS.map((option) => {
         const Icon = option.icon;
@@ -64,9 +66,9 @@ export function ThemeModePicker() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Icon className="size-4 text-muted-foreground" aria-hidden />
-                {option.title}
+                {t(option.titleKey)}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{option.desc}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t(option.descKey)}</p>
             </div>
           </label>
         );

@@ -1,0 +1,14 @@
+{
+  "main": "主导航",
+  "views": "主视图",
+  "board": "看板",
+  "summary": "总结",
+  "logDiary": "日志",
+  "settings": "设置",
+  "projectDetails": "项目详情",
+  "projects": "项目",
+  "projectsEmpty": "在看板中添加项目后会出现在这里",
+  "collapse": "收起左侧导航",
+  "expand": "展开左侧导航",
+  "resize": "调整左侧导航宽度"
+}

@@ -19,6 +19,9 @@ import type {
   RunTaskResult,
   SuggestRunTargetsResult,
   AiProvider,
+  AppLanguagePreference,
+  ResolvedLanguage,
+  PromptTemplateSet,
 } from "./types";
 
 export const api = {
@@ -34,15 +37,15 @@ export const api = {
     invoke<FileChange[]>("list_changed_files", { id }),
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
-  generateCommitMessage: (id: string, sessionId: string) =>
-    invoke<string>("generate_commit_message", { id, sessionId }),
+  generateCommitMessage: (id: string, sessionId: string, locale: ResolvedLanguage) =>
+    invoke<string>("generate_commit_message", { id, sessionId, locale }),
   commitProject: (id: string, message: string) =>
     invoke<void>("commit_project", { id, message }),
   pushProject: (id: string) => invoke<void>("push_project", { id }),
   commitAndPush: (id: string, message: string) =>
     invoke<void>("commit_and_push", { id, message }),
-  oneClickCommit: (id: string, sessionId: string) =>
-    invoke<OneClickResult>("one_click_commit", { id, sessionId }),
+  oneClickCommit: (id: string, sessionId: string, locale: ResolvedLanguage) =>
+    invoke<OneClickResult>("one_click_commit", { id, sessionId, locale }),
   previewDiscard: (id: string) =>
     invoke<DiscardPreview>("preview_discard", { id }),
   discardChanges: (id: string, paths: string[], includeUntracked: boolean) =>
@@ -52,15 +55,22 @@ export const api = {
       includeUntracked,
     }),
   getSettings: () => invoke<AppSettings>("get_settings"),
+  getDefaultPromptTemplates: (locale: ResolvedLanguage) =>
+    invoke<PromptTemplateSet>("get_default_prompt_templates", { locale }),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),
-  testAiConnection: (provider: AiProvider, sessionId: string) =>
+  setLanguagePreference: (preference: AppLanguagePreference, resolvedLanguage: ResolvedLanguage) =>
+    invoke<AppSettings>("set_language_preference", { preference, resolvedLanguage }),
+  syncNativeLanguage: (resolvedLanguage: ResolvedLanguage) =>
+    invoke<void>("sync_native_language", { resolvedLanguage }),
+  testAiConnection: (provider: AiProvider, sessionId: string, locale: ResolvedLanguage) =>
     invoke<AiConnectionTestResult>("test_ai_connection", {
       provider,
       sessionId,
+      locale,
     }),
   listDocs: (id: string) => invoke<DocsOverview>("list_docs", { id }),
-  ensureDocs: (id: string) => invoke<DocsOverview>("ensure_docs", { id }),
+  ensureDocs: (id: string, locale: ResolvedLanguage) => invoke<DocsOverview>("ensure_docs", { id, locale }),
   listDocumentLibrary: (id: string) =>
     invoke<DocumentLibrary>("list_document_library", { id }),
   setDocumentLibrary: (id: string, root: string) =>
@@ -77,19 +87,21 @@ export const api = {
     invoke<void>("open_doc_external", { id, relativePath }),
   openDocumentLibraryHtml: (id: string, relativePath: string) =>
     invoke<void>("open_document_library_html", { id, relativePath }),
-  generateTasksFromGoal: (id: string, sessionId: string) =>
+  generateTasksFromGoal: (id: string, sessionId: string, locale: ResolvedLanguage) =>
     invoke<GenerateTasksResult>("generate_tasks_from_goal", {
       id,
       sessionId,
+      locale,
     }),
-  runDocsTask: (id: string, relativePath: string, sessionId: string) =>
-    invoke<RunTaskResult>("run_docs_task", { id, relativePath, sessionId }),
+  runDocsTask: (id: string, relativePath: string, sessionId: string, locale: ResolvedLanguage) =>
+    invoke<RunTaskResult>("run_docs_task", { id, relativePath, sessionId, locale }),
   setRunTargets: (id: string, targets: RunTarget[]) =>
     invoke<RunTarget[]>("set_run_targets", { id, targets }),
-  suggestRunTargets: (id: string, sessionId: string) =>
+  suggestRunTargets: (id: string, sessionId: string, locale: ResolvedLanguage) =>
     invoke<SuggestRunTargetsResult>("suggest_run_targets", {
       id,
       sessionId,
+      locale,
     }),
   runProjectTarget: (id: string, targetId: string) =>
     invoke<RunSession>("run_project_target", { id, targetId }),
@@ -104,6 +116,6 @@ export const api = {
     invoke<LogDiaryEntry | null>("update_log_diary_by_run_session", { entry }),
   reconcileLogDiary: () => invoke<LogDiaryEntry[]>("reconcile_log_diary"),
   clearLogDiary: () => invoke<void>("clear_log_diary"),
-  generateDailyCompletion: (period: "today" | "week" | "sevenDays", sessionId: string) =>
-    invoke<string>("generate_daily_completion", { period, sessionId }),
+  generateDailyCompletion: (period: "today" | "week" | "sevenDays", sessionId: string, locale: ResolvedLanguage) =>
+    invoke<string>("generate_daily_completion", { period, sessionId, locale }),
 };

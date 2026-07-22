@@ -15,8 +15,6 @@ export interface GitStatusBadge {
   /** 兼容旧字母（M/A/D/U…） */
   letter: string;
   kind: GitStatusKind;
-  /** 完整中文名称（直接展示） */
-  label: string;
 }
 
 /** VS Code gitDecoration.* 前景色 */
@@ -29,17 +27,6 @@ export const gitStatusColorClass: Record<GitStatusKind, string> = {
   renamed: "text-[#73C991]",
   copied: "text-[#73C991]",
   conflict: "text-[#E4676B]",
-};
-
-const LABELS: Record<GitStatusKind, string> = {
-  untracked: "未跟踪",
-  modified: "已修改",
-  deleted: "已删除",
-  added: "新增",
-  renamed: "重命名",
-  copied: "已复制",
-  conflict: "冲突",
-  other: "已变更",
 };
 
 const LETTERS: Record<GitStatusKind, string> = {
@@ -57,7 +44,6 @@ function badgeFor(kind: GitStatusKind, letterOverride?: string): GitStatusBadge 
   return {
     letter: letterOverride ?? LETTERS[kind],
     kind,
-    label: LABELS[kind],
   };
 }
 
@@ -82,7 +68,6 @@ function fromCode(code: string): GitStatusBadge {
       return {
         letter: trimmed || LETTERS.other,
         kind: "other",
-        label: LABELS.other,
       };
     }
   }

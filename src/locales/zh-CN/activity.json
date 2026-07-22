@@ -1,0 +1,86 @@
+{
+  "center": {
+    "title": "运行中心", "aria": "运行中心", "show": "显示运行中心", "hide": "隐藏运行中心", "resize": "调整运行中心宽度",
+    "copyAll": "复制全部", "empty": "还没有运行中的会话。", "waiting": "正在等待输出…",
+    "showLogs": "查看完整日志（{{count}} 行）", "hideLogs": "收起日志", "exitCode": "退出码 {{code}}",
+    "runStarted": "已在运行中心启动，输出会实时显示。", "runRestarted": "已在运行中心重新启动。",
+    "runCopied": "运行信息已复制", "copyFailed": "复制失败，请手动选择文本", "targetsSaved": "已保存 {{count}} 个启动目标"
+  },
+  "runStatus": { "starting": "启动中", "running": "运行中", "stopping": "停止中", "stopped": "已停止", "exited": "已结束", "failed": "运行失败" },
+  "transcript": { "status": "状态", "thinking": "思考", "assistant": "AI", "log": "日志", "error": "错误" },
+  "backend": {
+    "readingProject": "正在读取项目信息…", "collectingChanges": "正在汇总全部 Changes…", "generatingCommit": "AI 正在生成 Commit message…",
+    "creatingSnapshot": "正在创建 Commit 快照…", "pushing": "正在推送到远程…", "oneClickDone": "一键提交完成",
+    "readingGoal": "正在读取项目与 goal.md…", "planningTasks": "AI 正在根据目标拆分任务…", "writingTasks": "正在写入任务文件…",
+    "readingTask": "正在读取任务文档…", "implementingTask": "AI 正在实现任务…", "writingResult": "正在写入任务结果…", "taskDone": "任务执行完成",
+    "parsingTargets": "正在解析 AI 返回的启动目标…", "fallbackScan": "正在回退到本地 package.json 扫描…", "collectingCommits": "正在收集各项目的 commit message…",
+    "startingCodex": "正在启动 Codex CLI…", "codexAnalyzing": "Codex 正在分析项目…", "codexFinishing": "Codex 已完成，正在整理结果…",
+    "codexStarted": "Codex 任务已开始…", "codexTurnDone": "Codex 回合完成…", "startingCursor": "正在启动 Cursor Agent CLI…",
+    "cursorAnalyzing": "Cursor Agent 正在分析项目…", "cursorFinishing": "Cursor Agent 已完成，正在整理结果…",
+    "requestSent": "已发送分析请求…", "thinkingDone": "思考完成，正在生成建议…", "analysisDone": "分析完成",
+    "commandStarted": "命令已启动", "commandStopping": "正在停止命令…", "commandStopped": "命令已停止", "commandFinished": "命令已结束",
+    "commandFailed": "命令异常结束（退出码 {{code}}）"
+  },
+  "ai": {
+    "copy": "复制 AI 运行过程", "copyTitle": "复制整段 AI 过程", "close": "关闭会话", "cancelled": "已取消",
+    "result": "结果", "error": "错误", "process": "AI 过程", "selectTarget": "选用 {{name}}",
+    "titles": {
+      "dailyAutomatic": "每日完成自动生成", "daily": "AI 总结每日完成", "identify": "AI 识别启动方式", "config": "配置启动方式",
+      "testCursor": "测试 Cursor Agent", "testCodex": "测试 Codex", "generateCommit": "AI 生成 Commit Message",
+      "oneClick": "一键提交", "generateTasks": "AI 生成任务", "runTask": "实现任务 {{number}}"
+    },
+    "subtitles": { "today": "本日 commit message", "week": "本周 commit message", "sevenDays": "过去 7 天 commit message", "test": "验证 CLI 已安装并可返回" },
+    "boot": {
+      "daily": "开始整理{{period}}的完成事项…", "identify": "开始识别「{{project}}」的启动方式…", "test": "开始测试 {{provider}}…",
+      "commit": "开始为「{{project}}」生成 Commit message…", "oneClick": "一键提交「{{project}}」：AI → Commit → Push…",
+      "tasks": "根据 Goal 为「{{project}}」生成任务…", "implement": "实现任务 {{number}}「{{title}}」…"
+    },
+    "done": {
+      "dailyAutomatic": "已自动生成每日完成", "daily": "每日完成已生成", "commitPushed": "已提交并推送：\n{{message}}",
+      "tasks": "已生成 {{count}} 条任务", "task": "已实现 {{number}}"
+    },
+    "phase": { "running": "进行中", "done": "完成" },
+    "showProcess": "查看 AI 过程（{{count}} 条）", "processCount": "AI 过程（{{count}} 条）",
+    "configTitle": "确认启动目标", "configDescription": "编辑启动目标。保存后可从运行菜单选择。",
+    "identifyDescription": "请勾选需要保留的项，可改名称、说明、目录与命令。",
+    "manualAdd": "手动添加", "default": "默认", "name": "名称", "description": "说明", "directory": "目录", "command": "命令",
+    "namePlaceholder": "名称，如：启动 APP", "descriptionPlaceholder": "一句话说明用途", "custom": "自定义", "development": "开发",
+    "selectRequired": "请至少勾选一条启动目标", "fieldsRequired": "名称和命令不能为空",
+    "saveTitle": "保存启动目标 · {{project}}", "saveFailed": "保存启动目标失败 · {{project}}",
+    "dailyFailed": "每日完成总结失败", "identifyFailed": "识别启动方式失败 · {{project}}",
+    "testFailed": "测试 {{provider}} 失败", "generateFailed": "AI Generate 失败 · {{project}}", "oneClickFailed": "一键提交失败 · {{project}}",
+    "tasksFailed": "生成任务失败 · {{project}}", "taskFailed": "实现任务失败 {{number}} · {{title}}",
+    "log": {
+      "dailyTitle": "{{mode}}总结每日完成 · {{period}}", "automatic": "自动", "manual": "手动",
+      "identifyTitle": "识别启动方式 · {{project}}", "source": "来源: {{source}}\n建议 {{count}} 条:\n{{preview}}", "testTitle": "测试 {{provider}}", "reply": "回复: {{reply}}",
+      "generatedCommit": "生成的 Commit message:\n{{message}}", "oneClickTitle": "一键提交 · {{project}}", "pushed": "Message:\n{{message}}\n\n已推送: {{pushed}}",
+      "tasksTitle": "生成任务 · {{project}}", "tasksDetail": "新建 {{created}} 条任务\n当前共 {{total}} 条", "taskTitle": "实现任务 {{number}} · {{title}}",
+      "taskDetail": "路径: {{path}}\n\n实现摘要:\n{{summary}}", "empty": "（空）", "noSummary": "（无摘要）",
+      "dailyFailure": "根据各项目 commit message，经统一 AI 通道生成总结。", "identifyFailure": "经统一 AI 通道分析仓库并建议 Run Targets。",
+      "testFailure": "验证 CLI 已安装并可返回最小只读回复。", "generateFailure": "根据当前 Worktree 的全部 Changes，经统一 AI 通道生成 Commit message。",
+      "oneClickFailure": "流程：AI 生成 Commit Message → Commit → Push", "tasksFailure": "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。", "path": "路径: {{path}}"
+    }
+  },
+  "logs": {
+    "title": "操作日志", "description": "记录一键提交、AI 操作与其它事件", "clear": "清空日志", "clearConfirm": "清空全部 {{count}} 条操作日志？",
+    "clearing": "清空中…", "cleared": "已清空操作日志", "empty": "还没有日志", "emptyDescription": "执行一键提交、生成任务、实现或识别启动方式后，会自动出现在这里。",
+    "time": "时间", "operation": "类型", "entryTitle": "标题", "project": "项目", "status": "状态", "details": "详情",
+    "issue": "问题 / 错误反馈", "note": "说明", "copyFeedback": "复制本条日志与问题，便于反馈给 AI", "copySuccess": "已复制日志", "copyFailed": "复制失败",
+    "kinds": {
+      "oneClick": "一键提交", "generateCommit": "生成提交说明", "commit": "手动提交", "ensureDocs": "创建文档", "generateTasks": "生成任务",
+      "runTask": "实现任务", "suggestRunTargets": "识别启动方式", "saveRunTargets": "保存启动方式", "runTarget": "运行 / 升级",
+      "discard": "放弃更改", "testConnection": "测试 AI 连接", "dailyCompletion": "每日完成情况"
+    },
+    "statuses": { "ok": "成功", "error": "失败", "running": "进行中", "ended": "已结束" }
+  },
+  "copy": {
+    "runTitle": "# GitTracker 命令运行过程", "centerTitle": "# GitTracker 运行中心", "target": "目标: {{value}}", "project": "项目: {{value}}",
+    "directory": "目录: {{value}}", "command": "命令: {{value}}", "status": "状态: {{value}}", "exitCode": "退出码: {{value}}",
+    "output": "## 输出", "noOutput": "（尚无输出）", "aiTitle": "# GitTracker AI 运行过程（反馈用）", "title": "标题: {{value}}",
+    "description": "说明: {{value}}", "process": "## AI 过程", "result": "## 结果", "error": "## 错误",
+    "feedback": "请根据以上信息帮忙分析问题原因，并给出可执行的修复建议。",
+    "logTitle": "# GitTracker 操作日志（反馈用）", "time": "时间: {{value}}", "operation": "操作: {{value}}",
+    "logStatus": "状态: {{value}}", "logProject": "项目: {{value}}", "logEntryTitle": "标题: {{value}}",
+    "details": "## 详情", "warning": "## 警告 / 补充信息", "issue": "## 问题 / 错误反馈", "noError": "（无额外错误信息）"
+  }
+}

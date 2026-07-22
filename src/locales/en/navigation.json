@@ -1,0 +1,14 @@
+{
+  "main": "Main navigation",
+  "views": "Main views",
+  "board": "Board",
+  "summary": "Summary",
+  "logDiary": "Logs",
+  "settings": "Settings",
+  "projectDetails": "Project details",
+  "projects": "Projects",
+  "projectsEmpty": "Projects added to the board will appear here",
+  "collapse": "Collapse sidebar",
+  "expand": "Expand sidebar",
+  "resize": "Resize navigation sidebar"
+}

@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
+import { useLanguage } from "../contexts/LanguageContext";
+import { formatBackendError } from "../i18n";
 import type { AiPanelSession } from "../lib/aiPanel";
 import { HelpTip } from "./HelpTip";
 import { ThemeModePicker } from "./ThemeModePicker";
-import type { AiProvider, AppSettings } from "../types";
+import type { AiProvider, AppLanguagePreference, AppSettings } from "../types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -26,44 +30,19 @@ interface Props {
 const PROVIDERS: {
   id: AiProvider;
   title: string;
-  desc: string;
+  descKey: "provider.codexDescription" | "provider.cursorDescription";
 }[] = [
   {
     id: "codex",
     title: "Codex CLI",
-    desc: "调用本机 codex，走 OpenAI / Codex 账号与额度。",
+    descKey: "provider.codexDescription",
   },
   {
     id: "cursorAgent",
     title: "Cursor Agent CLI",
-    desc: "调用本机 agent，走 Cursor 订阅额度。",
+    descKey: "provider.cursorDescription",
   },
 ];
-
-const DEFAULT_GOAL = `你是项目规划助手。请根据下方【项目目标】与【项目现状】，把目标拆成一组可执行任务。
-
-你可以查阅公开网上资料作补充，但必须以目标与当前仓库情况为准，不要编造仓库里不存在的模块。
-
-输出要求：
-1. 只输出任务列表，不要开场白、不要总结
-2. 每条任务足够小，一个人（或一次 AI 实现）能做完
-3. 严格按下面格式重复多条：
-
-### Task
-title: 不超过 20 字的标题
-body: |
-  - 要做什么
-  - 验收标准是什么
-  - 涉及哪些路径/模块（若已知）
-`;
-
-const DEFAULT_TASK = `你是实现助手。请根据下方【任务文档】在当前项目目录中落地实现。
-
-要求：
-1. 直接修改/创建必要文件，完成任务
-2. 不要执行 git commit / push
-3. 完成后用简体中文写一段「实现摘要」（改了什么、如何验收），不要其它废话
-`;
 
 type TestStatus =
   | { kind: "idle" }
@@ -78,12 +57,9 @@ const IDLE_TESTS: TestStatusMap = {
   cursorAgent: { kind: "idle" },
 };
 
-function formatTestError(err: unknown): string {
-  const raw = String(err);
-  return raw.replace(/^Error:\s*/i, "").trim() || "未知错误";
-}
-
 export function SettingsPage({ onSaved, openAiSession }: Props) {
+  const { t } = useTranslation(["settings", "common", "errors"]);
+  const { preference, language, setPreference } = useLanguage();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [testingId, setTestingId] = useState<AiProvider | null>(null);
@@ -95,7 +71,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
       try {
         setSettings(await api.getSettings());
       } catch (e) {
-        setError(String(e));
+        setError(formatBackendError(e, t));
       }
     })();
   }, []);
@@ -112,6 +88,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
     openAiSession({
       kind: "testConnection",
       provider,
+      outputLanguage: language,
       onResult: (ok, detail) => {
         setTestingId(null);
         if (ok) {
@@ -121,7 +98,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
             ...prev,
             [provider]: {
               kind: "error",
-              message: formatTestError(detail ?? "测试失败"),
+              message: detail ?? t("settings:provider.testFailed"),
             },
           }));
         }
@@ -138,9 +115,9 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
       setSettings(next);
       const label =
         next.aiProvider === "cursorAgent" ? "Cursor Agent CLI" : "Codex CLI";
-      onSaved(`设置已保存（AI：${label}）`);
+      onSaved(t("settings:provider.saved", { provider: label }));
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e, t));
     } finally {
       setSaving(false);
     }
@@ -152,28 +129,55 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex justify-end">
         <Button onClick={() => void onSave()} disabled={!settings || busy}>
-          {saving ? "保存中…" : "保存"}
+          {saving ? t("common:actions.saving") : t("common:actions.save")}
         </Button>
       </div>
 
       <Tabs defaultValue="appearance">
         <TabsList>
-          <TabsTrigger value="appearance">外观</TabsTrigger>
+          <TabsTrigger value="appearance">{t("settings:tabs.appearance")}</TabsTrigger>
           <TabsTrigger value="provider">AI Provider</TabsTrigger>
-          <TabsTrigger value="prompts">提示词</TabsTrigger>
-          <TabsTrigger value="summary">总结</TabsTrigger>
+          <TabsTrigger value="prompts">{t("settings:tabs.prompts")}</TabsTrigger>
+          <TabsTrigger value="summary">{t("settings:tabs.summary")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="appearance" className="mt-4">
           <Card className="gap-0 py-4">
             <CardHeader className="px-4 pb-3">
-              <CardTitle className="text-sm font-medium">主题</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("settings:appearance.theme")}</CardTitle>
               <CardDescription className="text-xs">
-                选择日间、夜间或跟随系统。立即生效，偏好保存在本机，无需点保存。
+                {t("settings:appearance.themeDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="px-4">
               <ThemeModePicker />
+            </CardContent>
+          </Card>
+          <Card className="mt-3 gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm font-medium">{t("settings:appearance.language")}</CardTitle>
+              <CardDescription className="text-xs">{t("settings:appearance.languageDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4">
+              <RadioGroup
+                value={preference}
+                onValueChange={(value) => {
+                  const next = value as AppLanguagePreference;
+                  setError(null);
+                  void setPreference(next)
+                    .then(() => setSettings((previous) => previous ? { ...previous, language: next } : previous))
+                    .catch((error) => setError(formatBackendError(error, t)));
+                }}
+                className="grid gap-2 sm:grid-cols-3"
+                aria-label={t("settings:appearance.language")}
+              >
+                {(["system", "zh-CN", "en"] as const).map((value) => (
+                  <label key={value} htmlFor={`language-${value}`} className="flex cursor-pointer items-center gap-2 rounded-md border border-border p-3 hover:bg-accent/20">
+                    <RadioGroupItem id={`language-${value}`} value={value} />
+                    <span className="text-sm">{t(`common:languageName.${value}`)}</span>
+                  </label>
+                ))}
+              </RadioGroup>
             </CardContent>
           </Card>
         </TabsContent>
@@ -182,12 +186,12 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
           <Card className="gap-0 py-4">
             <CardHeader className="px-4 pb-3">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
-                AI 调用通道
-                <HelpTip text="生成 Commit、生成任务、实现任务等所有 AI 能力都会走此处选择的 CLI，不会混用。" />
+                {t("settings:provider.title")}
+                <HelpTip text={t("settings:provider.help")} />
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 px-4">
-              <div role="radiogroup" aria-label="AI 调用通道" className="space-y-2">
+              <div role="radiogroup" aria-label={t("settings:provider.aria")} className="space-y-2">
                 {PROVIDERS.map((p) => {
                   const selected = settings?.aiProvider === p.id;
                   const status = testStatus[p.id];
@@ -214,7 +218,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
                         />
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium">{p.title}</div>
-                          <p className="mt-1 text-xs text-muted-foreground">{p.desc}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{t(`settings:${p.descKey}`)}</p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <Button
                               type="button"
@@ -223,14 +227,14 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
                               onClick={() => onTest(p.id)}
                               disabled={!settings || busy}
                             >
-                              {thisTesting ? "测试中…" : "测试"}
+                              {thisTesting ? t("common:actions.testing") : t("common:actions.test")}
                             </Button>
                             {status.kind === "running" && (
-                              <span className="text-xs text-muted-foreground">测试中…</span>
+                              <span className="text-xs text-muted-foreground">{t("common:actions.testing")}</span>
                             )}
                             {status.kind === "ok" && (
                               <span className="text-xs text-emerald-400" role="status">
-                                ✓ 测试成功
+                                {t("settings:provider.testSuccess")}
                               </span>
                             )}
                             {status.kind === "error" && (
@@ -253,17 +257,17 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
           <Card className="gap-0 py-4">
             <CardHeader className="px-4 pb-3">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
-                生成任务 · 提示词模板
-                <HelpTip text="点「生成任务」时：模板 + goal.md + 项目现状 → AI" />
+                {t("settings:prompts.goalTitle")}
+                <HelpTip text={t("settings:prompts.goalHelp")} />
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 px-4">
               <Textarea
                 className="min-h-[120px] font-mono text-xs"
-                value={settings?.goalPromptTemplate ?? ""}
+                value={settings?.promptTemplates[language].goal ?? ""}
                 onChange={(e) =>
                   setSettings((prev) =>
-                    prev ? { ...prev, goalPromptTemplate: e.target.value } : prev,
+                    prev ? { ...prev, promptTemplates: { ...prev.promptTemplates, [language]: { ...prev.promptTemplates[language], goal: e.target.value } } } : prev,
                   )
                 }
                 disabled={!settings || busy}
@@ -274,13 +278,13 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
                 variant="link"
                 className="h-auto p-0 text-xs"
                 onClick={() =>
-                  setSettings((prev) =>
-                    prev ? { ...prev, goalPromptTemplate: DEFAULT_GOAL } : prev,
-                  )
+                  void api.getDefaultPromptTemplates(language)
+                    .then((defaults) => setSettings((prev) => prev ? { ...prev, promptTemplates: { ...prev.promptTemplates, [language]: { ...prev.promptTemplates[language], goal: defaults.goal } } } : prev))
+                    .catch((resetError) => setError(formatBackendError(resetError, t)))
                 }
                 disabled={!settings || busy}
               >
-                恢复「生成任务」默认模板
+                {t("settings:prompts.goalReset")}
               </Button>
             </CardContent>
           </Card>
@@ -288,17 +292,17 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
           <Card className="gap-0 py-4">
             <CardHeader className="px-4 pb-3">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
-                实现任务 · 提示词模板
-                <HelpTip text="点「⋯ → 实现」时使用；AI 会在项目目录改代码" />
+                {t("settings:prompts.taskTitle")}
+                <HelpTip text={t("settings:prompts.taskHelp")} />
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 px-4">
               <Textarea
                 className="min-h-[120px] font-mono text-xs"
-                value={settings?.taskPromptTemplate ?? ""}
+                value={settings?.promptTemplates[language].task ?? ""}
                 onChange={(e) =>
                   setSettings((prev) =>
-                    prev ? { ...prev, taskPromptTemplate: e.target.value } : prev,
+                    prev ? { ...prev, promptTemplates: { ...prev.promptTemplates, [language]: { ...prev.promptTemplates[language], task: e.target.value } } } : prev,
                   )
                 }
                 disabled={!settings || busy}
@@ -309,13 +313,13 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
                 variant="link"
                 className="h-auto p-0 text-xs"
                 onClick={() =>
-                  setSettings((prev) =>
-                    prev ? { ...prev, taskPromptTemplate: DEFAULT_TASK } : prev,
-                  )
+                  void api.getDefaultPromptTemplates(language)
+                    .then((defaults) => setSettings((prev) => prev ? { ...prev, promptTemplates: { ...prev.promptTemplates, [language]: { ...prev.promptTemplates[language], task: defaults.task } } } : prev))
+                    .catch((resetError) => setError(formatBackendError(resetError, t)))
                 }
                 disabled={!settings || busy}
               >
-                恢复「实现任务」默认模板
+                {t("settings:prompts.taskReset")}
               </Button>
             </CardContent>
           </Card>
@@ -324,14 +328,14 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
         <TabsContent value="summary" className="mt-4">
           <Card className="gap-0 py-4">
             <CardHeader className="px-4 pb-3">
-              <CardTitle className="text-sm font-medium">自动生成时间</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("settings:summary.title")}</CardTitle>
               <CardDescription className="text-xs">
-                到达时间后自动打开运行中心并生成今日总结。开关请在「总结」页设置。
+                {t("settings:summary.description")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 px-4">
               <Label htmlFor="dailyCompletionTime" className="text-sm">
-                每日生成时间
+                {t("settings:summary.time")}
               </Label>
               <Input
                 id="dailyCompletionTime"
@@ -346,7 +350,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
                 }
               />
               <p className="text-xs text-muted-foreground">
-                应用常驻运行时会按此时间自动生成。
+                {t("settings:summary.hint")}
               </p>
             </CardContent>
           </Card>

@@ -1,4 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { PanelRight } from "lucide-react";
 import { api } from "../api";
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { AiSidePanel } from "./AiSidePanel";
+import { formatBackendError, translateMessage } from "../i18n";
+import type { TFunction } from "i18next";
 
 export interface AiActivity {
   id: string;
@@ -36,34 +39,32 @@ interface Props {
   onToast: (msg: string) => void;
 }
 
-function statusLabel(status: RunSession["status"]) {
-  if (status === "running") return "运行中";
-  if (status === "stopping") return "停止中";
-  if (status === "stopped") return "已停止";
-  if (status === "exited") return "已结束";
-  return "运行失败";
+function statusLabel(status: RunSession["status"], t: TFunction<any>) {
+  const normalized = ["starting", "running", "stopping", "stopped", "exited", "failed"].includes(status) ? status : "failed";
+  return t(`activity:runStatus.${normalized}`);
 }
 
-function formatRunSession(session: RunSession) {
+function formatRunSession(session: RunSession, t: TFunction<any>) {
   const output = session.output.map((line) => `[${line.stream}] ${line.text}`).join("\n");
   return [
-    "# GitTracker 命令运行过程",
+    t("activity:copy.runTitle"),
     "",
-    `目标: ${session.targetName}`,
-    `项目: ${session.projectName}`,
-    `目录: ${session.cwd}`,
-    `命令: ${session.command}`,
-    `状态: ${statusLabel(session.status)}`,
-    session.exitCode == null ? "" : `退出码: ${session.exitCode}`,
+    t("activity:copy.target", { value: session.targetName }),
+    t("activity:copy.project", { value: session.projectName }),
+    t("activity:copy.directory", { value: session.cwd }),
+    t("activity:copy.command", { value: session.command }),
+    t("activity:copy.status", { value: statusLabel(session.status, t) }),
+    session.exitCode == null ? "" : t("activity:copy.exitCode", { value: session.exitCode }),
     "",
-    "## 输出",
-    output || "（尚无输出）",
+    t("activity:copy.output"),
+    output || t("activity:copy.noOutput"),
   ]
     .filter(Boolean)
     .join("\n");
 }
 
 export function ActivitySidePanel(props: Props) {
+  const { t } = useTranslation(["activity", "common", "projects"]);
   const { onRunSessionsChange, onUpdateRunLog, onLog } = props;
   const [aiCopyContent, setAiCopyContent] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -71,21 +72,22 @@ export function ActivitySidePanel(props: Props) {
 
   useEffect(() => {
     const unlistenPromise = listen<RunProgressEvent>("run-progress", ({ payload }) => {
+      const eventText = translateMessage(payload.message, payload.text || "");
       if (payload.kind === "exit") {
-        const failed = payload.text.includes("异常");
+        const failed = payload.success === false;
         onUpdateRunLog({
           runSessionId: payload.sessionId,
           status: failed ? "error" : "ok",
-          detail: payload.text,
-          error: failed ? payload.text : null,
+          detail: eventText,
+          error: failed ? eventText : null,
         });
       }
       if (payload.kind === "error") {
         onUpdateRunLog({
           runSessionId: payload.sessionId,
           status: "error",
-          detail: payload.text,
-          error: payload.text,
+          detail: eventText,
+          error: eventText,
         });
       }
 
@@ -94,7 +96,7 @@ export function ActivitySidePanel(props: Props) {
           if (session.id !== payload.sessionId) return session;
           const next = { ...session, output: [...session.output] };
           if (payload.kind === "output") {
-            next.output.push({ stream: payload.stream ?? "stdout", text: payload.text });
+            next.output.push({ stream: payload.stream ?? "stdout", text: eventText });
             if (next.output.length > 2_000) {
               next.output.shift();
               next.outputTruncated = true;
@@ -104,7 +106,7 @@ export function ActivitySidePanel(props: Props) {
             next.status =
               session.status === "stopping"
                 ? "stopped"
-                : payload.text.includes("异常")
+                : payload.success === false
                   ? "failed"
                   : "exited";
             next.endedAt = Math.floor(Date.now() / 1000);
@@ -128,7 +130,7 @@ export function ActivitySidePanel(props: Props) {
         ),
       );
     } catch (error) {
-      props.onToast(String(error));
+      props.onToast(formatBackendError(error, t));
     }
   };
 
@@ -142,14 +144,14 @@ export function ActivitySidePanel(props: Props) {
       onLog({
         kind: "runTarget",
         status: "running",
-        title: `运行 · ${next.targetName}`,
+        title: `${t("projects:card.run")} · ${next.targetName}`,
         projectId: next.projectId,
         projectName: next.projectName,
         runSessionId: next.id,
-        detail: `cwd: ${next.cwd}\ncommand: ${next.command}\n\n已在运行中心重新启动。`,
+        detail: `cwd: ${next.cwd}\ncommand: ${next.command}\n\n${t("activity:center.runRestarted")}`,
       });
     } catch (error) {
-      props.onToast(String(error));
+      props.onToast(formatBackendError(error, t));
     }
   };
 
@@ -157,19 +159,19 @@ export function ActivitySidePanel(props: Props) {
     try {
       await navigator.clipboard.writeText(content);
       setCopied(key);
-      props.onToast("运行信息已复制");
+      props.onToast(t("activity:center.runCopied"));
       window.setTimeout(() => setCopied(null), 1600);
     } catch {
-      props.onToast("复制失败，请手动选择文本");
+      props.onToast(t("activity:center.copyFailed"));
     }
   };
 
   const copyAll = () => {
     const runs = [...props.runSessions]
       .sort((a, b) => a.startedAt - b.startedAt)
-      .map(formatRunSession);
+      .map((session) => formatRunSession(session, t));
     const ai = props.aiSessions.map((item) => aiCopyContent[item.id]).filter(Boolean);
-    void copy("all", ["# GitTracker 运行中心", "", ...runs, ...ai].join("\n\n---\n\n"));
+    void copy("all", [t("activity:copy.centerTitle"), "", ...runs, ...ai].join("\n\n---\n\n"));
   };
 
   const toggleRunOutput = (id: string) => {
@@ -193,7 +195,7 @@ export function ActivitySidePanel(props: Props) {
   return (
     <aside
       aria-hidden={!props.open}
-      aria-label="运行中心"
+      aria-label={t("activity:center.aria")}
       className={cn(
         "flex h-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background",
         !props.open && "w-0 border-l-0",
@@ -206,7 +208,7 @@ export function ActivitySidePanel(props: Props) {
       >
         <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
           <div className="flex min-w-0 items-center gap-2">
-            <h2 className="truncate text-sm font-semibold">运行中心</h2>
+            <h2 className="truncate text-sm font-semibold">{t("activity:center.title")}</h2>
             <Button
               type="button"
               variant="outline"
@@ -214,7 +216,7 @@ export function ActivitySidePanel(props: Props) {
               onClick={copyAll}
               disabled={props.runSessions.length + props.aiSessions.length === 0}
             >
-              {copied === "all" ? "已复制" : "复制全部"}
+              {copied === "all" ? t("common:actions.copied") : t("activity:center.copyAll")}
             </Button>
           </div>
           <Button
@@ -222,8 +224,8 @@ export function ActivitySidePanel(props: Props) {
             variant="secondary"
             size="icon-sm"
             onClick={props.onHide}
-            title="隐藏运行中心"
-            aria-label="隐藏运行中心"
+            title={t("activity:center.hide")}
+            aria-label={t("activity:center.hide")}
             aria-pressed={true}
           >
             <PanelRight className="h-4 w-4" />
@@ -263,17 +265,17 @@ export function ActivitySidePanel(props: Props) {
                               "border-destructive/30 bg-destructive/10 text-destructive",
                           )}
                         >
-                          {statusLabel(session.status)}
+                          {statusLabel(session.status, t)}
                         </Badge>
                         <Button
                           type="button"
                           variant="outline"
                           size="xs"
                           onClick={() =>
-                            void copy(`run-${session.id}`, formatRunSession(session))
+                            void copy(`run-${session.id}`, formatRunSession(session, t))
                           }
                         >
-                          {copied === `run-${session.id}` ? "已复制" : "复制"}
+                          {copied === `run-${session.id}` ? t("common:actions.copied") : t("common:actions.copy")}
                         </Button>
                       </div>
                     </div>
@@ -293,7 +295,7 @@ export function ActivitySidePanel(props: Props) {
                               {line.text}
                             </span>
                           ))
-                        : "正在等待输出…"}
+                        : t("activity:center.waiting")}
                     </pre>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
                       <div className="min-w-0">
@@ -305,8 +307,8 @@ export function ActivitySidePanel(props: Props) {
                             onClick={() => toggleRunOutput(session.id)}
                           >
                             {expanded
-                              ? "收起日志"
-                              : `查看完整日志（${session.output.length} 行）`}
+                              ? t("activity:center.hideLogs")
+                              : t("activity:center.showLogs", { count: session.output.length })}
                           </Button>
                         )}
                       </div>
@@ -318,15 +320,15 @@ export function ActivitySidePanel(props: Props) {
                             size="xs"
                             onClick={() => void stop(session)}
                           >
-                            停止
+                            {t("common:actions.stop")}
                           </Button>
                         ) : null}
                         {session.endedAt ? (
                           <>
                             <span className="text-[11px] text-muted-foreground">
                               {session.exitCode == null
-                                ? statusLabel(session.status)
-                                : `退出码 ${session.exitCode}`}
+                                ? statusLabel(session.status, t)
+                                : t("activity:center.exitCode", { code: session.exitCode })}
                             </span>
                             <Button
                               type="button"
@@ -334,7 +336,7 @@ export function ActivitySidePanel(props: Props) {
                               size="xs"
                               onClick={() => void restart(session)}
                             >
-                              重新运行
+                              {t("common:actions.rerun")}
                             </Button>
                           </>
                         ) : null}
@@ -364,7 +366,7 @@ export function ActivitySidePanel(props: Props) {
 
             {props.runSessions.length === 0 && props.aiSessions.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">
-                还没有运行中的会话。
+                {t("activity:center.empty")}
               </p>
             ) : null}
           </div>

@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{AppSettings, AppStore, ProjectRecord, RunTarget};
+use crate::models::{AppSettings, AppStore, LanguagePreference, ProjectRecord, RunTarget};
 use std::fs;
 use std::path::PathBuf;
 
@@ -30,7 +30,9 @@ pub fn load_store() -> AppResult<AppStore> {
     if raw.trim().is_empty() {
         return Ok(AppStore::default());
     }
-    Ok(serde_json::from_str(&raw)?)
+    let mut store: AppStore = serde_json::from_str(&raw)?;
+    store.settings.migrate_legacy_prompts();
+    Ok(store)
 }
 
 pub fn save_store(store: &AppStore) -> AppResult<()> {
@@ -89,7 +91,7 @@ pub fn set_docs_root(id: &str, docs_root: String) -> AppResult<String> {
         .projects
         .iter_mut()
         .find(|p| p.id == id)
-        .ok_or_else(|| AppError::msg("未找到该项目"))?;
+        .ok_or_else(|| AppError::coded("projectNotFound", None))?;
     project.docs_root = Some(docs_root.clone());
     save_store(&store)?;
     Ok(docs_root)
@@ -101,7 +103,7 @@ pub fn set_run_targets(id: &str, targets: Vec<RunTarget>) -> AppResult<Vec<RunTa
         .projects
         .iter_mut()
         .find(|p| p.id == id)
-        .ok_or_else(|| AppError::msg("未找到该项目"))?;
+        .ok_or_else(|| AppError::coded("projectNotFound", None))?;
 
     let mut normalized = Vec::new();
     for mut t in targets {
@@ -143,7 +145,7 @@ pub fn remove_project(id: &str) -> AppResult<()> {
     let before = store.projects.len();
     store.projects.retain(|p| p.id != id);
     if store.projects.len() == before {
-        return Err(AppError::msg("未找到该项目"));
+        return Err(AppError::coded("projectNotFound", None));
     }
     save_store(&store)?;
     Ok(())
@@ -153,7 +155,7 @@ pub fn find_project(id: &str) -> AppResult<ProjectRecord> {
     list_projects()?
         .into_iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| AppError::msg("未找到该项目"))
+        .ok_or_else(|| AppError::coded("projectNotFound", None))
 }
 
 pub fn recovery_dir(project_id: &str) -> AppResult<PathBuf> {
@@ -169,6 +171,14 @@ pub fn get_settings() -> AppResult<AppSettings> {
 pub fn update_settings(settings: AppSettings) -> AppResult<AppSettings> {
     let mut store = load_store()?;
     store.settings = settings.clone();
+    save_store(&store)?;
+    Ok(settings)
+}
+
+pub fn set_language(preference: LanguagePreference) -> AppResult<AppSettings> {
+    let mut store = load_store()?;
+    store.settings.language = preference;
+    let settings = store.settings.clone();
     save_store(&store)?;
     Ok(settings)
 }

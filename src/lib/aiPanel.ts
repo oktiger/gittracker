@@ -1,7 +1,8 @@
-import type { AiProvider, RunTarget } from "../types";
+import type { TFunction } from "i18next";
+import type { AiProvider, ResolvedLanguage, RunTarget } from "../types";
 
 /** AI 右侧栏会话：所有需要调用 AI 的入口统一打开此会话。 */
-export type AiPanelSession =
+export type AiPanelSession = (
   | {
       kind: "dailyCompletion";
       period: "today" | "week" | "sevenDays";
@@ -48,7 +49,7 @@ export type AiPanelSession =
       relativePath: string;
       taskTitle: string;
       taskNumber: string;
-    };
+    }) & { outputLanguage?: ResolvedLanguage };
 
 export function newAiSessionId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -65,37 +66,37 @@ export function waitForPaint(): Promise<void> {
   });
 }
 
-export function aiSessionTitle(session: AiPanelSession): string {
+export function aiSessionTitle(session: AiPanelSession, t: TFunction<any>): string {
   switch (session.kind) {
     case "dailyCompletion":
-      return session.automatic ? "每日完成自动生成" : "AI 总结每日完成";
+      return session.automatic ? t("activity:ai.titles.dailyAutomatic") : t("activity:ai.titles.daily");
     case "identify":
-      return "AI 识别启动方式";
+      return t("activity:ai.titles.identify");
     case "config":
-      return "配置启动方式";
+      return t("activity:ai.titles.config");
     case "testConnection":
       return session.provider === "cursorAgent"
-        ? "测试 Cursor Agent"
-        : "测试 Codex";
+        ? t("activity:ai.titles.testCursor")
+        : t("activity:ai.titles.testCodex");
     case "generateCommit":
-      return "AI 生成 Commit Message";
+      return t("activity:ai.titles.generateCommit");
     case "oneClick":
-      return "一键提交";
+      return t("activity:ai.titles.oneClick");
     case "generateTasks":
-      return "AI 生成任务";
+      return t("activity:ai.titles.generateTasks");
     case "runTask":
-      return `实现任务 ${session.taskNumber}`;
+      return t("activity:ai.titles.runTask", { number: session.taskNumber });
   }
 }
 
-export function aiSessionSubtitle(session: AiPanelSession): string {
+export function aiSessionSubtitle(session: AiPanelSession, t: TFunction<any>): string {
   switch (session.kind) {
     case "dailyCompletion":
       return session.period === "week"
-        ? "本周 commit message"
+        ? t("activity:ai.subtitles.week")
         : session.period === "sevenDays"
-          ? "过去 7 天 commit message"
-          : "本日 commit message";
+          ? t("activity:ai.subtitles.sevenDays")
+          : t("activity:ai.subtitles.today");
     case "identify":
     case "config":
     case "generateCommit":
@@ -105,6 +106,6 @@ export function aiSessionSubtitle(session: AiPanelSession): string {
     case "runTask":
       return `${session.projectName} · ${session.taskTitle}`;
     case "testConnection":
-      return "验证 CLI 已安装并可返回";
+      return t("activity:ai.subtitles.test");
   }
 }

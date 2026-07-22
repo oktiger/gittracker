@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { formatBackendError } from "../i18n";
 import { api } from "../api";
 import {
   gitStatusLegend,
@@ -23,6 +25,7 @@ interface Props {
 }
 
 export function ChangesDialog({ projectId, projectName, onClose }: Props) {
+  const { t } = useTranslation(["projects", "common"]);
   const [files, setFiles] = useState<FileChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
       try {
         setFiles(await api.listChangedFiles(projectId));
       } catch (e) {
-        setError(String(e));
+        setError(formatBackendError(e, t));
       } finally {
         setLoading(false);
       }
@@ -57,7 +60,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
     try {
       setDiff(await api.getFileDiff(projectId, file.path, file.staged));
     } catch (e) {
-      setError(String(e));
+      setError(formatBackendError(e, t));
     } finally {
       setDiffLoading(false);
     }
@@ -68,7 +71,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>CHANGES · {projectName}</DialogTitle>
-          <DialogDescription>当前 Worktree 的全部变更文件。</DialogDescription>
+          <DialogDescription>{t("projects:changesDialog.description")}</DialogDescription>
         </DialogHeader>
 
         <div
@@ -81,7 +84,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载中…</p>
+          <p className="text-sm text-muted-foreground">{t("common:state.loading")}</p>
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : (
@@ -107,7 +110,7 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
               );
             })}
             {sorted.length === 0 && (
-              <li className="py-3 text-sm text-muted-foreground">当前没有变更</li>
+              <li className="py-3 text-sm text-muted-foreground">{t("projects:changesDialog.empty")}</li>
             )}
           </ul>
         )}
@@ -118,15 +121,15 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
               {selectedPath}
             </div>
             <pre className="max-h-72 overflow-auto whitespace-pre-wrap py-3 font-mono text-[11px] leading-relaxed">
-              {diffLoading ? "加载 diff…" : diff || "没有可显示的 diff"}
+              {diffLoading ? t("projects:changesDialog.loadingDiff") : diff || t("projects:changesDialog.noDiff")}
             </pre>
           </div>
         ) : null}
 
         <DialogFooter className="border-t pt-4 sm:justify-between">
-          <span className="text-sm text-muted-foreground">共 {sorted.length} 个文件</span>
+          <span className="text-sm text-muted-foreground">{t("common:counts.files", { count: sorted.length })}</span>
           <Button type="button" variant="ghost" onClick={onClose}>
-            关闭
+            {t("common:actions.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
