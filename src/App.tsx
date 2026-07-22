@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { PanelRight } from "lucide-react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight } from "lucide-react";
 import { api } from "./api";
 import { ActivitySidePanel, type AiActivity } from "./components/ActivitySidePanel";
 import { AppSidebar, type NavView } from "./components/AppSidebar";
@@ -47,6 +48,9 @@ function App() {
   const [aiSessions, setAiSessions] = useState<AiActivity[]>([]);
   const [runSessions, setRunSessions] = useState<RunSession[]>([]);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [history, setHistory] = useState<AppView[]>(["board"]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [docsEpoch, setDocsEpoch] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState(false);
@@ -148,16 +152,40 @@ function App() {
     return () => window.clearInterval(timer);
   }, [openAiSession]);
 
+  const navigate = (next: AppView) => {
+    if (next === view) return;
+    setHistory((items) => {
+      const nextItems = [...items.slice(0, historyIndex + 1), next];
+      setHistoryIndex(nextItems.length - 1);
+      return nextItems;
+    });
+    setView(next);
+  };
+
   const goNav = (next: NavView) => {
     setSelectedProjectId(null);
-    setView(next);
+    navigate(next);
     if (next === "logDiary") void logDiary.refresh();
   };
 
   const openProject = (id: string) => {
     setSelectedProjectId(id);
-    setView("project");
+    navigate("project");
   };
+
+  const goHistory = (direction: -1 | 1) => {
+    const nextIndex = historyIndex + direction;
+    const next = history[nextIndex];
+    if (!next) return;
+    setHistoryIndex(nextIndex);
+    setView(next);
+    if (next !== "project") setSelectedProjectId(null);
+    if (next === "logDiary") void logDiary.refresh();
+  };
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
+  const windowControls = useMemo(() => getCurrentWindow(), []);
 
   const onAdd = async () => {
     try {
@@ -312,19 +340,121 @@ function App() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-full">
-        <AppSidebar
-          view={view}
-          selectedProjectId={selectedProjectId}
-          projects={projects}
-          logCount={logDiary.entries.length}
-          upgrading={upgrading}
-          onNavigate={goNav}
-          onSelectProject={openProject}
-          onUpgrade={() => void onUpgradeSelf()}
-        />
+        {sidebarOpen ? (
+          <AppSidebar
+            view={view}
+            selectedProjectId={selectedProjectId}
+            projects={projects}
+            logCount={logDiary.entries.length}
+            upgrading={upgrading}
+            onNavigate={goNav}
+            onSelectProject={openProject}
+            onUpgrade={() => void onUpgradeSelf()}
+            onCollapse={() => setSidebarOpen(false)}
+          />
+        ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-end justify-between gap-4 border-b border-border px-6 py-4">
+          <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/80 px-3" data-tauri-drag-region>
+            <div className="flex items-center gap-1" data-tauri-drag-region>
+              {!sidebarOpen ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="展开左侧导航"
+                  title="展开左侧导航"
+                >
+                  <PanelLeft className="h-4 w-4" />
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => goHistory(-1)}
+                disabled={!canGoBack}
+                aria-label="返回上一页"
+                title="返回上一页"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => goHistory(1)}
+                disabled={!canGoForward}
+                aria-label="前进下一页"
+                title="前进下一页"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-1 justify-end" data-tauri-drag-region>
+              <div className="flex items-center gap-2" data-tauri-drag-region={undefined}>
+                {view === "board" ? (
+                  <>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
+                      刷新
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => void onAdd()}>
+                      添加项目
+                    </Button>
+                  </>
+                ) : null}
+                {view === "project" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => selectedProjectId && void refreshOne(selectedProjectId)}
+                    disabled={!selectedProjectId}
+                  >
+                    刷新
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant={activityOpen ? "secondary" : "ghost"}
+                  size="icon-sm"
+                  title="打开右侧运行中心"
+                  aria-label="打开右侧运行中心"
+                  onClick={() => setActivityOpen(true)}
+                >
+                  <PanelRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <div className="flex items-center gap-1 px-6 pt-5">
+            <button
+              type="button"
+              className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90"
+              onClick={() => void windowControls.close()}
+              aria-label="关闭窗口"
+              title="关闭窗口"
+            />
+            <button
+              type="button"
+              className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90"
+              onClick={() => void windowControls.minimize()}
+              aria-label="最小化窗口"
+              title="最小化窗口"
+            />
+            <button
+              type="button"
+              className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90"
+              onClick={() => void windowControls.toggleMaximize()}
+              aria-label="最大化窗口"
+              title="最大化窗口"
+            />
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col">
+          <section className="flex items-end justify-between gap-4 px-6 pb-4 pt-3">
             <div>
               {headerMeta.eyebrow ? (
                 <button
@@ -340,39 +470,7 @@ function App() {
                 {headerMeta.desc}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {view === "board" ? (
-                <>
-                  <Button type="button" variant="outline" onClick={() => void refresh()}>
-                    刷新
-                  </Button>
-                  <Button type="button" onClick={() => void onAdd()}>
-                    添加项目
-                  </Button>
-                </>
-              ) : null}
-              {view === "project" ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => selectedProjectId && void refreshOne(selectedProjectId)}
-                  disabled={!selectedProjectId}
-                >
-                  刷新
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                title="运行中心"
-                aria-label="打开运行中心"
-                onClick={() => setActivityOpen(true)}
-              >
-                <PanelRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </header>
+          </section>
 
           {error ? (
             <div
@@ -442,6 +540,7 @@ function App() {
               <SettingsPage onSaved={showToast} openAiSession={openAiSession} />
             )}
           </main>
+          </div>
         </div>
 
         {dialog?.type === "commit" && (

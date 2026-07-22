@@ -1,5 +1,6 @@
 import {
   CalendarCheck2,
+  ChevronsLeft,
   LayoutGrid,
   ScrollText,
   Settings,
@@ -21,6 +22,7 @@ interface Props {
   onNavigate: (view: NavView) => void;
   onSelectProject: (id: string) => void;
   onUpgrade: () => void;
+  onCollapse: () => void;
 }
 
 const NAV: { id: NavView; label: string; icon: typeof LayoutGrid }[] = [
@@ -39,11 +41,12 @@ export function AppSidebar({
   onNavigate,
   onSelectProject,
   onUpgrade,
+  onCollapse,
 }: Props) {
   return (
-    <aside className="flex w-[240px] shrink-0 flex-col border-r border-border bg-card" aria-label="主导航">
-      <div className="border-b border-border px-4 py-4">
-        <div className="flex items-center gap-2.5">
+    <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-card/70" aria-label="主导航">
+      <div className="flex h-12 items-center justify-between px-3" data-tauri-drag-region>
+        <div className="flex items-center gap-2.5" data-tauri-drag-region>
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Target className="h-4 w-4" />
           </div>
@@ -52,9 +55,19 @@ export function AppSidebar({
             <div className="text-xs text-muted-foreground">多项目 Git 看板</div>
           </div>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onCollapse}
+          aria-label="收起左侧导航"
+          title="收起左侧导航"
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
       </div>
 
-      <nav className="space-y-1 p-3" aria-label="主视图">
+      <nav className="space-y-1 border-t border-border p-3" aria-label="主视图">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
