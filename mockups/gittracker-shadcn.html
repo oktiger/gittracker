@@ -316,12 +316,11 @@
                 </section>
                 <section class="overflow-visible rounded-md border border-border bg-background/40">
                   <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-                    <div class="flex items-center gap-2">
-                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/15 text-[10px] font-bold text-emerald-400">D</span>
-                      <span class="text-sm font-semibold">文档</span>
-                      <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">DOCS</code>
+                    <div class="min-w-0">
+                      <p class="text-[11px] text-muted-foreground">当前文件夹</p>
+                      <code class="mt-0.5 block truncate font-mono text-xs text-foreground">DOCS</code>
                     </div>
-                    <span class="text-[11px] text-muted-foreground">项目文档库 · 文件夹层级</span>
+                    <button type="button" class="inline-flex h-7 shrink-0 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="showToast('选择文档库（mock）')">选择文档库</button>
                   </header>
                   <div class="docs-list" data-project="gittracker"></div>
                 </section>
@@ -443,12 +442,11 @@
                 </section>
                 <section class="overflow-visible rounded-md border border-border bg-background/40">
                   <header class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-                    <div class="flex items-center gap-2">
-                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/15 text-[10px] font-bold text-emerald-400">D</span>
-                      <span class="text-sm font-semibold">文档</span>
-                      <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">DOCS</code>
+                    <div class="min-w-0">
+                      <p class="text-[11px] text-muted-foreground">当前文件夹</p>
+                      <code class="mt-0.5 block truncate font-mono text-xs text-foreground">DOCS</code>
                     </div>
-                    <span class="text-[11px] text-muted-foreground">项目文档库 · 文件夹层级</span>
+                    <button type="button" class="inline-flex h-7 shrink-0 items-center rounded-md border border-input px-2.5 text-[11px] hover:bg-accent" onclick="showToast('选择文档库（mock）')">选择文档库</button>
                   </header>
                   <div class="docs-list" data-project="docs-site"></div>
                 </section>
@@ -565,16 +563,27 @@
 
         <!-- 总结（原「每日完成」） -->
         <section id="view-summary" class="view max-w-3xl space-y-4">
-          <div class="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-            <div>
-              <h3 class="text-sm font-medium">每日自动生成总结</h3>
-              <p class="mt-1 text-xs text-muted-foreground">汇总已配置项目的 commit message，并生成可分享的工作总结。</p>
+          <div class="rounded-lg border border-border bg-card p-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <h3 class="text-sm font-medium">每日自动生成总结</h3>
+                <p class="mt-1 text-xs text-muted-foreground">汇总已配置项目的 commit message，并生成可分享的工作总结。</p>
+              </div>
+              <label class="inline-flex cursor-pointer items-center gap-2 text-sm">
+                <input id="daily-switch" type="checkbox" class="peer sr-only" checked />
+                <span class="relative h-5 w-9 rounded-full bg-input after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-background after:transition peer-checked:bg-primary peer-checked:after:translate-x-4"></span>
+                <b class="text-xs font-medium">已开启</b>
+              </label>
             </div>
-            <label class="inline-flex cursor-pointer items-center gap-2 text-sm">
-              <input id="daily-switch" type="checkbox" class="peer sr-only" checked />
-              <span class="relative h-5 w-9 rounded-full bg-input after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-background after:transition peer-checked:bg-primary peer-checked:after:translate-x-4"></span>
-              <b class="text-xs font-medium">已开启</b>
-            </label>
+            <div class="mt-4 space-y-3 border-t border-border pt-4">
+              <label class="block text-sm font-medium" for="daily-time">每日总结时间</label>
+              <input id="daily-time" type="time" value="00:00" class="h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
+              <p class="text-xs text-muted-foreground">应用常驻运行时，会在每天该时间自动生成上一自然日总结。默认 00:00。</p>
+              <div class="flex gap-2">
+                <button type="button" class="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent" onclick="showToast('已取消')">取消</button>
+                <button type="button" class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground" onclick="showToast('已开启每日 00:00 自动生成')">确认</button>
+              </div>
+            </div>
           </div>
           <div class="grid gap-3 sm:grid-cols-3">
             <button type="button" class="rounded-lg border border-border bg-card p-4 text-left hover:bg-accent/40" onclick="openSheet('ai')">
@@ -591,15 +600,61 @@
             </button>
           </div>
           <div class="rounded-lg border border-border bg-card p-4">
-            <div class="mb-3 flex items-center justify-between">
-              <h3 class="text-sm font-medium">今日总结 · 预览</h3>
-              <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已下载分享图（mock）')">下载 SVG</button>
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <h3 class="text-sm font-medium">今日完成 · 7月21日 00:00 – 7月22日 00:00 · 预览</h3>
+              <div class="flex gap-2">
+                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已复制总结')">复制</button>
+                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已下载分享图（mock）')">下载 SVG</button>
+              </div>
             </div>
-            <ul class="space-y-2 text-sm text-muted-foreground">
-              <li>• 看板卡片拆成代码 / 文档双模块</li>
-              <li>• 接入 Activity Sheet 展示 AI / 运行过程</li>
-              <li>• 设置页改为 Tabs + Card 分组</li>
-            </ul>
+            <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">时间范围：7月21日 00:00 – 7月22日 00:00
+
+gittracker
+- 看板卡片拆成代码 / 文档双模块
+- 接入 Activity Sheet 展示 AI / 运行过程
+
+docs-site
+- 设置页改为 Tabs + Card 分组</pre>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <h3 class="text-sm font-medium">总结记录</h3>
+              <p class="mt-1 text-xs text-muted-foreground">每次生成的总结都会按时间保留在下方，内容按项目区分。</p>
+            </div>
+            <div class="rounded-lg border border-border bg-card p-4">
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium">7月21日 00:00 – 7月22日 00:00</h3>
+                  <p class="mt-1 text-xs text-muted-foreground">刚刚 · 自动总结 · 7月21日 00:00 – 7月22日 00:00</p>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已复制总结')">复制</button>
+                  <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已下载分享图（mock）')">下载 SVG</button>
+                </div>
+              </div>
+              <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">时间范围：7月21日 00:00 – 7月22日 00:00
+
+gittracker
+- 看板卡片拆成代码 / 文档双模块
+- 接入 Activity Sheet 展示 AI / 运行过程
+
+docs-site
+- 设置页改为 Tabs + Card 分组</pre>
+            </div>
+            <div class="rounded-lg border border-border bg-card p-4">
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium">7月20日 00:00 – 7月21日 00:00</h3>
+                  <p class="mt-1 text-xs text-muted-foreground">昨天 00:00 · 自动总结 · 7月20日 00:00 – 7月21日 00:00</p>
+                </div>
+                <button type="button" class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent" onclick="showToast('已复制总结')">复制</button>
+              </div>
+              <pre class="select-text whitespace-pre-wrap text-sm text-muted-foreground">时间范围：7月20日 00:00 – 7月21日 00:00
+
+gittracker
+- 完善每日总结自动生成与日志持久化</pre>
+            </div>
           </div>
         </section>
 
@@ -691,7 +746,7 @@
             <div class="rounded-lg border border-border bg-card p-4">
               <label class="mb-2 block text-sm font-medium">自动生成时间</label>
               <input type="time" value="21:00" class="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-              <p class="mt-2 text-xs text-muted-foreground">到达时间后自动打开运行中心并生成今日总结。</p>
+              <p class="mt-2 text-xs text-muted-foreground">到达时间后自动打开运行中心并生成上一自然日总结。</p>
             </div>
           </div>
         </section>
@@ -795,6 +850,18 @@
                     relativePath: "DOCS/specs/mockups/preview.html",
                     isDirectory: false,
                     content: "<!doctype html><title>Preview</title>",
+                  },
+                  {
+                    name: "hero.png",
+                    relativePath: "DOCS/specs/mockups/hero.png",
+                    isDirectory: false,
+                    content: "",
+                  },
+                  {
+                    name: "cover.jpeg",
+                    relativePath: "DOCS/specs/mockups/cover.jpeg",
+                    isDirectory: false,
+                    content: "",
                   },
                 ],
               },
@@ -917,6 +984,33 @@
       setHeaderActions(view);
     }
 
+    /** VS Code Seti UI 文件类型色（与 src/lib/documentFileType.ts 一致） */
+    function docFileBadge(name) {
+      const ext = (name.split(".").pop() || "").toLowerCase();
+      const map = {
+        html: ["HTML", "bg-[#e37933]/15 text-[#e37933]"],
+        htm: ["HTML", "bg-[#e37933]/15 text-[#e37933]"],
+        md: ["Markdown", "bg-[#519aba]/15 text-[#519aba]"],
+        markdown: ["Markdown", "bg-[#519aba]/15 text-[#519aba]"],
+        mdx: ["Markdown", "bg-[#519aba]/15 text-[#519aba]"],
+        png: ["PNG", "bg-[#a074c4]/15 text-[#a074c4]"],
+        jpg: ["JPEG", "bg-[#a074c4]/15 text-[#a074c4]"],
+        jpeg: ["JPEG", "bg-[#a074c4]/15 text-[#a074c4]"],
+        gif: ["GIF", "bg-[#a074c4]/15 text-[#a074c4]"],
+        webp: ["WEBP", "bg-[#a074c4]/15 text-[#a074c4]"],
+        svg: ["SVG", "bg-[#a074c4]/15 text-[#a074c4]"],
+        pdf: ["PDF", "bg-[#cc3e44]/15 text-[#cc3e44]"],
+        json: ["JSON", "bg-[#cbcb41]/15 text-[#cbcb41]"],
+        css: ["CSS", "bg-[#519aba]/15 text-[#519aba]"],
+        js: ["JS", "bg-[#cbcb41]/15 text-[#cbcb41]"],
+        ts: ["TS", "bg-[#519aba]/15 text-[#519aba]"],
+        txt: ["TXT", "bg-muted text-muted-foreground"],
+      };
+      const hit = map[ext];
+      if (!hit) return "";
+      return `<span class="rounded px-1 py-0.5 text-[9px] font-medium ${hit[1]}">${hit[0]}</span>`;
+    }
+
     function renderNode(project, node, depth) {
       const key = `${project}:${node.relativePath}`;
       const pad = 12 + depth * 14;
@@ -938,7 +1032,7 @@
                     data-open-node="${key}">
               ${icon}
               <span class="truncate">${node.name}</span>
-              ${isHtml ? `<span class="rounded bg-secondary px-1 py-0.5 text-[9px] text-secondary-foreground">HTML</span>` : ""}
+              ${node.isDirectory ? "" : docFileBadge(node.name)}
             </button>
             <button type="button" class="more inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-base text-muted-foreground hover:bg-accent hover:text-foreground"
                     data-menu="${key}" aria-label="${node.name} 的更多操作" aria-expanded="false">⋯</button>

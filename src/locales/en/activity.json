@@ -62,6 +62,7 @@
     },
     "subtitles": {
       "today": "Today’s commit messages",
+      "yesterday": "Yesterday’s commit messages",
       "week": "This week’s commit messages",
       "sevenDays": "Commit messages from the past 7 days",
       "test": "Verify that the CLI is installed and responsive"
@@ -94,7 +95,7 @@
     "testFailed": "{{provider}} test failed", "generateFailed": "AI generation failed · {{project}}", "oneClickFailed": "One-click commit failed · {{project}}",
     "tasksFailed": "Task generation failed · {{project}}", "taskFailed": "Task {{number}} implementation failed · {{title}}",
     "log": {
-      "dailyTitle": "{{mode}} daily completion · {{period}}", "automatic": "Automatic", "manual": "Manual",
+      "dailyTitle": "{{mode}} summary · {{period}}", "automatic": "Automatic", "manual": "Manual",
       "identifyTitle": "Identify run targets · {{project}}", "source": "Source: {{source}}\n{{count}} suggestions:\n{{preview}}", "testTitle": "Test {{provider}}", "reply": "Reply: {{reply}}",
       "generatedCommit": "Generated Commit message:\n{{message}}", "oneClickTitle": "One-click commit · {{project}}", "pushed": "Message:\n{{message}}\n\nPushed: {{pushed}}",
       "tasksTitle": "Generate tasks · {{project}}", "tasksDetail": "Created {{created}} tasks\n{{total}} tasks in total", "taskTitle": "Implement task {{number}} · {{title}}",

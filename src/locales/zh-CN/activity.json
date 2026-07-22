@@ -29,7 +29,7 @@
       "testCursor": "测试 Cursor Agent", "testCodex": "测试 Codex", "generateCommit": "AI 生成 Commit Message",
       "oneClick": "一键提交", "generateTasks": "AI 生成任务", "runTask": "实现任务 {{number}}", "runDocument": "执行文档 {{name}}"
     },
-    "subtitles": { "today": "本日 commit message", "week": "本周 commit message", "sevenDays": "过去 7 天 commit message", "test": "验证 CLI 已安装并可返回" },
+    "subtitles": { "today": "本日 commit message", "yesterday": "昨日 commit message", "week": "本周 commit message", "sevenDays": "过去 7 天 commit message", "test": "验证 CLI 已安装并可返回" },
     "boot": {
       "daily": "开始整理{{period}}的完成事项…", "identify": "开始识别「{{project}}」的启动方式…", "test": "开始测试 {{provider}}…",
       "commit": "开始为「{{project}}」生成 Commit message…", "oneClick": "一键提交「{{project}}」：AI → Commit → Push…",
@@ -51,7 +51,7 @@
     "testFailed": "测试 {{provider}} 失败", "generateFailed": "AI Generate 失败 · {{project}}", "oneClickFailed": "一键提交失败 · {{project}}",
     "tasksFailed": "生成任务失败 · {{project}}", "taskFailed": "实现任务失败 {{number}} · {{title}}",
     "log": {
-      "dailyTitle": "{{mode}}总结每日完成 · {{period}}", "automatic": "自动", "manual": "手动",
+      "dailyTitle": "{{mode}}总结 · {{period}}", "automatic": "自动", "manual": "手动",
       "identifyTitle": "识别启动方式 · {{project}}", "source": "来源: {{source}}\n建议 {{count}} 条:\n{{preview}}", "testTitle": "测试 {{provider}}", "reply": "回复: {{reply}}",
       "generatedCommit": "生成的 Commit message:\n{{message}}", "oneClickTitle": "一键提交 · {{project}}", "pushed": "Message:\n{{message}}\n\n已推送: {{pushed}}",
       "tasksTitle": "生成任务 · {{project}}", "tasksDetail": "新建 {{created}} 条任务\n当前共 {{total}} 条", "taskTitle": "实现任务 {{number}} · {{title}}",

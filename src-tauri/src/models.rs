@@ -256,7 +256,7 @@ pub struct AppSettings {
 }
 
 fn default_daily_completion_time() -> String {
-    "18:00".to_string()
+    "00:00".to_string()
 }
 
 impl Default for AppSettings {

@@ -2,6 +2,7 @@ mod ai;
 mod commands;
 mod docs;
 mod error;
+mod fs_safe;
 mod git;
 mod log_diary;
 mod models;
@@ -37,6 +38,8 @@ pub fn run() {
             commands::refresh_all,
             commands::list_changed_files,
             commands::get_file_diff,
+            commands::read_project_file,
+            commands::write_project_file,
             commands::generate_commit_message,
             commands::commit_project,
             commands::push_project,

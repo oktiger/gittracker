@@ -7,6 +7,7 @@ import { api } from "./api";
 import { ActivitySidePanel, type AiActivity } from "./components/ActivitySidePanel";
 import { AppSidebar, type NavView } from "./components/AppSidebar";
 import { ChangesDialog } from "./components/ChangesDialog";
+import { ChangedFileDialog } from "./components/ChangedFileDialog";
 import { CommitDialog } from "./components/CommitDialog";
 import { DiscardDialog } from "./components/DiscardDialog";
 import { LogDiaryPage } from "./components/LogDiaryPage";
@@ -22,7 +23,7 @@ import { useProjects } from "./hooks/useProjects";
 import { newAiSessionId, type AiPanelSession } from "./lib/aiPanel";
 import { useLanguage } from "./contexts/LanguageContext";
 import { formatBackendError } from "./i18n";
-import type { NewLogDiaryEntry, RunSession, RunTarget } from "./types";
+import type { FileChange, NewLogDiaryEntry, RunSession, RunTarget } from "./types";
 
 type AppView = NavView | "project";
 type AppLocation = { view: AppView; projectId: string | null };
@@ -31,6 +32,7 @@ type DialogState =
   | { type: "commit"; id: string; name: string }
   | { type: "discard"; id: string; name: string }
   | { type: "changes"; id: string; name: string }
+  | { type: "changedFile"; id: string; file: FileChange }
   | { type: "doc"; id: string; relativePath: string; title: string; libraryFile?: boolean }
   | null;
 
@@ -82,12 +84,6 @@ function App() {
   const onBoardRefresh = async () => {
     const ok = await refresh();
     if (ok) showToast(t("projects:board.refreshed"));
-  };
-
-  const onProjectRefreshClick = async () => {
-    if (!selectedProjectId) return;
-    const ok = await refreshOne(selectedProjectId);
-    if (ok) showToast(t("projects:board.projectRefreshed"));
   };
 
   const appendLog = useCallback(
@@ -164,7 +160,8 @@ function App() {
         const key = "gittracker.daily-completion.last-run";
         if (time < settings.dailyCompletionTime || localStorage.getItem(key) === today) return;
         localStorage.setItem(key, today);
-        openAiSession({ kind: "dailyCompletion", period: "today", automatic: true });
+        // 到点自动生成时汇总「上一自然日」00:00–今日 00:00，避免 00:00 触发时 today/midnight 几乎无提交。
+        openAiSession({ kind: "dailyCompletion", period: "yesterday", automatic: true });
       } catch {
         /* 下次轮询重试；不打断主界面 */
       }
@@ -289,6 +286,7 @@ function App() {
       onOneClick={() => onOneClick(p.id)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
+      onViewChangedFile={(file) => setDialog({ type: "changedFile", id: p.id, file })}
       onRemove={() => void onRemove(p.id, p.name)}
       onRunTarget={(target) => void onRunTarget(p, target)}
       onOpenDoc={(relativePath, title, libraryFile = false) =>
@@ -501,22 +499,6 @@ function App() {
 
             {view === "project" && (
               <>
-                <div className="mb-5 flex items-center justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!selectedProjectId || refreshing || loading}
-                    onClick={() => void onProjectRefreshClick()}
-                  >
-                    {refreshing ? (
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <RefreshCw className="size-3.5" aria-hidden />
-                    )}
-                    {refreshing ? t("common:actions.refreshing") : t("common:actions.refresh")}
-                  </Button>
-                </div>
                 {loading ? (
                 <div className="px-2 py-16 text-center text-sm text-muted-foreground">{t("common:state.loading")}</div>
               ) : !selectedProject ? (
@@ -545,9 +527,10 @@ function App() {
 
             {view === "dailyCompletion" && (
               <DailyCompletionPage
+                entries={logDiary.entries}
                 onToast={showToast}
-                onGenerate={(period, onResult) =>
-                  openAiSession({ kind: "dailyCompletion", period, onResult })
+                onGenerate={(period, onResult, onComplete) =>
+                  openAiSession({ kind: "dailyCompletion", period, onResult, onComplete })
                 }
               />
             )}
@@ -637,6 +620,18 @@ function App() {
             projectId={dialog.id}
             projectName={dialog.name}
             onClose={() => setDialog(null)}
+          />
+        )}
+
+        {dialog?.type === "changedFile" && (
+          <ChangedFileDialog
+            projectId={dialog.id}
+            file={dialog.file}
+            onClose={() => setDialog(null)}
+            onSaved={() => {
+              void refreshOne(dialog.id);
+              showToast(t("projects:changedFileDialog.saved"));
+            }}
           />
         )}
 

@@ -5,6 +5,7 @@ import { api } from "../api";
 import type {
   DocsOverview,
   DocsTaskItem,
+  FileChange,
   NewLogDiaryEntry,
   ProjectStatus,
   RunTarget,
@@ -47,6 +48,7 @@ interface Props {
   onOneClick: () => void;
   onDiscard: () => void;
   onViewChanges: () => void;
+  onViewChangedFile: (file: FileChange) => void;
   onRemove: () => void;
   onRunTarget: (target: RunTarget) => void;
   onOpenDoc: (relativePath: string, title: string, libraryFile?: boolean) => void;
@@ -69,6 +71,7 @@ export function ProjectCard({
   onOneClick,
   onDiscard,
   onViewChanges,
+  onViewChangedFile,
   onRemove,
   onRunTarget: onRunTargetFromCenter,
   onOpenDoc,
@@ -96,6 +99,8 @@ export function ProjectCard({
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
   const locked = disabled || Boolean(docsBusy) || runBusy;
+  const detailTabTriggerClass =
+    "rounded-full px-3 py-1.5 text-muted-foreground shadow-none data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-muted dark:data-[state=active]:text-foreground";
 
   const loadDocs = async () => {
     try {
@@ -360,17 +365,17 @@ export function ProjectCard({
         {removeConfirmDialog}
         <Tabs value={detailTab} onValueChange={setDetailTab}>
           <div className="flex items-center justify-between gap-2">
-            <TabsList className="h-auto rounded-lg border border-border bg-muted/40 p-1">
-              <TabsTrigger value="run" className="rounded-md px-3 py-1.5">
+            <TabsList className="h-auto gap-1 bg-transparent p-0">
+              <TabsTrigger value="run" className={detailTabTriggerClass}>
                 {t("projects:card.tabs.run")}
               </TabsTrigger>
-              <TabsTrigger value="code" className="rounded-md px-3 py-1.5">
+              <TabsTrigger value="code" className={detailTabTriggerClass}>
                 {t("projects:card.tabs.code")}
               </TabsTrigger>
-              <TabsTrigger value="docs" className="rounded-md px-3 py-1.5">
+              <TabsTrigger value="docs" className={detailTabTriggerClass}>
                 {t("projects:card.tabs.documents")}
               </TabsTrigger>
-              <TabsTrigger value="evolution" className="rounded-md px-3 py-1.5">
+              <TabsTrigger value="evolution" className={detailTabTriggerClass}>
                 {t("projects:card.tabs.evolution")}
               </TabsTrigger>
             </TabsList>
@@ -379,31 +384,14 @@ export function ProjectCard({
 
           <TabsContent value="run" className="mt-4">
             <div className="rounded-lg border border-border bg-card">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div>
-                  <h3 className="text-sm font-medium">{t("projects:card.runnable")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("projects:card.runnableSource")}</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  disabled={locked}
-                  onClick={() => onConfigureRun("config")}
-                >
-                  {t("projects:card.configure")}
-                </Button>
-              </div>
               {hasTargets ? (
                 <ul className="divide-y divide-border">
                   {targets.map((target) => (
-                    <li key={target.id}>
-                      <button
-                        type="button"
-                        disabled={locked}
-                        onClick={() => void onRunTarget(target.id)}
-                        className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-accent/50 disabled:opacity-50"
-                      >
+                    <li
+                      key={target.id}
+                      className="flex items-center gap-3 px-4 py-3"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-2 text-sm font-medium">
                           {target.name}
                           {target.isDefault ? (
@@ -416,44 +404,54 @@ export function ProjectCard({
                             </>
                           ) : null}
                         </div>
-                        <code className="font-mono text-xs text-muted-foreground">
+                        <code className="block font-mono text-xs text-muted-foreground">
                           {target.cwd} · {target.command}
                         </code>
                         {target.description ? (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="block text-xs text-muted-foreground">
                             {target.description}
                           </span>
                         ) : null}
-                      </button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        className="shrink-0"
+                        disabled={locked}
+                        onClick={() => void onRunTarget(target.id)}
+                      >
+                        <Play className="h-3 w-3" />
+                        {t("projects:card.run")}
+                      </Button>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <div className="px-4 py-8 text-center">
                   <p className="text-sm text-muted-foreground">{t("projects:card.noRunnable")}</p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="mt-3"
-                    disabled={locked}
-                    onClick={onIdentify}
-                  >
-                    {t("projects:card.identify")}
-                  </Button>
                 </div>
               )}
-              {hasTargets ? (
-                <div className="border-t border-border px-4 py-3">
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                    onClick={onIdentify}
-                    disabled={locked}
-                  >
-                    {t("projects:card.identify")}
-                  </button>
-                </div>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={locked}
+                  onClick={() => onConfigureRun("config")}
+                >
+                  {t("projects:card.customConfig")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={locked}
+                  onClick={onIdentify}
+                >
+                  {t("projects:card.reIdentify")}
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
@@ -520,7 +518,7 @@ export function ProjectCard({
                         <button
                           type="button"
                           className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-xs hover:bg-accent/40"
-                          onClick={onViewChanges}
+                          onClick={() => onViewChangedFile(file)}
                         >
                           <span
                             className="min-w-0 truncate font-mono text-muted-foreground"

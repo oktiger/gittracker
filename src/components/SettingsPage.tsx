@@ -349,7 +349,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
                 id="dailyCompletionTime"
                 type="time"
                 className="w-auto"
-                value={settings?.dailyCompletionTime ?? "18:00"}
+                value={settings?.dailyCompletionTime ?? "00:00"}
                 disabled={!settings || busy}
                 onChange={(e) =>
                   setSettings((prev) =>

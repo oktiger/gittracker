@@ -37,6 +37,10 @@ export const api = {
     invoke<FileChange[]>("list_changed_files", { id }),
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
+  readProjectFile: (id: string, relativePath: string) =>
+    invoke<string>("read_project_file", { id, relativePath }),
+  writeProjectFile: (id: string, relativePath: string, content: string) =>
+    invoke<void>("write_project_file", { id, relativePath, content }),
   generateCommitMessage: (id: string, sessionId: string, locale: ResolvedLanguage) =>
     invoke<string>("generate_commit_message", { id, sessionId, locale }),
   commitProject: (id: string, message: string) =>
@@ -120,6 +124,9 @@ export const api = {
     invoke<LogDiaryEntry | null>("update_log_diary_by_run_session", { entry }),
   reconcileLogDiary: () => invoke<LogDiaryEntry[]>("reconcile_log_diary"),
   clearLogDiary: () => invoke<void>("clear_log_diary"),
-  generateDailyCompletion: (period: "today" | "week" | "sevenDays", sessionId: string, locale: ResolvedLanguage) =>
-    invoke<string>("generate_daily_completion", { period, sessionId, locale }),
+  generateDailyCompletion: (
+    period: "today" | "yesterday" | "week" | "sevenDays",
+    sessionId: string,
+    locale: ResolvedLanguage,
+  ) => invoke<string>("generate_daily_completion", { period, sessionId, locale }),
 };

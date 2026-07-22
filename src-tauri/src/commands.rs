@@ -70,6 +70,18 @@ pub fn get_file_diff(id: String, path: String, staged: bool) -> AppResult<String
 }
 
 #[tauri::command]
+pub fn read_project_file(id: String, relative_path: String) -> AppResult<String> {
+    let project = store::find_project(&id)?;
+    crate::fs_safe::read_project_file(Path::new(&project.path), &relative_path)
+}
+
+#[tauri::command]
+pub fn write_project_file(id: String, relative_path: String, content: String) -> AppResult<()> {
+    let project = store::find_project(&id)?;
+    crate::fs_safe::write_project_file(Path::new(&project.path), &relative_path, &content)
+}
+
+#[tauri::command]
 pub async fn generate_commit_message(
     app: AppHandle,
     id: String,
@@ -85,7 +97,7 @@ pub async fn generate_commit_message(
         let _operation = operations.try_acquire(repo)?;
         progress("status", "i18n:activity:backend.collectingChanges");
         let diff = git::working_tree_diff(repo)?;
-        ai::generate_commit_message(&diff, locale, Some(&progress))
+        ai::generate_commit_message(repo, &diff, locale, Some(&progress))
     })
     .await
     .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
@@ -142,7 +154,7 @@ pub async fn one_click_commit(
         let diff = git::working_tree_diff(repo)?;
 
         progress("status", "i18n:activity:backend.generatingCommit");
-        let message = ai::generate_commit_message(&diff, locale, Some(&progress))?;
+        let message = ai::generate_commit_message(repo, &diff, locale, Some(&progress))?;
 
         progress("status", "i18n:activity:backend.creatingSnapshot");
         git::stage_all(repo)?;
@@ -672,40 +684,109 @@ pub async fn generate_daily_completion(
     locale: ResolvedLanguage,
 ) -> AppResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
+        use chrono::{Datelike, Duration, Local, Timelike};
+
         let progress = ai::make_progress_sink(app, session_id);
-        let (period_label, since) = match period.as_str() {
-            "today" => (if locale.is_zh() { "今天" } else { "today" }, "midnight"),
-            "week" => (
-                if locale.is_zh() {
-                    "本周"
-                } else {
-                    "this week"
-                },
-                "monday",
+        let now = Local::now();
+        let today = now.date_naive();
+        let today_start = today
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_local_timezone(Local)
+            .single()
+            .ok_or_else(|| AppError::msg("无法解析本地时间"))?;
+
+        let fmt_dt = |dt: chrono::DateTime<Local>| -> String {
+            if locale.is_zh() {
+                format!(
+                    "{}月{}日 {:02}:{:02}",
+                    dt.month(),
+                    dt.day(),
+                    dt.hour(),
+                    dt.minute()
+                )
+            } else {
+                format!(
+                    "{} {} {:02}:{:02}",
+                    dt.format("%b"),
+                    dt.day(),
+                    dt.hour(),
+                    dt.minute()
+                )
+            }
+        };
+        let range_label = |start: chrono::DateTime<Local>, end: chrono::DateTime<Local>| -> String {
+            format!("{} – {}", fmt_dt(start), fmt_dt(end))
+        };
+
+        let (period_label, since, until, range) = match period.as_str() {
+            "today" => (
+                if locale.is_zh() { "今天" } else { "today" },
+                "midnight",
+                None,
+                range_label(today_start, now),
             ),
-            "sevenDays" => (
-                if locale.is_zh() {
-                    "过去 7 天"
-                } else {
-                    "the past 7 days"
-                },
-                "7 days ago",
-            ),
+            "yesterday" => {
+                let yesterday_start = today_start - Duration::days(1);
+                (
+                    if locale.is_zh() { "昨日" } else { "yesterday" },
+                    "yesterday",
+                    Some("midnight"),
+                    range_label(yesterday_start, today_start),
+                )
+            }
+            "week" => {
+                let weekday = today.weekday().num_days_from_monday() as i64;
+                let week_start = today_start - Duration::days(weekday);
+                (
+                    if locale.is_zh() { "本周" } else { "this week" },
+                    "monday",
+                    None,
+                    range_label(week_start, now),
+                )
+            }
+            "sevenDays" => {
+                let start = today_start - Duration::days(7);
+                (
+                    if locale.is_zh() {
+                        "过去 7 天"
+                    } else {
+                        "the past 7 days"
+                    },
+                    "7 days ago",
+                    None,
+                    range_label(start, now),
+                )
+            }
             _ => return Err(AppError::msg("不支持的总结时间范围")),
         };
+
         progress("status", "i18n:activity:backend.collectingCommits");
-        let mut lines = Vec::new();
+        let mut blocks = Vec::new();
         for project in store::list_projects()? {
-            match git::commit_subjects_since(Path::new(&project.path), since) {
-                Ok(subjects) => lines.extend(
-                    subjects
-                        .into_iter()
-                        .map(|subject| format!("[{}] {subject}", project.name)),
-                ),
+            match git::commit_subjects_since(Path::new(&project.path), since, until) {
+                Ok(subjects) if !subjects.is_empty() => {
+                    let mut block = Vec::with_capacity(subjects.len() + 1);
+                    if locale.is_zh() {
+                        block.push(format!("项目：{}", project.name));
+                    } else {
+                        block.push(format!("Project: {}", project.name));
+                    }
+                    block.extend(subjects.into_iter().map(|subject| format!("- {subject}")));
+                    blocks.push(block.join("\n"));
+                }
+                Ok(_) => {}
                 Err(err) => progress("log", &format!("跳过 {}：{err}", project.name)),
             }
         }
-        ai::summarize_daily_completion(period_label, &lines.join("\n"), locale, Some(&progress))
+        let commits = blocks.join("\n\n");
+        let body = ai::summarize_daily_completion(period_label, &commits, locale, Some(&progress))?;
+        let text = if locale.is_zh() {
+            format!("时间范围：{range}\n\n{body}")
+        } else {
+            format!("Period: {range}\n\n{body}")
+        };
+        Ok(text)
     })
     .await
     .map_err(|e| AppError::msg(format!("总结任务中断：{e}")))?

@@ -17,7 +17,7 @@
     "clean": "Clean",
     "changed": "Changed",
     "aiWorking": "AI 工作中",
-    "untracked": "未跟踪",
+    "untracked": "新建",
     "modified": "已修改",
     "deleted": "已删除",
     "added": "新增",
@@ -55,7 +55,7 @@
     "changes": "更改"
     ,"configureTargets": "配置启动方式…", "identifyAgain": "重新用 AI 识别…", "identifyTargets": "识别启动方式…", "addTarget": "手动添加一条…",
     "code": "代码", "recentThree": "最近 3 次提交", "changeCount": "{{count}} 处改动", "allCommits": "全部提交", "commitAction": "提交…",
-    "runnable": "可运行命令", "runnableSource": "来自项目配置 / AI 识别", "configure": "配置", "noRunnable": "还没有可运行的命令",
+    "runnable": "可运行命令", "runnableSource": "来自项目配置 / AI 识别", "configure": "配置", "customConfig": "自定义配置", "reIdentify": "再次AI识别", "noRunnable": "还没有可运行的命令",
     "discardAll": "放弃所有更改", "currentChanges": "当前改动", "commitHistory": "提交记录", "starting": "正在启动…", "htmlOpened": "已用系统应用打开 HTML"
   },
   "docs": {
@@ -86,6 +86,11 @@
     "createLibrary": "创建文档库",
     "chooseLibrary": "选择已有文件夹",
     "chooseTitle": "选择项目内的文档库",
+    "changeLibrary": "选择文档库",
+    "currentFolder": "当前文件夹",
+    "confirmTitle": "确认使用此文档库？",
+    "confirmDescription": "将「{{root}}」设为项目文档库。文件可放在任意项目内文件夹，确认后会按该目录列出文档。",
+    "confirmAction": "确认使用",
     "folderRequired": "请输入项目内的文档库文件夹名称",
     "folderOutside": "请选择当前项目目录内的文件夹",
     "configured": "已设置文档库：{{root}}",
@@ -110,6 +115,12 @@
     "empty": "当前没有变更",
     "loadingDiff": "加载 diff…",
     "noDiff": "没有可显示的 diff"
+  },
+  "changedFileDialog": {
+    "description": "只读查看该文件的改动。",
+    "editDescription": "编辑工作区中的文件内容。",
+    "deletedCannotEdit": "文件已删除，无法编辑。",
+    "saved": "文件已保存"
   },
   "commit": {
     "title": "提交 · {{name}}",
@@ -147,6 +158,7 @@
   },
   "daily": {
     "today": "今天",
+    "yesterday": "昨日",
     "week": "本周",
     "sevenDays": "过去 7 天",
     "title": "每日完成情况",
@@ -154,14 +166,34 @@
     "automatic": "每天自动生成",
     "generate": "生成总结",
     "generating": "生成中…",
-    "empty": "生成总结后会显示在这里。",
+    "empty": "生成总结后会显示在这里，并长期保留。",
+    "copy": "复制",
     "copied": "已复制总结",
-    "copyFailed": "复制失败", "todayAction": "本日做了什么", "weekAction": "本周做了什么", "sevenDaysAction": "过去 7 天做了什么",
-    "todayTitle": "今日完成", "weekTitle": "本周完成", "sevenDaysTitle": "过去 7 天完成",
-    "todaySubtitle": "生成今日总结卡片", "weekSubtitle": "按自然周汇总", "sevenDaysSubtitle": "滚动 7 日窗口",
-    "autoTitle": "每日自动生成总结", "autoDescription": "汇总已配置项目的 commit message，并生成可分享的工作总结。",
-    "enabled": "已开启", "disabled": "已关闭", "enabledToast": "已开启每日 {{time}} 自动生成", "disabledToast": "已关闭每日自动生成",
-    "preview": "预览", "download": "下载 SVG", "imageAlt": "{{title}}的 GitTracker 分享图片",
-    "imageFooter": "由 GitTracker 根据提交记录生成", "imageQr": "关注 GitTracker"
+    "copyFailed": "复制失败",
+    "todayAction": "本日做了什么",
+    "weekAction": "本周做了什么",
+    "sevenDaysAction": "过去 7 天做了什么",
+    "todayTitle": "今日完成",
+    "weekTitle": "本周完成",
+    "sevenDaysTitle": "过去 7 天完成",
+    "todaySubtitle": "生成今日总结卡片",
+    "weekSubtitle": "按自然周汇总",
+    "sevenDaysSubtitle": "滚动 7 日窗口",
+    "autoTitle": "每日自动生成总结",
+    "autoDescription": "汇总已配置项目的 commit message，并按项目生成可分享的工作总结。",
+    "enabled": "已开启",
+    "disabled": "已关闭",
+    "enabledToast": "已开启每日 {{time}} 自动生成",
+    "disabledToast": "已关闭每日自动生成",
+    "timeLabel": "每日总结时间",
+    "timeHint": "应用常驻运行时，会在每天该时间自动生成上一自然日的总结。默认 00:00。",
+    "preview": "预览",
+    "download": "下载 SVG",
+    "imageAlt": "{{title}}的 GitTracker 分享图片",
+    "imageFooter": "由 GitTracker 根据提交记录生成",
+    "imageQr": "关注 GitTracker",
+    "historyTitle": "总结记录",
+    "historyDescription": "每次生成的总结都会按时间保留在下方，内容按项目区分。",
+    "historyCount": "共 {{count}} 条"
   }
 }

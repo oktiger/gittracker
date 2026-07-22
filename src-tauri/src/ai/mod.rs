@@ -118,6 +118,7 @@ fn truncate_for_ui(s: &str, max_chars: usize) -> String {
 /// 统一 AI 入口：按设置中的 AI Provider 路由到 Codex CLI 或 Cursor Agent CLI。
 /// 本项目所有需要调用 AI 的能力都必须走此通道，禁止绕过。
 pub fn generate_commit_message(
+    project_path: &Path,
     changes_diff: &str,
     locale: ResolvedLanguage,
     progress: Option<&ProgressSink>,
@@ -151,7 +152,8 @@ pub fn generate_commit_message(
 
     let prompt = commit_message_prompt(&truncated, locale);
 
-    run_readonly(&prompt, None, progress)
+    // 必须锁在项目目录：否则 CLI 会落到 App 的 CWD（常为 / 或家目录），触发无关文件夹授权。
+    run_readonly(&prompt, Some(project_path), progress)
 }
 
 fn commit_message_prompt(changes: &str, locale: ResolvedLanguage) -> String {
@@ -206,23 +208,23 @@ pub fn summarize_daily_completion(
     );
     let prompt = if locale.is_zh() {
         format!(
-            "你是 Git 工作总结助手。仅依据下方 commit message，总结用户{period_label}做了什么。\n\
+            "你是 Git 工作总结助手。仅依据下方按项目分组的 commit message，总结用户{period_label}做了什么。\n\
              要求：\n\
-             1. 使用简体中文，输出 3-6 条简短要点；若工作不足 3 项则按实际输出\n\
-             2. 合并同类提交，写清完成的功能、修复或改进，不要臆测\n\
-             3. 不要标题、前言、代码块、项目名或 commit hash\n\
-             4. 每条以「- 」开头，适合放入手机分享卡片\n\n\
-             Commit messages:\n{commits}"
+             1. 必须按项目分组输出：先单独一行写项目名（与输入中的「项目：」名称完全一致），其下用「- 」列出该项目完成的事项\n\
+             2. 只输出有提交的项目；每个项目 1-6 条简短要点，合并同类提交，写清功能、修复或改进，不要臆测\n\
+             3. 不要总标题、前言、代码块、时间范围或 commit hash\n\
+             4. 项目与项目之间空一行；使用简体中文\n\n\
+             输入：\n{commits}"
         )
     } else {
         format!(
-            "You are a Git work-summary assistant. Using only the commit messages below, summarize what the user completed {period_label}.\n\
+            "You are a Git work-summary assistant. Using only the project-grouped commit messages below, summarize what the user completed {period_label}.\n\
              Requirements:\n\
-             1. Write 3-6 concise bullet points in English, or fewer when there is less work\n\
-             2. Combine related commits and describe completed features, fixes, or improvements without speculation\n\
-             3. Do not include a title, preface, code fence, project name, or commit hash\n\
-             4. Start every item with '- ' so it fits a mobile sharing card\n\n\
-             Commit messages:\n{commits}"
+             1. Group by project: write the project name alone on one line (exactly as given after 'Project:'), then list that project's completed work with '- ' bullets\n\
+             2. Only include projects that have commits; 1-6 concise bullets per project; combine related commits and describe features, fixes, or improvements without speculation\n\
+             3. Do not include an overall title, preface, code fence, date range, or commit hash\n\
+             4. Leave a blank line between projects; write in English\n\n\
+             Input:\n{commits}"
         )
     };
     run_readonly(&truncate_prompt(&prompt), None, progress)
