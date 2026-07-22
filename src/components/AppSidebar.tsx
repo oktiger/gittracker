@@ -11,19 +11,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type { ProjectStatus } from "../types";
 
 export type NavView = "board" | "dailyCompletion" | "logDiary" | "settings";
 
 interface Props {
+  width: number;
   view: NavView | "project";
   selectedProjectId: string | null;
   projects: ProjectStatus[];
   logCount: number;
-  upgrading?: boolean;
   onNavigate: (view: NavView) => void;
   onSelectProject: (id: string) => void;
-  onUpgrade: () => void;
   onCollapse: () => void;
   onCloseWindow: () => void;
   onMinimizeWindow: () => void;
@@ -32,6 +32,7 @@ interface Props {
   onForward: () => void;
   canGoBack: boolean;
   canGoForward: boolean;
+  onStartDragging: (event: ReactMouseEvent<HTMLElement>) => void;
 }
 
 const NAV: { id: NavView; label: string; icon: typeof LayoutGrid }[] = [
@@ -42,14 +43,13 @@ const NAV: { id: NavView; label: string; icon: typeof LayoutGrid }[] = [
 ];
 
 export function AppSidebar({
+  width,
   view,
   selectedProjectId,
   projects,
   logCount,
-  upgrading = false,
   onNavigate,
   onSelectProject,
-  onUpgrade,
   onCollapse,
   onCloseWindow,
   onMinimizeWindow,
@@ -58,10 +58,11 @@ export function AppSidebar({
   onForward,
   canGoBack,
   canGoForward,
+  onStartDragging,
 }: Props) {
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-card/70" aria-label="主导航">
-      <div className="flex h-12 items-center px-3" data-tauri-drag-region>
+    <aside className="flex shrink-0 flex-col bg-card/70" style={{ width }} aria-label="主导航">
+      <div className="flex h-12 items-center px-3" data-tauri-drag-region onMouseDown={onStartDragging}>
         <div className="flex items-center gap-3" data-tauri-drag-region>
           <div className="flex items-center gap-1.5">
             <button type="button" className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90" onClick={onCloseWindow} aria-label="关闭窗口" title="关闭窗口" />
@@ -82,7 +83,7 @@ export function AppSidebar({
         </div>
       </div>
 
-      <div className="flex h-12 items-center gap-2.5 px-4" data-tauri-drag-region>
+      <div className="flex h-12 items-center gap-2.5 px-4" data-tauri-drag-region onMouseDown={onStartDragging}>
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <Target className="h-3.5 w-3.5" />
         </div>
@@ -157,19 +158,6 @@ export function AppSidebar({
             })}
           </div>
         )}
-      </div>
-
-      <div className="border-t border-border p-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5"
-          disabled={upgrading}
-          onClick={onUpgrade}
-        >
-          <span className="text-sm font-medium">{upgrading ? "升级中…" : "升级"}</span>
-          <span className="text-xs font-normal text-muted-foreground">打包并替换本应用</span>
-        </Button>
       </div>
     </aside>
   );

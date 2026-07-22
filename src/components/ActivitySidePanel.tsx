@@ -17,6 +17,7 @@ export interface AiActivity {
 
 interface Props {
   open: boolean;
+  width: number;
   aiSessions: AiActivity[];
   runSessions: RunSession[];
   onClose: () => void;
@@ -160,18 +161,22 @@ export function ActivitySidePanel(props: Props) {
       aria-hidden={!props.open}
       aria-label="运行中心"
       className={cn(
-        "flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-background transition-[width] duration-300 ease-in-out",
-        props.open ? "w-[min(24rem,36vw)]" : "w-0 border-l-0",
+        "flex h-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background",
+        !props.open && "w-0 border-l-0",
       )}
+      style={props.open ? { width: props.width } : undefined}
     >
-      <div className="flex min-w-[18rem] flex-1 flex-col">
-        <header className="border-b border-border px-4 py-3 text-left">
+      <div
+        className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+        style={{ width: props.width }}
+      >
+        <header className="shrink-0 border-b border-border px-4 py-3 text-left">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-sm font-semibold">运行中心</h2>
               <p className="text-xs text-muted-foreground">AI 过程与命令输出</p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 type="button"
                 variant="outline"
@@ -194,8 +199,8 @@ export function ActivitySidePanel(props: Props) {
           </div>
         </header>
 
-        <ScrollArea className="flex-1">
-          <div className="space-y-3 p-4">
+        <ScrollArea className="min-h-0 min-w-0 flex-1 [&>[data-slot=scroll-area-viewport]]:max-w-full [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
+          <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden p-4">
             {[...props.runSessions]
               .sort((a, b) => a.startedAt - b.startedAt)
               .map((session) => {
@@ -205,12 +210,12 @@ export function ActivitySidePanel(props: Props) {
                 return (
                   <article
                     key={session.id}
-                    className="overflow-hidden rounded-lg border border-border bg-card"
+                    className="min-w-0 overflow-hidden rounded-lg border border-border bg-card"
                   >
                     <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2.5">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">{session.targetName}</div>
-                        <div className="truncate text-xs text-muted-foreground">
+                        <div className="break-all text-xs text-muted-foreground">
                           {session.projectName} · {session.cwd}
                         </div>
                       </div>
@@ -241,26 +246,26 @@ export function ActivitySidePanel(props: Props) {
                         </Button>
                       </div>
                     </div>
-                    <code className="block border-b border-border bg-muted/30 px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                    <code className="block break-all border-b border-border bg-muted/30 px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">
                       {session.command}
                     </code>
-                    <pre className="max-h-48 overflow-auto px-3 py-2 font-mono text-[11px] leading-relaxed">
+                    <pre className="max-h-64 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap">
                       {session.output.length
                         ? output.map((line, index) => (
                             <span
                               key={index}
                               className={cn(
+                                "block",
                                 line.stream === "stderr" && "text-amber-400",
                               )}
                             >
                               {line.text}
-                              {"\n"}
                             </span>
                           ))
                         : "正在等待输出…"}
                     </pre>
-                    <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
-                      <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
+                      <div className="min-w-0">
                         {(hasHiddenOutput || expanded) && (
                           <Button
                             type="button"
@@ -274,7 +279,7 @@ export function ActivitySidePanel(props: Props) {
                           </Button>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         {session.status === "running" ? (
                           <Button
                             type="button"

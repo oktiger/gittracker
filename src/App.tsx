@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ArrowLeft, ArrowRight, Folder, PanelLeft, PanelRight } from "lucide-react";
@@ -12,6 +12,7 @@ import { LogDiaryPage } from "./components/LogDiaryPage";
 import { DailyCompletionPage } from "./components/DailyCompletionPage";
 import { MarkdownEditorDialog } from "./components/MarkdownEditorDialog";
 import { ProjectCard } from "./components/ProjectCard";
+import { ResizableDivider } from "./components/ResizableDivider";
 import { SettingsPage } from "./components/SettingsPage";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,6 +30,16 @@ type DialogState =
   | { type: "changes"; id: string; name: string }
   | { type: "doc"; id: string; relativePath: string; title: string; libraryFile?: boolean }
   | null;
+
+type ActivityIndicator = "running" | "completed" | "failed" | null;
+
+function isCompletedRun(session: RunSession) {
+  return session.status === "exited" || session.status === "stopped";
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function App() {
   const {
@@ -48,38 +59,18 @@ function App() {
   const [aiSessions, setAiSessions] = useState<AiActivity[]>([]);
   const [runSessions, setRunSessions] = useState<RunSession[]>([]);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [seenCompletedRunIds, setSeenCompletedRunIds] = useState<Set<string>>(() => new Set());
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [activityWidth, setActivityWidth] = useState(448);
   const [history, setHistory] = useState<AppLocation[]>([{ view: "board", projectId: null }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [docsEpoch, setDocsEpoch] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const [upgrading, setUpgrading] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3200);
-  };
-
-  const onUpgradeSelf = async () => {
-    if (upgrading) return;
-    setUpgrading(true);
-    setActivityOpen(true);
-    try {
-      const session = await api.upgradeSelf();
-      setRunSessions((items) => [...items, session]);
-      appendLog({
-        kind: "runTarget",
-        status: "running",
-        title: "升级 · GitTracker",
-        projectName: "GitTracker",
-        detail:
-          "正在打包；成功后会自动退出、替换本机应用并重新打开。过程见运行中心。",
-      });
-      showToast("已开始升级，完成后将自动重启");
-    } catch (e) {
-      setError(String(e));
-      setUpgrading(false);
-    }
   };
 
   const appendLog = useCallback(
@@ -99,19 +90,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!upgrading) return;
-    const latest = [...runSessions]
-      .reverse()
-      .find((s) => s.targetId === "__self_upgrade__");
-    if (!latest || latest.status === "running" || latest.status === "stopping") return;
-    if (latest.status === "failed" || latest.status === "stopped") {
-      setUpgrading(false);
-      return;
+    if (!activityOpen) return;
+    setSeenCompletedRunIds((seen) => {
+      const next = new Set(seen);
+      runSessions.filter(isCompletedRun).forEach((session) => next.add(session.id));
+      return next.size === seen.size ? seen : next;
+    });
+  }, [activityOpen, runSessions]);
+
+  const activityIndicator = useMemo<ActivityIndicator>(() => {
+    if (activityOpen) return null;
+    if (runSessions.some((session) => session.status === "failed")) return "failed";
+    if (runSessions.some((session) => session.status === "running" || session.status === "stopping")) {
+      return "running";
     }
-    if (latest.status === "exited" && latest.exitCode !== 0) {
-      setUpgrading(false);
+    if (runSessions.some((session) => isCompletedRun(session) && !seenCompletedRunIds.has(session.id))) {
+      return "completed";
     }
-  }, [runSessions, upgrading]);
+    return null;
+  }, [activityOpen, runSessions, seenCompletedRunIds]);
 
   const onRunTarget = async (project: { id: string; name: string }, target: RunTarget) => {
     setActivityOpen(true);
@@ -185,6 +182,13 @@ function App() {
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
   const windowControls = useMemo(() => getCurrentWindow(), []);
+
+  const startWindowDrag = (event: ReactMouseEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("button, input, textarea, select, [role='separator']")) return;
+    void windowControls.startDragging();
+  };
 
   const onAdd = async () => {
     try {
@@ -316,14 +320,13 @@ function App() {
       <div className="flex h-full">
         {sidebarOpen ? (
           <AppSidebar
+            width={sidebarWidth}
             view={view}
             selectedProjectId={selectedProjectId}
             projects={projects}
             logCount={logDiary.entries.length}
-            upgrading={upgrading}
             onNavigate={goNav}
             onSelectProject={openProject}
-            onUpgrade={() => void onUpgradeSelf()}
             onCollapse={() => setSidebarOpen(false)}
             onCloseWindow={() => void windowControls.close()}
             onMinimizeWindow={() => void windowControls.minimize()}
@@ -332,11 +335,19 @@ function App() {
             onForward={() => goHistory(1)}
             canGoBack={canGoBack}
             canGoForward={canGoForward}
+            onStartDragging={startWindowDrag}
+          />
+        ) : null}
+
+        {sidebarOpen ? (
+          <ResizableDivider
+            ariaLabel="调整左侧导航宽度"
+            onDrag={(deltaX) => setSidebarWidth((width) => clamp(width + deltaX, 220, 420))}
           />
         ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/80 px-3" data-tauri-drag-region>
+          <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/80 px-3" data-tauri-drag-region onMouseDown={startWindowDrag}>
             <div className="flex min-w-0 items-center gap-1" data-tauri-drag-region>
               {!sidebarOpen ? (
                 <>
@@ -374,11 +385,25 @@ function App() {
                   type="button"
                   variant={activityOpen ? "secondary" : "ghost"}
                   size="icon-sm"
+                  className="relative"
                   title="打开右侧运行中心"
                   aria-label="打开右侧运行中心"
                   onClick={() => setActivityOpen(true)}
                 >
                   <PanelRight className="h-4 w-4" />
+                  {activityIndicator ? (
+                    <span
+                      aria-hidden="true"
+                      className={
+                        "absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-background " +
+                        (activityIndicator === "running"
+                          ? "bg-amber-400"
+                          : activityIndicator === "completed"
+                            ? "bg-emerald-400"
+                            : "bg-destructive")
+                      }
+                    />
+                  ) : null}
                 </Button>
               </div>
             </div>
@@ -475,8 +500,16 @@ function App() {
           </div>
         </div>
 
+        {activityOpen ? (
+          <ResizableDivider
+            ariaLabel="调整运行中心宽度"
+            onDrag={(deltaX) => setActivityWidth((width) => clamp(width - deltaX, 300, 640))}
+          />
+        ) : null}
+
         <ActivitySidePanel
           open={activityOpen}
+          width={activityWidth}
           aiSessions={aiSessions}
           runSessions={runSessions}
           onClose={() => setActivityOpen(false)}

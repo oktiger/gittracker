@@ -641,7 +641,7 @@ export function AiSidePanel({
       {transcript.map((line) => (
         <pre
           key={line.id}
-          className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90"
+          className="break-all whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90"
         >
           {`${kindLabel(line.kind)}：${line.text}`}
         </pre>
@@ -716,7 +716,7 @@ export function AiSidePanel({
             </details>
           )}
           {resultSummary && !error ? (
-            <pre className="whitespace-pre-wrap rounded-md border border-border bg-muted/20 p-3 font-mono text-xs leading-relaxed">
+            <pre className="break-all whitespace-pre-wrap rounded-md border border-border bg-muted/20 p-3 font-mono text-xs leading-relaxed">
               {resultSummary}
             </pre>
           ) : null}
