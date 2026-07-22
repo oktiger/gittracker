@@ -154,8 +154,16 @@ export function ActivitySidePanel(props: Props) {
   };
 
   return (
-    <Sheet open={props.open} onOpenChange={(open) => !open && props.onClose()}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-md" showCloseButton={false}>
+    <Sheet
+      modal={false}
+      open={props.open}
+      onOpenChange={(open) => !open && props.onClose()}
+    >
+      <SheetContent
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
+        showCloseButton={false}
+        showOverlay={false}
+      >
         <SheetHeader className="border-b border-border px-4 py-3 text-left">
           <div className="flex items-start justify-between gap-3">
             <div>
