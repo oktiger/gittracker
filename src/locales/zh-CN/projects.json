@@ -96,6 +96,11 @@
     "openEdit": "打开并编辑",
     "copyPath": "复制路径",
     "pathCopied": "已复制路径",
+    "execute": "执行",
+    "deleteTitle": "删除「{{name}}」？",
+    "deleteFileDescription": "此文件将被永久删除，无法撤销。",
+    "deleteFolderDescription": "此文件夹及其中所有文件将被永久删除，无法撤销。",
+    "deleted": "已删除「{{name}}」",
     "htmlOpened": "已用默认浏览器打开 HTML",
     "saved": "文档已保存"
   },

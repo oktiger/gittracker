@@ -306,6 +306,53 @@ pub fn write_document_library_file(
 }
 
 #[tauri::command]
+pub fn delete_document_library_target(id: String, relative_path: String) -> AppResult<()> {
+    let project = store::find_project(&id)?;
+    let root = project
+        .docs_root
+        .ok_or_else(|| AppError::msg("尚未设置文档库"))?;
+    docs::delete_library_target(Path::new(&project.path), &root, &relative_path)
+}
+
+#[tauri::command]
+pub async fn run_document_library_target(
+    app: AppHandle,
+    id: String,
+    relative_path: String,
+    session_id: String,
+    locale: ResolvedLanguage,
+) -> AppResult<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app, session_id);
+        progress("status", "正在读取文档…");
+        let project = store::find_project(&id)?;
+        let root = project
+            .docs_root
+            .ok_or_else(|| AppError::msg("尚未设置文档库"))?;
+        let repo = Path::new(&project.path);
+        let content = docs::read_library_target(repo, &root, &relative_path)?;
+        if content.trim().is_empty() {
+            return Err(AppError::msg("文档内容为空"));
+        }
+        let settings = store::get_settings()?;
+        progress("status", "正在执行文档…");
+        ai::run_task(
+            repo,
+            &settings
+                .prompt_templates
+                .for_language(locale)
+                .document_execute,
+            &content,
+            &relative_path,
+            locale,
+            Some(&progress),
+        )
+    })
+    .await
+    .map_err(|e| AppError::msg(format!("任务中断：{e}")))?
+}
+
+#[tauri::command]
 pub fn read_doc_file(id: String, relative_path: String) -> AppResult<String> {
     let project = store::find_project(&id)?;
     docs::read_doc_file(Path::new(&project.path), &relative_path)

@@ -55,6 +55,7 @@ export type ResolvedLanguage = Exclude<AppLanguagePreference, "system">;
 export interface PromptTemplateSet {
   goal: string;
   task: string;
+  documentExecute: string;
 }
 
 export interface AppSettings {

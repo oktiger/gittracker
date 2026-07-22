@@ -153,6 +153,7 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
               <ThemeModePicker />
             </CardContent>
           </Card>
+
           <Card className="mt-3 gap-0 py-4">
             <CardHeader className="px-4 pb-3">
               <CardTitle className="text-sm font-medium">{t("settings:appearance.language")}</CardTitle>
@@ -321,6 +322,13 @@ export function SettingsPage({ onSaved, openAiSession }: Props) {
               >
                 {t("settings:prompts.taskReset")}
               </Button>
+            </CardContent>
+          </Card>
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3"><CardTitle className="flex items-center gap-1.5 text-sm font-medium">{t("settings:prompts.documentExecuteTitle")}<HelpTip text={t("settings:prompts.documentExecuteHelp")} /></CardTitle></CardHeader>
+            <CardContent className="space-y-2 px-4">
+              <Textarea className="min-h-20 font-mono text-xs" value={settings?.promptTemplates[language].documentExecute ?? ""} onChange={(e) => setSettings((prev) => prev ? { ...prev, promptTemplates: { ...prev.promptTemplates, [language]: { ...prev.promptTemplates[language], documentExecute: e.target.value } } } : prev)} disabled={!settings || busy} rows={3} />
+              <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => void api.getDefaultPromptTemplates(language).then((defaults) => setSettings((prev) => prev ? { ...prev, promptTemplates: { ...prev.promptTemplates, [language]: { ...prev.promptTemplates[language], documentExecute: defaults.documentExecute } } } : prev)).catch((resetError) => setError(formatBackendError(resetError, t)))} disabled={!settings || busy}>{t("settings:prompts.documentExecuteReset")}</Button>
             </CardContent>
           </Card>
         </TabsContent>

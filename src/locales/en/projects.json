@@ -96,6 +96,11 @@
     "openEdit": "Open and edit",
     "copyPath": "Copy path",
     "pathCopied": "Path copied",
+    "execute": "Execute",
+    "deleteTitle": "Delete “{{name}}”?",
+    "deleteFileDescription": "This file will be permanently deleted and cannot be undone.",
+    "deleteFolderDescription": "This folder and every file inside it will be permanently deleted and cannot be undone.",
+    "deleted": "Deleted “{{name}}”",
     "htmlOpened": "HTML opened in the default browser",
     "saved": "Document saved"
   },

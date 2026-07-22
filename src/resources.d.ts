@@ -8,6 +8,7 @@ export default interface Resources {
         "identify": "Identifying run targets for “{{project}}”…",
         "implement": "Implementing task {{number}} “{{title}}”…",
         "oneClick": "One-click commit for “{{project}}”: AI → Commit → Push…",
+        "runDocument": "Executing document “{{name}}”…",
         "tasks": "Generating tasks for “{{project}}” from its Goal…",
         "test": "Testing {{provider}}…"
       },
@@ -29,6 +30,7 @@ export default interface Resources {
         "commitPushed": "Committed and pushed:\n{{message}}",
         "daily": "Daily completion generated",
         "dailyAutomatic": "Daily completion generated automatically",
+        "document": "Document execution completed",
         "task": "Implemented {{number}}",
         "tasks": "Generated {{count}} tasks"
       },
@@ -95,6 +97,7 @@ export default interface Resources {
         "generateTasks": "Generate tasks with AI",
         "identify": "Identify run targets with AI",
         "oneClick": "One-click commit",
+        "runDocument": "Execute document {{name}}",
         "runTask": "Implement task {{number}}",
         "testCodex": "Test Codex",
         "testCursor": "Test Cursor Agent"
@@ -478,8 +481,13 @@ export default interface Resources {
       "configured": "Document library set to {{root}}",
       "copyPath": "Copy path",
       "createLibrary": "Create document library",
+      "deleteFileDescription": "This file will be permanently deleted and cannot be undone.",
+      "deleteFolderDescription": "This folder and every file inside it will be permanently deleted and cannot be undone.",
+      "deleteTitle": "Delete “{{name}}”?",
+      "deleted": "Deleted “{{name}}”",
       "done": "Done",
       "empty": "The document library is empty",
+      "execute": "Execute",
       "folderOutside": "Choose a folder inside the current project",
       "folderPlaceholder": "For example, DOCS",
       "folderRequired": "Enter a document library folder inside the project",
@@ -560,6 +568,9 @@ export default interface Resources {
       "themeDescription": "Choose light, dark, or system appearance. Changes apply immediately and are saved locally."
     },
     "prompts": {
+      "documentExecuteHelp": "When you choose … → Execute on a document or folder: prompt + all document text → AI",
+      "documentExecuteReset": "Restore the default Execute document prompt",
+      "documentExecuteTitle": "Execute document · Prompt",
       "editingLanguage": "Editing the {{language}} templates",
       "goalHelp": "When you select Generate tasks: template + goal.md + repository context → AI",
       "goalReset": "Restore the default Generate tasks template",

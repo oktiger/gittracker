@@ -28,6 +28,9 @@
     "taskTitle": "实现任务 · 提示词模板",
     "taskHelp": "点「⋯ → 实现」时使用；AI 会在项目目录改代码",
     "taskReset": "恢复「实现任务」默认模板",
+    "documentExecuteTitle": "执行文档 · 提示词",
+    "documentExecuteHelp": "点文档或文件夹的「⋯ → 执行」时：提示词 + 文档全部文字 → AI",
+    "documentExecuteReset": "恢复「执行文档」默认提示词",
     "editingLanguage": "正在编辑{{language}}模板"
   },
   "summary": {

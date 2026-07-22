@@ -155,6 +155,10 @@ pub fn default_task_prompt_template() -> String {
     .to_string()
 }
 
+pub fn default_document_execute_prompt_template() -> String {
+    "执行这个文档。".to_string()
+}
+
 pub fn default_goal_prompt_template_en() -> String {
     r#"You are a project planning assistant. Break the project goal and repository context below into executable tasks.
 
@@ -184,11 +188,17 @@ Requirements:
 "#.to_string()
 }
 
+pub fn default_document_execute_prompt_template_en() -> String {
+    "Execute this document.".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptTemplateSet {
     pub goal: String,
     pub task: String,
+    #[serde(default = "default_document_execute_prompt_template")]
+    pub document_execute: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,10 +214,12 @@ impl Default for PromptTemplates {
             zh_cn: PromptTemplateSet {
                 goal: default_goal_prompt_template(),
                 task: default_task_prompt_template(),
+                document_execute: default_document_execute_prompt_template(),
             },
             en: PromptTemplateSet {
                 goal: default_goal_prompt_template_en(),
                 task: default_task_prompt_template_en(),
+                document_execute: default_document_execute_prompt_template_en(),
             },
         }
     }

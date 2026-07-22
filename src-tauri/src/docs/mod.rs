@@ -113,6 +113,59 @@ pub fn resolve_library_path(project_path: &Path, root: &str, relative: &str) -> 
     Ok(resolved)
 }
 
+/// Read a document, or every text document inside a folder, for an AI execution request.
+pub fn read_library_target(project_path: &Path, root: &str, relative: &str) -> AppResult<String> {
+    let path = resolve_library_path(project_path, root, relative)?;
+    if path.is_file() {
+        return fs::read_to_string(path).map_err(Into::into);
+    }
+    if !path.is_dir() {
+        return Err(AppError::msg("文档不存在"));
+    }
+
+    let mut files = Vec::new();
+    collect_text_files(&path, &mut files)?;
+    if files.is_empty() {
+        return Err(AppError::msg("文件夹中没有可执行的文本文件"));
+    }
+    let mut parts = Vec::new();
+    for file in files {
+        let relative = file.strip_prefix(&path).unwrap_or(&file).display();
+        let content = fs::read_to_string(&file)?;
+        parts.push(format!("【文档：{relative}】\n{content}"));
+    }
+    Ok(parts.join("\n\n"))
+}
+
+fn collect_text_files(dir: &Path, files: &mut Vec<PathBuf>) -> AppResult<()> {
+    let mut entries: Vec<_> = fs::read_dir(dir)?.collect::<Result<Vec<_>, _>>()?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            collect_text_files(&path, files)?;
+        } else if path.is_file() {
+            files.push(path);
+        }
+    }
+    Ok(())
+}
+
+pub fn delete_library_target(project_path: &Path, root: &str, relative: &str) -> AppResult<()> {
+    let path = resolve_library_path(project_path, root, relative)?;
+    if path.is_dir() {
+        fs::remove_dir_all(path)?;
+    } else if path.is_file() {
+        fs::remove_file(path)?;
+    } else {
+        return Err(AppError::msg("文档不存在"));
+    }
+    Ok(())
+}
+
 pub fn goal_path(project_path: &Path) -> PathBuf {
     docs_root(project_path).join(GOAL_DIR).join(GOAL_FILE)
 }

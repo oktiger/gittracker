@@ -79,6 +79,10 @@ export const api = {
     invoke<string>("read_document_library_file", { id, relativePath }),
   writeDocumentLibraryFile: (id: string, relativePath: string, content: string) =>
     invoke<void>("write_document_library_file", { id, relativePath, content }),
+  deleteDocumentLibraryTarget: (id: string, relativePath: string) =>
+    invoke<void>("delete_document_library_target", { id, relativePath }),
+  runDocumentLibraryTarget: (id: string, relativePath: string, sessionId: string, locale: ResolvedLanguage) =>
+    invoke<string>("run_document_library_target", { id, relativePath, sessionId, locale }),
   readDocFile: (id: string, relativePath: string) =>
     invoke<string>("read_doc_file", { id, relativePath }),
   writeDocFile: (id: string, relativePath: string, content: string) =>

@@ -57,6 +57,8 @@ pub fn run() {
             commands::set_document_library,
             commands::read_document_library_file,
             commands::write_document_library_file,
+            commands::delete_document_library_target,
+            commands::run_document_library_target,
             commands::read_doc_file,
             commands::write_doc_file,
             commands::open_doc_external,

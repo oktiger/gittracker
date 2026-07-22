@@ -53,6 +53,7 @@ interface Props {
   onConfigureRun: (mode: "identify" | "config") => void;
   onGenerateTasks: () => void;
   onImplementTask: (task: DocsTaskItem) => void;
+  onExecuteDocument: (node: import("../types").DocumentNode) => void;
   docsEpoch?: number;
   onError: (msg: string) => void;
   onToast: (msg: string) => void;
@@ -74,6 +75,7 @@ export function ProjectCard({
   onConfigureRun,
   onGenerateTasks,
   onImplementTask,
+  onExecuteDocument,
   docsEpoch = 0,
   onError,
   onToast,
@@ -571,6 +573,7 @@ export function ProjectCard({
                 onOpenFile={(relativePath, title) =>
                   onOpenDoc(relativePath, title, true)
                 }
+                onExecute={onExecuteDocument}
                 onError={onError}
                 onToast={onToast}
               />
@@ -649,6 +652,7 @@ export function ProjectCard({
             projectPath={project.path}
             epoch={docsEpoch}
             onOpenFile={(relativePath, title) => onOpenDoc(relativePath, title, true)}
+            onExecute={onExecuteDocument}
             onError={onError}
             onToast={onToast}
           />

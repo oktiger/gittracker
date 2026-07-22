@@ -115,6 +115,8 @@ function bootLine(session: AiPanelSession, t: TFunction<any>): AiTranscriptLine 
         return t("activity:ai.boot.tasks", { project: session.projectName });
       case "runTask":
         return t("activity:ai.boot.implement", { number: session.taskNumber, title: session.taskTitle });
+      case "runDocument":
+        return t("activity:ai.boot.runDocument", { name: session.documentTitle });
       case "config":
         return "";
     }
@@ -358,6 +360,20 @@ export function AiSidePanel({
             });
             setResultSummary(result.summary || t("activity:ai.done.task", { number: session.taskNumber }));
             onToast?.(t("activity:ai.done.task", { number: session.taskNumber }));
+            onProjectRefresh?.(session.projectId);
+            setPhase("done");
+            break;
+          }
+          case "runDocument": {
+            const summary = await api.runDocumentLibraryTarget(
+              session.projectId,
+              session.relativePath,
+              sessionId,
+              outputLanguage,
+            );
+            if (cancelled) return;
+            setResultSummary(summary);
+            onToast?.(t("activity:ai.done.document"));
             onProjectRefresh?.(session.projectId);
             setPhase("done");
             break;

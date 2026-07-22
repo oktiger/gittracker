@@ -333,6 +333,15 @@ function App() {
           taskNumber: String(task.number).padStart(3, "0"),
         })
       }
+      onExecuteDocument={(node) =>
+        openAiSession({
+          kind: "runDocument",
+          projectId: p.id,
+          projectName: p.name,
+          relativePath: node.relativePath,
+          documentTitle: node.name,
+        })
+      }
       docsEpoch={docsEpoch}
       onError={(msg) => setError(msg)}
       onToast={showToast}

@@ -58,7 +58,7 @@
       "generateCommit": "Generate Commit Message with AI",
       "oneClick": "One-click commit",
       "generateTasks": "Generate tasks with AI",
-      "runTask": "Implement task {{number}}"
+      "runTask": "Implement task {{number}}", "runDocument": "Execute document {{name}}"
     },
     "subtitles": {
       "today": "Today’s commit messages",
@@ -73,13 +73,13 @@
       "commit": "Generating a Commit message for “{{project}}”…",
       "oneClick": "One-click commit for “{{project}}”: AI → Commit → Push…",
       "tasks": "Generating tasks for “{{project}}” from its Goal…",
-      "implement": "Implementing task {{number}} “{{title}}”…"
+      "implement": "Implementing task {{number}} “{{title}}”…", "runDocument": "Executing document “{{name}}”…"
     },
     "done": {
       "dailyAutomatic": "Daily completion generated automatically",
       "daily": "Daily completion generated",
       "commitPushed": "Committed and pushed:\n{{message}}",
-      "tasks": "Generated {{count}} tasks",
+      "tasks": "Generated {{count}} tasks", "document": "Document execution completed",
       "task": "Implemented {{number}}"
     },
     "phase": { "running": "In progress", "done": "Done" },

@@ -49,6 +49,13 @@ export type AiPanelSession = (
       relativePath: string;
       taskTitle: string;
       taskNumber: string;
+    }
+  | {
+      kind: "runDocument";
+      projectId: string;
+      projectName: string;
+      relativePath: string;
+      documentTitle: string;
     }) & { outputLanguage?: ResolvedLanguage };
 
 export function newAiSessionId(): string {
@@ -86,6 +93,8 @@ export function aiSessionTitle(session: AiPanelSession, t: TFunction<any>): stri
       return t("activity:ai.titles.generateTasks");
     case "runTask":
       return t("activity:ai.titles.runTask", { number: session.taskNumber });
+    case "runDocument":
+      return t("activity:ai.titles.runDocument", { name: session.documentTitle });
   }
 }
 
@@ -105,6 +114,8 @@ export function aiSessionSubtitle(session: AiPanelSession, t: TFunction<any>): s
       return session.projectName;
     case "runTask":
       return `${session.projectName} · ${session.taskTitle}`;
+    case "runDocument":
+      return `${session.projectName} · ${session.documentTitle}`;
     case "testConnection":
       return t("activity:ai.subtitles.test");
   }

@@ -28,6 +28,9 @@
     "taskTitle": "Implement task · Prompt template",
     "taskHelp": "Used by … → Implement; AI can modify files in the project directory",
     "taskReset": "Restore the default Implement task template",
+    "documentExecuteTitle": "Execute document · Prompt",
+    "documentExecuteHelp": "When you choose … → Execute on a document or folder: prompt + all document text → AI",
+    "documentExecuteReset": "Restore the default Execute document prompt",
     "editingLanguage": "Editing the {{language}} templates"
   },
   "summary": {
