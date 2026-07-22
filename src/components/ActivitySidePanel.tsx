@@ -3,7 +3,13 @@ import { listen } from "@tauri-apps/api/event";
 import { PanelRight } from "lucide-react";
 import { api } from "../api";
 import type { AiPanelSession } from "../lib/aiPanel";
-import type { NewLogDiaryEntry, RunProgressEvent, RunSession, RunTarget } from "../types";
+import type {
+  NewLogDiaryEntry,
+  RunProgressEvent,
+  RunSession,
+  RunTarget,
+  UpdateLogDiaryByRunSession,
+} from "../types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,6 +30,7 @@ interface Props {
   onDismissAi: (id: string, session: AiPanelSession) => void;
   onRunSessionsChange: Dispatch<SetStateAction<RunSession[]>>;
   onLog: (entry: NewLogDiaryEntry) => void;
+  onUpdateRunLog: (entry: UpdateLogDiaryByRunSession) => void;
   onTargetsSaved: (projectId: string, targets: RunTarget[]) => void;
   onProjectRefresh: (projectId: string, session: AiPanelSession) => void;
   onToast: (msg: string) => void;
@@ -57,13 +64,31 @@ function formatRunSession(session: RunSession) {
 }
 
 export function ActivitySidePanel(props: Props) {
-  const { onRunSessionsChange } = props;
+  const { onRunSessionsChange, onUpdateRunLog, onLog } = props;
   const [aiCopyContent, setAiCopyContent] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const unlistenPromise = listen<RunProgressEvent>("run-progress", ({ payload }) => {
+      if (payload.kind === "exit") {
+        const failed = payload.text.includes("异常");
+        onUpdateRunLog({
+          runSessionId: payload.sessionId,
+          status: failed ? "error" : "ok",
+          detail: payload.text,
+          error: failed ? payload.text : null,
+        });
+      }
+      if (payload.kind === "error") {
+        onUpdateRunLog({
+          runSessionId: payload.sessionId,
+          status: "error",
+          detail: payload.text,
+          error: payload.text,
+        });
+      }
+
       onRunSessionsChange((sessions) =>
         sessions.map((session) => {
           if (session.id !== payload.sessionId) return session;
@@ -92,7 +117,7 @@ export function ActivitySidePanel(props: Props) {
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [onRunSessionsChange]);
+  }, [onRunSessionsChange, onUpdateRunLog]);
 
   const stop = async (session: RunSession) => {
     try {
@@ -114,6 +139,15 @@ export function ActivitySidePanel(props: Props) {
           ? await api.upgradeSelf()
           : await api.runProjectTarget(session.projectId, session.targetId);
       onRunSessionsChange((sessions) => [...sessions, next]);
+      onLog({
+        kind: "runTarget",
+        status: "running",
+        title: `运行 · ${next.targetName}`,
+        projectId: next.projectId,
+        projectName: next.projectName,
+        runSessionId: next.id,
+        detail: `cwd: ${next.cwd}\ncommand: ${next.command}\n\n已在运行中心重新启动。`,
+      });
     } catch (error) {
       props.onToast(String(error));
     }

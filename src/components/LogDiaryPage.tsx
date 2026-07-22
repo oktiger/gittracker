@@ -168,14 +168,10 @@ export function LogDiaryPage({
                         <TableCell colSpan={4} className="bg-muted/20 px-4 py-3">
                           <div className="space-y-3">
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              <span>{kindLabel(entry.kind)}</span>
                               {(entry.projectName || entry.projectId) && (
-                                <>
-                                  <span>·</span>
-                                  <span>
-                                    项目 · {entry.projectName ?? entry.projectId}
-                                  </span>
-                                </>
+                                <span>
+                                  项目 · {entry.projectName ?? entry.projectId}
+                                </span>
                               )}
                             </div>
 
@@ -187,10 +183,24 @@ export function LogDiaryPage({
 
                             {entry.error?.trim() ? (
                               <div className="space-y-1">
-                                <div className="text-xs font-medium text-destructive">
-                                  问题 / 错误反馈
+                                <div
+                                  className={cn(
+                                    "text-xs font-medium",
+                                    entry.status === "error"
+                                      ? "text-destructive"
+                                      : "text-muted-foreground",
+                                  )}
+                                >
+                                  {entry.status === "error" ? "问题 / 错误反馈" : "说明"}
                                 </div>
-                                <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/5 p-3 font-mono text-xs text-destructive">
+                                <pre
+                                  className={cn(
+                                    "max-h-48 overflow-auto whitespace-pre-wrap rounded-md border p-3 font-mono text-xs",
+                                    entry.status === "error"
+                                      ? "border-destructive/30 bg-destructive/5 text-destructive"
+                                      : "border-border bg-background text-muted-foreground",
+                                  )}
+                                >
                                   {entry.error.trim()}
                                 </pre>
                               </div>
