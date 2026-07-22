@@ -8,6 +8,16 @@ import type {
   ProjectStatus,
   RunTarget,
 } from "../types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +29,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { workingTreeBadge } from "../lib/gitStatusBadge";
 import { DocumentLibraryTab } from "./DocumentLibraryTab";
 import { EvolutionPage } from "./EvolutionPage";
-import { HelpTip } from "./HelpTip";
+import { GitStatusIcon } from "./GitStatusIcon";
 
 interface Props {
   project: ProjectStatus;
@@ -83,6 +94,7 @@ export function ProjectCard({
   const [detailTab, setDetailTab] = useState("run");
   const [changedFiles, setChangedFiles] = useState<Awaited<ReturnType<typeof api.listChangedFiles>>>([]);
   const [changesLoading, setChangesLoading] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
   const locked = disabled || Boolean(docsBusy) || runBusy;
@@ -229,9 +241,59 @@ export function ProjectCard({
     </DropdownMenu>
   );
 
-  const codeModule = (board: boolean) => (
-    <section className={cn("overflow-hidden", board ? "" : "rounded-md border border-border bg-background/40")}>
-      <header className={cn("flex items-center justify-between gap-2", board ? "mb-2 pt-1" : "border-b border-border px-3 py-2.5")}>
+  const projectSettingsMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          disabled={locked}
+          title="项目设置"
+          aria-label="项目设置"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => setRemoveConfirmOpen(true)}
+        >
+          移除
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const removeConfirmDialog = (
+    <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>移除「{project.name}」？</AlertDialogTitle>
+          <AlertDialogDescription>
+            将从 GitTracker 中移除该项目，不会删除磁盘上的仓库。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => {
+              setRemoveConfirmOpen(false);
+              onRemove();
+            }}
+          >
+            移除
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  const codeModule = (
+    <section className="overflow-hidden">
+      <header className="mb-2 flex items-center justify-between gap-2 pt-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">代码</span>
         </div>
@@ -240,7 +302,7 @@ export function ProjectCard({
       {project.commits.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">暂无提交</p>
       ) : (
-        <ul className={cn("max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto", board ? "" : "px-3")}>
+        <ul className="max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto">
           {project.commits.map((c) => (
             <li
               key={c.hash}
@@ -257,72 +319,38 @@ export function ProjectCard({
           ))}
         </ul>
       )}
-      <footer className={cn("flex flex-wrap items-center justify-between gap-2", board ? "pt-3" : "border-t border-border bg-card px-3 py-2.5")}>
+      <footer className="flex flex-wrap items-center justify-between gap-2 pt-3">
         <span className="text-[11px] text-muted-foreground">
           {changeCount} Changes
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
-          {board ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                disabled={locked || !hasChanges}
-                onClick={onOneClick}
-              >
-                全部提交
-              </Button>
-              {runMenu}
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                disabled={locked || changeCount === 0}
-                onClick={onViewChanges}
-              >
-                查看变更
-              </Button>
-              <Button
-                type="button"
-                size="xs"
-                disabled={locked || !hasChanges}
-                onClick={onManualCommit}
-              >
-                提交…
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                disabled={locked || !hasChanges}
-                onClick={onOneClick}
-              >
-                一键提交
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={locked || !hasChanges}
-                onClick={onManualCommit}
-              >
-                手动提交
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10"
-                disabled={locked || !hasChanges}
-                onClick={onDiscard}
-              >
-                Discard
-              </Button>
-            </>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={locked || !hasChanges}
+            onClick={onOneClick}
+          >
+            全部提交
+          </Button>
+          {runMenu}
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={locked || changeCount === 0}
+            onClick={onViewChanges}
+          >
+            查看变更
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            disabled={locked || !hasChanges}
+            onClick={onManualCommit}
+          >
+            提交…
+          </Button>
         </div>
       </footer>
     </section>
@@ -331,21 +359,25 @@ export function ProjectCard({
   if (hideTitle) {
     return (
       <div className="space-y-4">
+        {removeConfirmDialog}
         <Tabs value={detailTab} onValueChange={setDetailTab}>
-          <TabsList className="h-auto rounded-lg border border-border bg-muted/40 p-1">
-            <TabsTrigger value="run" className="rounded-md px-3 py-1.5">
-              运行
-            </TabsTrigger>
-            <TabsTrigger value="code" className="rounded-md px-3 py-1.5">
-              代码变更
-            </TabsTrigger>
-            <TabsTrigger value="docs" className="rounded-md px-3 py-1.5">
-              文档
-            </TabsTrigger>
-            <TabsTrigger value="evolution" className="rounded-md px-3 py-1.5">
-              进化
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between gap-2">
+            <TabsList className="h-auto rounded-lg border border-border bg-muted/40 p-1">
+              <TabsTrigger value="run" className="rounded-md px-3 py-1.5">
+                运行
+              </TabsTrigger>
+              <TabsTrigger value="code" className="rounded-md px-3 py-1.5">
+                代码
+              </TabsTrigger>
+              <TabsTrigger value="docs" className="rounded-md px-3 py-1.5">
+                文档
+              </TabsTrigger>
+              <TabsTrigger value="evolution" className="rounded-md px-3 py-1.5">
+                进化
+              </TabsTrigger>
+            </TabsList>
+            {projectSettingsMenu}
+          </div>
 
           <TabsContent value="run" className="mt-4">
             <div className="rounded-lg border border-border bg-card">
@@ -427,44 +459,31 @@ export function ProjectCard({
             </div>
           </TabsContent>
 
-          <TabsContent value="code" className="mt-4 space-y-4">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono">
-                  {project.branch || "—"}
-                </code>
-                {statusBadge}
-                {(project.ahead > 0 || project.behind > 0) && (
-                  <span className="text-muted-foreground">
-                    {project.ahead > 0 ? `↑${project.ahead}` : null}
-                    {project.behind > 0 ? ` ↓${project.behind}` : null}
-                  </span>
-                )}
+          <TabsContent value="code" className="mt-4 space-y-6">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono">
+                {project.branch || "—"}
+              </code>
+              {statusBadge}
+              {(project.ahead > 0 || project.behind > 0) && (
+                <span className="text-muted-foreground">
+                  {project.ahead > 0 ? `↑${project.ahead}` : null}
+                  {project.behind > 0 ? ` ↓${project.behind}` : null}
+                </span>
+              )}
+              <div className="ml-auto flex flex-wrap items-center gap-1.5">
                 <Button
                   type="button"
-                  variant="ghost"
                   size="xs"
-                  className="ml-auto text-muted-foreground"
-                  disabled={locked}
-                  onClick={onRemove}
+                  disabled={locked || !hasChanges}
+                  onClick={onOneClick}
                 >
-                  从看板移除
-                </Button>
-              </div>
-              <div className="mb-4 rounded-md border border-border">
-                <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                  <span className="text-xs font-medium">变更文件 ({changeCount})</span>
-                  <HelpTip text="当前 Worktree 中全部尚未提交的文件改动。点击文件可查看 Changes diff。" />
-                </div>
-                {changesLoading ? <p className="px-3 py-4 text-xs text-muted-foreground">加载变更文件…</p> : changedFiles.length === 0 ? <p className="px-3 py-4 text-xs text-muted-foreground">当前没有 Changes</p> : <ul className="max-h-56 divide-y divide-border overflow-y-auto">{changedFiles.map((file) => <li key={file.path}><button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-accent/50" onClick={onViewChanges}><span className="min-w-0 truncate font-mono text-muted-foreground" title={file.path}>{file.path}</span><span className="shrink-0 font-mono text-amber-500">{file.status.trim() || "U"}</span></button></li>)}</ul>}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" disabled={locked || !hasChanges} onClick={onOneClick}>
                   一键提交
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
+                  size="xs"
                   disabled={locked || !hasChanges}
                   onClick={onManualCommit}
                 >
@@ -473,15 +492,78 @@ export function ProjectCard({
                 <Button
                   type="button"
                   variant="outline"
+                  size="xs"
                   className="text-destructive hover:bg-destructive/10"
                   disabled={locked || !hasChanges}
                   onClick={onDiscard}
                 >
-                  Discard
+                  放弃所有更改
                 </Button>
               </div>
             </div>
-            {codeModule(false)}
+
+            <section className="space-y-1.5">
+              <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
+                CHANGES
+                {changeCount > 0 ? (
+                  <span className="ml-1.5 font-normal tabular-nums">{changeCount}</span>
+                ) : null}
+              </h3>
+              {changesLoading ? (
+                <p className="py-3 text-xs text-muted-foreground">加载中…</p>
+              ) : changedFiles.length === 0 ? (
+                <p className="py-3 text-xs text-muted-foreground">没有变更</p>
+              ) : (
+                <ul className="max-h-64 overflow-y-auto">
+                  {changedFiles.map((file) => {
+                    const badge = workingTreeBadge(file);
+                    return (
+                      <li key={file.path}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-xs hover:bg-accent/40"
+                          onClick={onViewChanges}
+                        >
+                          <span
+                            className="min-w-0 truncate font-mono text-muted-foreground"
+                            title={file.path}
+                          >
+                            {file.path}
+                          </span>
+                          <GitStatusIcon badge={badge} />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section className="space-y-1.5">
+              <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
+                GRAPH
+              </h3>
+              {project.commits.length === 0 ? (
+                <p className="py-3 text-xs text-muted-foreground">暂无提交</p>
+              ) : (
+                <ul className="max-h-[min(45vh,480px)] overflow-y-auto">
+                  {project.commits.map((c) => (
+                    <li
+                      key={c.hash}
+                      className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-1.5 text-xs"
+                    >
+                      <span className="font-mono text-sky-400">{c.hash}</span>
+                      <span className="truncate text-foreground/90" title={c.subject}>
+                        {c.subject}
+                      </span>
+                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                        {relativeTime(c.timestamp)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </TabsContent>
 
           <TabsContent value="docs" className="mt-4">
@@ -534,6 +616,7 @@ export function ProjectCard({
 
   return (
     <article className="bg-card">
+      {removeConfirmDialog}
       <header className="flex items-center justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 truncate text-base font-semibold tracking-tight">
@@ -554,16 +637,7 @@ export function ProjectCard({
         </div>
         <div className="flex items-center gap-1">
           {statusBadge}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-sm" disabled={locked}>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onRemove}>从看板移除</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {projectSettingsMenu}
         </div>
       </header>
 
@@ -572,7 +646,7 @@ export function ProjectCard({
       ) : null}
 
       <div className="space-y-4 pt-4">
-        {codeModule(true)}
+        {codeModule}
         <section className="overflow-hidden border-t border-border pt-4">
           <DocumentLibraryTab
             projectId={project.id}

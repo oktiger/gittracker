@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import {
+  gitStatusLegend,
   workingTreeBadge,
-  type GitStatusKind,
 } from "../lib/gitStatusBadge";
 import type { FileChange } from "../types";
-import { HelpTip } from "./HelpTip";
+import { GitStatusIcon } from "./GitStatusIcon";
 import {
   Dialog,
   DialogContent,
@@ -15,36 +15,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface Props {
   projectId: string;
   projectName: string;
   onClose: () => void;
-}
-
-const badgeStyles: Record<GitStatusKind, string> = {
-  untracked: "text-green-700 bg-green-500/15 dark:text-green-400",
-  added: "text-green-700 bg-green-500/15 dark:text-green-400",
-  modified: "text-amber-700 bg-amber-500/15 dark:text-amber-400",
-  other: "text-amber-700 bg-amber-500/15 dark:text-amber-400",
-  deleted: "text-destructive bg-destructive/15",
-  renamed: "text-purple-700 bg-purple-500/15 dark:text-purple-400",
-  copied: "text-purple-700 bg-purple-500/15 dark:text-purple-400",
-  conflict: "text-destructive bg-destructive/20",
-};
-
-function GitBadge({ letter, kind }: { letter: string; kind: GitStatusKind }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-[1.15rem] min-w-[1.15rem] shrink-0 items-center justify-center rounded-sm px-0.5 font-mono text-[0.72rem] leading-none font-bold",
-        badgeStyles[kind],
-      )}
-    >
-      {letter}
-    </span>
-  );
 }
 
 export function ChangesDialog({ projectId, projectName, onClose }: Props) {
@@ -71,7 +46,6 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
 
   const sorted = useMemo(() => {
     return [...files].sort((a, b) => {
-      // Untracked 靠后一点，先看改动的已跟踪文件
       if (a.untracked !== b.untracked) return a.untracked ? 1 : -1;
       return a.path.localeCompare(b.path);
     });
@@ -93,68 +67,64 @@ export function ChangesDialog({ projectId, projectName, onClose }: Props) {
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Changes · {projectName}</DialogTitle>
-          <DialogDescription>
-            当前 Worktree 的全部 Changes。{" "}
-            <HelpTip text="文件名右侧字母沿用 VS Code / GitHub Desktop：U Untracked、M Modified、D Deleted、A Added、R Renamed。" />
-          </DialogDescription>
+          <DialogTitle>CHANGES · {projectName}</DialogTitle>
+          <DialogDescription>当前 Worktree 的全部变更文件。</DialogDescription>
         </DialogHeader>
 
         <div
-          className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
           aria-hidden="true"
         >
-          <GitBadge letter="U" kind="untracked" />
-          <span>Untracked</span>
-          <GitBadge letter="M" kind="modified" />
-          <span>Modified</span>
-          <GitBadge letter="D" kind="deleted" />
-          <span>Deleted</span>
+          {gitStatusLegend.map((item) => (
+            <GitStatusIcon key={item.kind} badge={item} />
+          ))}
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载变更文件…</p>
+          <p className="text-sm text-muted-foreground">加载中…</p>
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : (
-          <ul className="max-h-[min(52vh,420px)] list-none overflow-auto rounded-md border border-border bg-muted/30 p-0">
+          <ul className="max-h-[min(52vh,420px)] list-none overflow-auto p-0">
             {sorted.map((f) => {
               const badge = workingTreeBadge(f);
               return (
-                <li key={f.path} className="border-b border-border last:border-b-0">
-                  <button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent/50" onClick={() => void openDiff(f)}>
+                <li key={f.path} className="border-b border-border/60 last:border-b-0">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 px-1 py-2 text-left text-sm hover:bg-accent/50"
+                    onClick={() => void openDiff(f)}
+                  >
                     <span
                       className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
                       title={f.path}
                     >
                       {f.path}
                     </span>
-                    <span title={badge.label}>
-                      <GitBadge letter={badge.letter} kind={badge.kind} />
-                    </span>
+                    <GitStatusIcon badge={badge} />
                   </button>
                 </li>
               );
             })}
             {sorted.length === 0 && (
-              <li className="px-3 py-3 text-sm text-muted-foreground">
-                当前没有 Changes
-              </li>
+              <li className="py-3 text-sm text-muted-foreground">当前没有变更</li>
             )}
           </ul>
         )}
 
         {selectedPath ? (
-          <div className="rounded-md border border-border bg-muted/30">
-            <div className="border-b border-border px-3 py-2 font-mono text-xs text-muted-foreground">{selectedPath}</div>
-            <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed">{diffLoading ? "加载 Changes diff…" : diff || "没有可显示的 diff"}</pre>
+          <div>
+            <div className="border-b border-border px-1 py-2 font-mono text-xs text-muted-foreground">
+              {selectedPath}
+            </div>
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap py-3 font-mono text-[11px] leading-relaxed">
+              {diffLoading ? "加载 diff…" : diff || "没有可显示的 diff"}
+            </pre>
           </div>
         ) : null}
 
         <DialogFooter className="border-t pt-4 sm:justify-between">
-          <span className="text-sm text-muted-foreground">
-            共 {sorted.length} 个文件
-          </span>
+          <span className="text-sm text-muted-foreground">共 {sorted.length} 个文件</span>
           <Button type="button" variant="ghost" onClick={onClose}>
             关闭
           </Button>

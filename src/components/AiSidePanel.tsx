@@ -14,7 +14,6 @@ import type {
   NewLogDiaryEntry,
   RunTarget,
 } from "../types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,8 +61,8 @@ function kindLabel(kind: string): string {
 
 function formatTranscriptLines(lines: AiTranscriptLine[]): string {
   return lines
-    .map((line) => `[${kindLabel(line.kind)}] ${line.text}`)
-    .join("\n\n");
+    .map((line) => `${kindLabel(line.kind)}：${line.text}`)
+    .join("\n");
 }
 
 /** 拼成便于粘贴给 AI 的整段运行过程 */
@@ -638,16 +637,14 @@ export function AiSidePanel({
   };
 
   const renderTranscript = (compact = false) => (
-    <div className={cn("space-y-2", compact && "max-h-40 overflow-y-auto")}>
+    <div className={cn("space-y-0.5", compact && "max-h-40 overflow-y-auto")}>
       {transcript.map((line) => (
-        <div key={line.id} className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2">
-          <Badge variant="secondary" className="mb-1 text-[10px]">
-            {kindLabel(line.kind)}
-          </Badge>
-          <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90">
-            {line.text}
-          </pre>
-        </div>
+        <pre
+          key={line.id}
+          className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90"
+        >
+          {`${kindLabel(line.kind)}：${line.text}`}
+        </pre>
       ))}
     </div>
   );

@@ -10,7 +10,7 @@ const KIND_LABELS: Record<string, string> = {
   suggestRunTargets: "识别启动方式",
   saveRunTargets: "保存启动目标",
   runTarget: "运行目标",
-  discard: "Discard",
+  discard: "放弃更改",
   testConnection: "测试 AI 连接",
 };
 

@@ -176,7 +176,6 @@ function App() {
   };
 
   const onRemove = async (id: string, name: string) => {
-    if (!window.confirm(`从看板移除「${name}」？\n不会删除磁盘上的仓库。`)) return;
     try {
       await api.removeProject(id);
       if (selectedProjectId === id) {
@@ -184,6 +183,7 @@ function App() {
         setView("board");
       }
       await refresh();
+      showToast(`已移除「${name}」`);
     } catch (e) {
       setError(String(e));
     }
@@ -475,7 +475,7 @@ function App() {
             onClose={() => setDialog(null)}
             onDone={() => {
               void refreshOne(dialog.id);
-              showToast("已 Discard");
+              showToast("已放弃所有更改");
             }}
             onLog={appendLog}
           />

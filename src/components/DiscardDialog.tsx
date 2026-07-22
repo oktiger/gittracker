@@ -101,7 +101,7 @@ export function DiscardDialog({
       onLog({
         kind: "discard",
         status: "ok",
-        title: `Discard · ${projectName}`,
+        title: `放弃更改 · ${projectName}`,
         projectId,
         projectName,
         detail: `丢弃文件 (${result.discarded.length}):\n${result.discarded.map((p) => `- ${p}`).join("\n")}\n\n${note}`,
@@ -115,7 +115,7 @@ export function DiscardDialog({
       onLog({
         kind: "discard",
         status: "error",
-        title: `Discard 失败 · ${projectName}`,
+        title: `放弃更改失败 · ${projectName}`,
         projectId,
         projectName,
         detail: `拟丢弃:\n${paths.map((p) => `- ${p}`).join("\n")}`,
@@ -131,7 +131,7 @@ export function DiscardDialog({
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Discard · {projectName}</DialogTitle>
+          <DialogTitle>放弃所有更改 · {projectName}</DialogTitle>
           <DialogDescription className="sr-only">
             丢弃选中文件的本地修改
           </DialogDescription>
@@ -244,7 +244,7 @@ export function DiscardDialog({
             onClick={() => void onConfirm()}
             disabled={submitting || loading}
           >
-            {submitting ? "处理中…" : "确认 Discard"}
+            {submitting ? "处理中…" : "确认放弃"}
           </Button>
         </DialogFooter>
       </DialogContent>
