@@ -22,6 +22,7 @@ import { newAiSessionId, type AiPanelSession } from "./lib/aiPanel";
 import type { NewLogDiaryEntry, RunSession, RunTarget } from "./types";
 
 type AppView = NavView | "project";
+type AppLocation = { view: AppView; projectId: string | null };
 
 type DialogState =
   | { type: "commit"; id: string; name: string }
@@ -49,7 +50,7 @@ function App() {
   const [runSessions, setRunSessions] = useState<RunSession[]>([]);
   const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [history, setHistory] = useState<AppView[]>(["board"]);
+  const [history, setHistory] = useState<AppLocation[]>([{ view: "board", projectId: null }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [docsEpoch, setDocsEpoch] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
@@ -152,25 +153,24 @@ function App() {
     return () => window.clearInterval(timer);
   }, [openAiSession]);
 
-  const navigate = (next: AppView) => {
-    if (next === view) return;
+  const navigate = (next: AppLocation) => {
+    if (next.view === view && next.projectId === selectedProjectId) return;
     setHistory((items) => {
       const nextItems = [...items.slice(0, historyIndex + 1), next];
       setHistoryIndex(nextItems.length - 1);
       return nextItems;
     });
-    setView(next);
+    setView(next.view);
+    setSelectedProjectId(next.projectId);
   };
 
   const goNav = (next: NavView) => {
-    setSelectedProjectId(null);
-    navigate(next);
+    navigate({ view: next, projectId: null });
     if (next === "logDiary") void logDiary.refresh();
   };
 
   const openProject = (id: string) => {
-    setSelectedProjectId(id);
-    navigate("project");
+    navigate({ view: "project", projectId: id });
   };
 
   const goHistory = (direction: -1 | 1) => {
@@ -178,9 +178,9 @@ function App() {
     const next = history[nextIndex];
     if (!next) return;
     setHistoryIndex(nextIndex);
-    setView(next);
-    if (next !== "project") setSelectedProjectId(null);
-    if (next === "logDiary") void logDiary.refresh();
+    setView(next.view);
+    setSelectedProjectId(next.projectId);
+    if (next.view === "logDiary") void logDiary.refresh();
   };
 
   const canGoBack = historyIndex > 0;
@@ -351,6 +351,9 @@ function App() {
             onSelectProject={openProject}
             onUpgrade={() => void onUpgradeSelf()}
             onCollapse={() => setSidebarOpen(false)}
+            onCloseWindow={() => void windowControls.close()}
+            onMinimizeWindow={() => void windowControls.minimize()}
+            onMaximizeWindow={() => void windowControls.toggleMaximize()}
           />
         ) : null}
 
@@ -358,16 +361,23 @@ function App() {
           <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/80 px-3" data-tauri-drag-region>
             <div className="flex items-center gap-1" data-tauri-drag-region>
               {!sidebarOpen ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="展开左侧导航"
-                  title="展开左侧导航"
-                >
-                  <PanelLeft className="h-4 w-4" />
-                </Button>
+                <>
+                  <div className="mr-2 flex items-center gap-1.5">
+                    <button type="button" className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90" onClick={() => void windowControls.close()} aria-label="关闭窗口" title="关闭窗口" />
+                    <button type="button" className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90" onClick={() => void windowControls.minimize()} aria-label="最小化窗口" title="最小化窗口" />
+                    <button type="button" className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90" onClick={() => void windowControls.toggleMaximize()} aria-label="最大化窗口" title="最大化窗口" />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setSidebarOpen(true)}
+                    aria-label="展开左侧导航"
+                    title="展开左侧导航"
+                  >
+                    <PanelLeft className="h-4 w-4" />
+                  </Button>
+                </>
               ) : null}
               <Button
                 type="button"
@@ -429,32 +439,8 @@ function App() {
             </div>
           </header>
 
-          <div className="flex items-center gap-1 px-6 pt-5">
-            <button
-              type="button"
-              className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90"
-              onClick={() => void windowControls.close()}
-              aria-label="关闭窗口"
-              title="关闭窗口"
-            />
-            <button
-              type="button"
-              className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90"
-              onClick={() => void windowControls.minimize()}
-              aria-label="最小化窗口"
-              title="最小化窗口"
-            />
-            <button
-              type="button"
-              className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90"
-              onClick={() => void windowControls.toggleMaximize()}
-              aria-label="最大化窗口"
-              title="最大化窗口"
-            />
-          </div>
-
           <div className="flex min-h-0 flex-1 flex-col">
-          <section className="flex items-end justify-between gap-4 px-6 pb-4 pt-3">
+          <section className="flex items-end justify-between gap-4 px-6 pb-4 pt-5">
             <div>
               {headerMeta.eyebrow ? (
                 <button

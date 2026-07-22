@@ -23,6 +23,9 @@ interface Props {
   onSelectProject: (id: string) => void;
   onUpgrade: () => void;
   onCollapse: () => void;
+  onCloseWindow: () => void;
+  onMinimizeWindow: () => void;
+  onMaximizeWindow: () => void;
 }
 
 const NAV: { id: NavView; label: string; icon: typeof LayoutGrid }[] = [
@@ -42,18 +45,24 @@ export function AppSidebar({
   onSelectProject,
   onUpgrade,
   onCollapse,
+  onCloseWindow,
+  onMinimizeWindow,
+  onMaximizeWindow,
 }: Props) {
   return (
     <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-card/70" aria-label="主导航">
       <div className="flex h-12 items-center justify-between px-3" data-tauri-drag-region>
-        <div className="flex items-center gap-2.5" data-tauri-drag-region>
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Target className="h-4 w-4" />
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          <div className="flex items-center gap-1.5">
+            <button type="button" className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90" onClick={onCloseWindow} aria-label="关闭窗口" title="关闭窗口" />
+            <button type="button" className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90" onClick={onMinimizeWindow} aria-label="最小化窗口" title="最小化窗口" />
+            <button type="button" className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90" onClick={onMaximizeWindow} aria-label="最大化窗口" title="最大化窗口" />
           </div>
-          <div>
-            <div className="text-sm font-semibold tracking-tight">GitTracker</div>
-            <div className="text-xs text-muted-foreground">多项目 Git 看板</div>
+          <div className="h-5 w-px bg-border" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Target className="h-3.5 w-3.5" />
           </div>
+          <div className="text-sm font-semibold tracking-tight">GitTracker</div>
         </div>
         <Button
           type="button"
