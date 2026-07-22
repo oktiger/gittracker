@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Folder, PanelLeft, PanelRight } from "lucide-react";
 import { api } from "./api";
 import { ActivitySidePanel, type AiActivity } from "./components/ActivitySidePanel";
 import { AppSidebar, type NavView } from "./components/AppSidebar";
 import { ChangesDialog } from "./components/ChangesDialog";
 import { CommitDialog } from "./components/CommitDialog";
 import { DiscardDialog } from "./components/DiscardDialog";
-import { HelpTip } from "./components/HelpTip";
 import { LogDiaryPage } from "./components/LogDiaryPage";
 import { DailyCompletionPage } from "./components/DailyCompletionPage";
 import { MarkdownEditorDialog } from "./components/MarkdownEditorDialog";
@@ -234,45 +233,20 @@ function App() {
       ? projects.find((p) => p.id === selectedProjectId) ?? null
       : null;
 
-  const headerMeta = (() => {
+  const pageTitle = (() => {
     if (view === "board") {
-      return {
-        eyebrow: null as string | null,
-        title: "看板",
-        desc: (
-          <>
-            总览全部项目状态 · 变更自动刷新
-            <HelpTip text="文件变更自动刷新；每 60 秒兜底全量刷新。关闭窗口后仍驻留托盘。" />
-          </>
-        ),
-      };
+      return "看板";
     }
     if (view === "project") {
-      return {
-        eyebrow: "← 看板",
-        title: selectedProject?.name ?? "项目详情",
-        desc: selectedProject?.path ?? "",
-      };
+      return selectedProject?.name ?? "项目详情";
     }
     if (view === "dailyCompletion") {
-      return {
-        eyebrow: null,
-        title: "总结",
-        desc: "从 commit message 整理可分享的工作总结",
-      };
+      return "总结";
     }
     if (view === "logDiary") {
-      return {
-        eyebrow: null,
-        title: "日志",
-        desc: "记录一键提交、AI 操作与其它事件",
-      };
+      return "日志";
     }
-    return {
-      eyebrow: null,
-      title: "设置",
-      desc: "外观、AI Provider 与提示词模板",
-    };
+    return "设置";
   })();
 
   const renderProjectCard = (p: (typeof projects)[number]) => (
@@ -354,12 +328,16 @@ function App() {
             onCloseWindow={() => void windowControls.close()}
             onMinimizeWindow={() => void windowControls.minimize()}
             onMaximizeWindow={() => void windowControls.toggleMaximize()}
+            onBack={() => goHistory(-1)}
+            onForward={() => goHistory(1)}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
           />
         ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/80 px-3" data-tauri-drag-region>
-            <div className="flex items-center gap-1" data-tauri-drag-region>
+            <div className="flex min-w-0 items-center gap-1" data-tauri-drag-region>
               {!sidebarOpen ? (
                 <>
                   <div className="mr-2 flex items-center gap-1.5">
@@ -377,54 +355,21 @@ function App() {
                   >
                     <PanelLeft className="h-4 w-4" />
                   </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => goHistory(-1)} disabled={!canGoBack} aria-label="返回上一页" title="返回上一页">
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => goHistory(1)} disabled={!canGoForward} aria-label="前进下一页" title="前进下一页">
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
                 </>
               ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => goHistory(-1)}
-                disabled={!canGoBack}
-                aria-label="返回上一页"
-                title="返回上一页"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => goHistory(1)}
-                disabled={!canGoForward}
-                aria-label="前进下一页"
-                title="前进下一页"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <div className="flex min-w-0 items-center gap-2 px-2" data-tauri-drag-region>
+                {view === "project" ? <Folder className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+                <h1 className="truncate text-sm font-medium" data-tauri-drag-region>{pageTitle}</h1>
+              </div>
             </div>
             <div className="flex flex-1 justify-end" data-tauri-drag-region>
               <div className="flex items-center gap-2" data-tauri-drag-region={undefined}>
-                {view === "board" ? (
-                  <>
-                    <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
-                      刷新
-                    </Button>
-                    <Button type="button" size="sm" onClick={() => void onAdd()}>
-                      添加项目
-                    </Button>
-                  </>
-                ) : null}
-                {view === "project" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => selectedProjectId && void refreshOne(selectedProjectId)}
-                    disabled={!selectedProjectId}
-                  >
-                    刷新
-                  </Button>
-                ) : null}
                 <Button
                   type="button"
                   variant={activityOpen ? "secondary" : "ghost"}
@@ -440,24 +385,6 @@ function App() {
           </header>
 
           <div className="flex min-h-0 flex-1 flex-col">
-          <section className="flex items-end justify-between gap-4 px-6 pb-4 pt-5">
-            <div>
-              {headerMeta.eyebrow ? (
-                <button
-                  type="button"
-                  className="mb-1 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => goNav("board")}
-                >
-                  {headerMeta.eyebrow}
-                </button>
-              ) : null}
-              <h1 className="text-xl font-semibold tracking-tight">{headerMeta.title}</h1>
-              <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-                {headerMeta.desc}
-              </p>
-            </div>
-          </section>
-
           {error ? (
             <div
               className="flex items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-6 py-2 text-sm text-destructive"
@@ -471,8 +398,17 @@ function App() {
           ) : null}
 
           <main className="flex-1 overflow-y-auto p-6">
-            {view === "board" &&
-              (loading ? (
+            {view === "board" && (
+              <>
+                <div className="mb-5 flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
+                    刷新
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => void onAdd()}>
+                    添加项目
+                  </Button>
+                </div>
+                {loading ? (
                 <div className="px-2 py-16 text-center text-sm text-muted-foreground">加载中…</div>
               ) : projects.length === 0 ? (
                 <div className="mx-auto max-w-md px-2 py-16 text-center">
@@ -486,10 +422,18 @@ function App() {
                 </div>
               ) : (
                 <div className="grid gap-5 xl:grid-cols-2">{projects.map((p) => renderProjectCard(p))}</div>
-              ))}
+                )}
+              </>
+            )}
 
-            {view === "project" &&
-              (loading ? (
+            {view === "project" && (
+              <>
+                <div className="mb-5 flex items-center justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => selectedProjectId && void refreshOne(selectedProjectId)} disabled={!selectedProjectId}>
+                    刷新
+                  </Button>
+                </div>
+                {loading ? (
                 <div className="px-2 py-16 text-center text-sm text-muted-foreground">加载中…</div>
               ) : !selectedProject ? (
                 <div className="mx-auto max-w-md px-2 py-16 text-center">
@@ -501,7 +445,9 @@ function App() {
                 </div>
               ) : (
                 renderProjectCard(selectedProject)
-              ))}
+                )}
+              </>
+            )}
 
             {view === "logDiary" && (
               <LogDiaryPage

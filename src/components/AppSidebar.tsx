@@ -1,4 +1,6 @@
 import {
+  ArrowLeft,
+  ArrowRight,
   CalendarCheck2,
   ChevronsLeft,
   LayoutGrid,
@@ -26,6 +28,10 @@ interface Props {
   onCloseWindow: () => void;
   onMinimizeWindow: () => void;
   onMaximizeWindow: () => void;
+  onBack: () => void;
+  onForward: () => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
 }
 
 const NAV: { id: NavView; label: string; icon: typeof LayoutGrid }[] = [
@@ -48,35 +54,42 @@ export function AppSidebar({
   onCloseWindow,
   onMinimizeWindow,
   onMaximizeWindow,
+  onBack,
+  onForward,
+  canGoBack,
+  canGoForward,
 }: Props) {
   return (
     <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-card/70" aria-label="主导航">
-      <div className="flex h-12 items-center justify-between px-3" data-tauri-drag-region>
-        <div className="flex items-center gap-2" data-tauri-drag-region>
+      <div className="flex h-12 items-center px-3" data-tauri-drag-region>
+        <div className="flex items-center gap-3" data-tauri-drag-region>
           <div className="flex items-center gap-1.5">
             <button type="button" className="h-3 w-3 rounded-full bg-[#ff5f57] transition hover:brightness-90" onClick={onCloseWindow} aria-label="关闭窗口" title="关闭窗口" />
             <button type="button" className="h-3 w-3 rounded-full bg-[#febc2e] transition hover:brightness-90" onClick={onMinimizeWindow} aria-label="最小化窗口" title="最小化窗口" />
             <button type="button" className="h-3 w-3 rounded-full bg-[#28c840] transition hover:brightness-90" onClick={onMaximizeWindow} aria-label="最大化窗口" title="最大化窗口" />
           </div>
-          <div className="h-5 w-px bg-border" />
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Target className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-0.5">
+            <Button type="button" variant="ghost" size="icon-sm" onClick={onCollapse} aria-label="收起左侧导航" title="收起左侧导航">
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={onBack} disabled={!canGoBack} aria-label="返回上一页" title="返回上一页">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={onForward} disabled={!canGoForward} aria-label="前进下一页" title="前进下一页">
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
-          <div className="text-sm font-semibold tracking-tight">GitTracker</div>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={onCollapse}
-          aria-label="收起左侧导航"
-          title="收起左侧导航"
-        >
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
       </div>
 
-      <nav className="space-y-1 border-t border-border p-3" aria-label="主视图">
+      <div className="flex h-12 items-center gap-2.5 px-4" data-tauri-drag-region>
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <Target className="h-3.5 w-3.5" />
+        </div>
+        <div className="text-sm font-semibold tracking-tight">GitTracker</div>
+      </div>
+
+      <nav className="space-y-1 p-3 pt-1" aria-label="主视图">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
