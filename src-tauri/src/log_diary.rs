@@ -1,6 +1,9 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{LogDiaryEntry, LogDiaryStore, NewLogDiaryEntry};
+use crate::models::{
+    LogDiaryEntry, LogDiaryStatus, LogDiaryStore, NewLogDiaryEntry, UpdateLogDiaryByRunSession,
+};
 use crate::store::data_dir;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -64,6 +67,10 @@ pub fn append_log(input: NewLogDiaryEntry) -> AppResult<LogDiaryEntry> {
             .error
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty()),
+        run_session_id: input
+            .run_session_id
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty()),
     };
 
     let mut store = load()?;
@@ -73,6 +80,82 @@ pub fn append_log(input: NewLogDiaryEntry) -> AppResult<LogDiaryEntry> {
     }
     save(&store)?;
     Ok(entry)
+}
+
+/// 按运行会话回写日志终态（成功 / 失败 / 已结束）。
+pub fn update_by_run_session(input: UpdateLogDiaryByRunSession) -> AppResult<Option<LogDiaryEntry>> {
+    let session_id = input.run_session_id.trim();
+    if session_id.is_empty() {
+        return Err(AppError::msg("runSessionId 不能为空"));
+    }
+    if matches!(input.status, LogDiaryStatus::Running) {
+        return Err(AppError::msg("不能把日志回写成进行中"));
+    }
+
+    let mut store = load()?;
+    let Some(entry) = store
+        .entries
+        .iter_mut()
+        .find(|e| e.run_session_id.as_deref() == Some(session_id))
+    else {
+        return Ok(None);
+    };
+
+    // 已是终态则不覆盖，避免重复事件把结果打乱
+    if !matches!(entry.status, LogDiaryStatus::Running) {
+        return Ok(Some(entry.clone()));
+    }
+
+    entry.status = input.status;
+    if let Some(detail) = input.detail.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) {
+        if entry.detail.trim().is_empty() {
+            entry.detail = detail;
+        } else {
+            entry.detail = format!("{}\n\n{}", entry.detail.trim_end(), detail);
+        }
+    }
+    entry.error = input
+        .error
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| entry.error.clone());
+
+    let updated = entry.clone();
+    save(&store)?;
+    Ok(Some(updated))
+}
+
+/// 将「进行中」但对账不到活跃会话的日志标为「已结束」。
+/// `active_session_ids`：仍在 running / starting / stopping 的会话。
+pub fn reconcile_stale_running(active_session_ids: &[String]) -> AppResult<Vec<LogDiaryEntry>> {
+    let active: HashSet<&str> = active_session_ids.iter().map(|s| s.as_str()).collect();
+    let mut store = load()?;
+    let mut changed = false;
+
+    for entry in &mut store.entries {
+        if entry.status != LogDiaryStatus::Running {
+            continue;
+        }
+        let still_active = entry
+            .run_session_id
+            .as_deref()
+            .is_some_and(|id| active.contains(id));
+        if still_active {
+            continue;
+        }
+        entry.status = LogDiaryStatus::Ended;
+        let note = "最终状态未知（进程已结束，或应用曾重启，未能回写结果）";
+        entry.error = Some(match entry.error.as_deref() {
+            Some(prev) if !prev.trim().is_empty() => format!("{prev}\n{note}"),
+            _ => note.into(),
+        });
+        changed = true;
+    }
+
+    if changed {
+        save(&store)?;
+    }
+    Ok(store.entries)
 }
 
 pub fn clear_logs() -> AppResult<()> {

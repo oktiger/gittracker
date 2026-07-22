@@ -10,6 +10,7 @@ import type {
   LogDiaryEntry,
   NewLogDiaryEntry,
   OneClickResult,
+  UpdateLogDiaryByRunSession,
   ProjectRecord,
   ProjectStatus,
   FileChange,
@@ -99,6 +100,9 @@ export const api = {
   listLogDiary: () => invoke<LogDiaryEntry[]>("list_log_diary"),
   appendLogDiary: (entry: NewLogDiaryEntry) =>
     invoke<LogDiaryEntry>("append_log_diary", { entry }),
+  updateLogDiaryByRunSession: (entry: UpdateLogDiaryByRunSession) =>
+    invoke<LogDiaryEntry | null>("update_log_diary_by_run_session", { entry }),
+  reconcileLogDiary: () => invoke<LogDiaryEntry[]>("reconcile_log_diary"),
   clearLogDiary: () => invoke<void>("clear_log_diary"),
   generateDailyCompletion: (period: "today" | "week" | "sevenDays", sessionId: string) =>
     invoke<string>("generate_daily_completion", { period, sessionId }),

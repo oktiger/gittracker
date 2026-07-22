@@ -164,7 +164,7 @@ export interface AiTranscriptLine {
   text: string;
 }
 
-export type LogDiaryStatus = "ok" | "error" | "running";
+export type LogDiaryStatus = "ok" | "error" | "running" | "ended";
 
 export type LogDiaryKind =
   | "oneClick"
@@ -178,6 +178,7 @@ export type LogDiaryKind =
   | "runTarget"
   | "discard"
   | "testConnection"
+  | "dailyCompletion"
   | string;
 
 export interface LogDiaryEntry {
@@ -190,6 +191,7 @@ export interface LogDiaryEntry {
   title: string;
   detail: string;
   error?: string | null;
+  runSessionId?: string | null;
 }
 
 export interface NewLogDiaryEntry {
@@ -198,6 +200,14 @@ export interface NewLogDiaryEntry {
   title: string;
   projectId?: string | null;
   projectName?: string | null;
+  detail?: string | null;
+  error?: string | null;
+  runSessionId?: string | null;
+}
+
+export interface UpdateLogDiaryByRunSession {
+  runSessionId: string;
+  status: Exclude<LogDiaryStatus, "running">;
   detail?: string | null;
   error?: string | null;
 }

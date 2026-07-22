@@ -32,6 +32,8 @@ function statusColor(status: LogDiaryStatus): string {
       return "text-emerald-400";
     case "running":
       return "text-amber-400";
+    case "ended":
+      return "text-muted-foreground";
     case "error":
       return "text-destructive";
     default:
@@ -151,7 +153,7 @@ export function LogDiaryPage({
                           variant="secondary"
                           className="rounded-md px-1.5 py-0.5 text-[10px] font-normal"
                         >
-                          {entry.kind}
+                          {kindLabel(entry.kind)}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[280px] truncate px-4">

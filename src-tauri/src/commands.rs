@@ -7,6 +7,7 @@ use crate::models::{
     AiConnectionTestResult, AiProvider, AppSettings, DiscardPreview, DiscardResult, DocsOverview,
     DocumentLibrary, GenerateTasksResult, LogDiaryEntry, NewLogDiaryEntry, OneClickResult,
     ProjectRecord, ProjectStatus, RunSession, RunTarget, RunTaskResult, SuggestRunTargetsResult,
+    UpdateLogDiaryByRunSession,
 };
 use crate::run;
 use crate::store;
@@ -568,6 +569,25 @@ pub fn list_log_diary() -> AppResult<Vec<LogDiaryEntry>> {
 #[tauri::command]
 pub fn append_log_diary(entry: NewLogDiaryEntry) -> AppResult<LogDiaryEntry> {
     log_diary::append_log(entry)
+}
+
+#[tauri::command]
+pub fn update_log_diary_by_run_session(
+    entry: UpdateLogDiaryByRunSession,
+) -> AppResult<Option<LogDiaryEntry>> {
+    log_diary::update_by_run_session(entry)
+}
+
+/// 加载日志前对账：仍「进行中」但对不到活跃运行会话的条目标为「已结束」。
+#[tauri::command]
+pub fn reconcile_log_diary(manager: State<run::RunManager>) -> AppResult<Vec<LogDiaryEntry>> {
+    let active_ids: Vec<String> = manager
+        .list()
+        .into_iter()
+        .filter(|s| matches!(s.status.as_str(), "running" | "starting" | "stopping"))
+        .map(|s| s.id)
+        .collect();
+    log_diary::reconcile_stale_running(&active_ids)
 }
 
 #[tauri::command]

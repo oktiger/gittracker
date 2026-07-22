@@ -287,13 +287,15 @@ pub struct AiConnectionTestResult {
     pub reply: String,
 }
 
-/// 操作日志状态：成功 / 失败 / 进行中
+/// 操作日志状态：成功 / 失败 / 进行中 / 已结束（无法确认成败）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LogDiaryStatus {
     Ok,
     Error,
     Running,
+    /// 进程已不可查（例如应用重启），无法确认当时成败
+    Ended,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -314,6 +316,9 @@ pub struct LogDiaryEntry {
     pub detail: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// 关联的运行中心会话，便于命令结束后回写状态
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -326,6 +331,19 @@ pub struct NewLogDiaryEntry {
     pub project_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateLogDiaryByRunSession {
+    pub run_session_id: String,
+    pub status: LogDiaryStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

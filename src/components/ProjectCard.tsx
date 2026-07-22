@@ -321,7 +321,7 @@ export function ProjectCard({
       )}
       <footer className="flex flex-wrap items-center justify-between gap-2 pt-3">
         <span className="text-[11px] text-muted-foreground">
-          {changeCount} Changes
+          {changeCount} 处改动
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           <Button
@@ -504,7 +504,7 @@ export function ProjectCard({
 
             <section className="space-y-1.5">
               <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                CHANGES
+                当前改动
                 {changeCount > 0 ? (
                   <span className="ml-1.5 font-normal tabular-nums">{changeCount}</span>
                 ) : null}
@@ -541,7 +541,7 @@ export function ProjectCard({
 
             <section className="space-y-1.5">
               <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                GRAPH
+                提交记录
               </h3>
               {project.commits.length === 0 ? (
                 <p className="py-3 text-xs text-muted-foreground">暂无提交</p>

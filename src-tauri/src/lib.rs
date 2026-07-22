@@ -67,6 +67,8 @@ pub fn run() {
             commands::stop_run_session,
             commands::list_log_diary,
             commands::append_log_diary,
+            commands::update_log_diary_by_run_session,
+            commands::reconcile_log_diary,
             commands::clear_log_diary,
             commands::generate_daily_completion,
         ])

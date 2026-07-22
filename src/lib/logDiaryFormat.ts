@@ -1,23 +1,26 @@
 import type { LogDiaryEntry, LogDiaryKind, LogDiaryStatus } from "../types";
 
+/** 小白可读的操作类型；表格与复制文案共用 */
 const KIND_LABELS: Record<string, string> = {
   oneClick: "一键提交",
-  generateCommit: "AI 生成 Commit Message",
+  generateCommit: "生成提交说明",
   commit: "手动提交",
-  ensureDocs: "创建 DOCS",
+  ensureDocs: "创建文档",
   generateTasks: "生成任务",
   runTask: "实现任务",
   suggestRunTargets: "识别启动方式",
-  saveRunTargets: "保存启动目标",
-  runTarget: "运行目标",
+  saveRunTargets: "保存启动方式",
+  runTarget: "运行 / 升级",
   discard: "放弃更改",
   testConnection: "测试 AI 连接",
+  dailyCompletion: "每日完成情况",
 };
 
 const STATUS_LABELS: Record<LogDiaryStatus, string> = {
   ok: "成功",
   error: "失败",
   running: "进行中",
+  ended: "已结束",
 };
 
 export function kindLabel(kind: LogDiaryKind): string {

@@ -223,6 +223,23 @@ impl RunManager {
                                 .unwrap_or_else(|| "未知".into())
                         )
                     };
+                    let log_status = if was_stopping || exit.success() {
+                        crate::models::LogDiaryStatus::Ok
+                    } else {
+                        crate::models::LogDiaryStatus::Error
+                    };
+                    let _ = crate::log_diary::update_by_run_session(
+                        crate::models::UpdateLogDiaryByRunSession {
+                            run_session_id: id.clone(),
+                            status: log_status,
+                            detail: Some(message.clone()),
+                            error: if matches!(log_status, crate::models::LogDiaryStatus::Error) {
+                                Some(message.clone())
+                            } else {
+                                None
+                            },
+                        },
+                    );
                     manager.emit(&app, &id, "exit", None, &message);
                     return;
                 }
@@ -231,12 +248,21 @@ impl RunManager {
                         session.status = "failed".into();
                         session.ended_at = Some(Utc::now().timestamp());
                     }
+                    let message = format!("等待命令结束失败：{err}");
+                    let _ = crate::log_diary::update_by_run_session(
+                        crate::models::UpdateLogDiaryByRunSession {
+                            run_session_id: id.clone(),
+                            status: crate::models::LogDiaryStatus::Error,
+                            detail: Some(message.clone()),
+                            error: Some(message.clone()),
+                        },
+                    );
                     manager.emit(
                         &app,
                         &id,
                         "error",
                         None,
-                        &format!("等待命令结束失败：{err}"),
+                        &message,
                     );
                     return;
                 }

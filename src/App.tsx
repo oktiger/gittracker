@@ -80,6 +80,13 @@ function App() {
     [logDiary.append],
   );
 
+  const updateRunLog = useCallback(
+    (entry: Parameters<typeof logDiary.updateByRunSession>[0]) => {
+      void logDiary.updateByRunSession(entry);
+    },
+    [logDiary.updateByRunSession],
+  );
+
   const openAiSession = useCallback((session: AiPanelSession) => {
     setAiSessions((items) => [...items, { id: newAiSessionId(), session }]);
     setActivityOpen(true);
@@ -121,6 +128,7 @@ function App() {
         title: `运行 · ${target.name}`,
         projectId: project.id,
         projectName: project.name,
+        runSessionId: session.id,
         detail: `cwd: ${target.cwd}\ncommand: ${target.command}\n\n已在运行中心启动，输出会实时显示。`,
       });
     } catch (e) {
@@ -522,6 +530,7 @@ function App() {
           }}
           onRunSessionsChange={setRunSessions}
           onLog={appendLog}
+          onUpdateRunLog={updateRunLog}
           onTargetsSaved={(projectId, targets) => {
             showToast(`已保存 ${targets.length} 个启动目标`);
             void refreshOne(projectId);
