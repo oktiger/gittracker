@@ -156,8 +156,6 @@ fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
 /// attached to every commit it currently contains, so users can see the complete
 /// branch context without duplicating the commit in the list.
 pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
-    const HISTORY_LIMIT: &str = "500";
-
     let branch_refs = history_branch_refs(repo)?;
     if branch_refs.is_empty() {
         return Ok(vec![]);
@@ -168,8 +166,6 @@ pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
         &[
             "log",
             "--date-order",
-            "--max-count",
-            HISTORY_LIMIT,
             "--pretty=format:%H\t%ct\t%an\t%s",
             "--branches",
             "--remotes",
