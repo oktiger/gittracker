@@ -56,6 +56,13 @@
     ,"configureTargets": "Configure run targets…", "identifyAgain": "Identify again with AI…", "identifyTargets": "Identify run targets…", "addTarget": "Add a target manually…",
     "code": "Code", "recentThree": "Latest 3 commits", "changeCount": "{{count}} changes", "allCommits": "All commits", "commitAction": "Commit…",
     "runnable": "Runnable commands", "runnableSource": "From project settings / AI identification", "configure": "Configure", "customConfig": "Custom config", "reIdentify": "Identify again with AI", "noRunnable": "No runnable commands",
+    "targetActions": "Run target actions",
+    "editTargetTitle": "Edit run target",
+    "editTargetDescription": "Update the name, description, directory, or command, then save.",
+    "deleteTargetTitle": "Delete “{{name}}”?",
+    "deleteTargetDescription": "This removes the run target from the list. You can identify again with AI to recreate it.",
+    "targetUpdated": "Updated run target · {{name}}",
+    "targetDeleted": "Deleted run target · {{name}}",
     "discardAll": "Discard all changes", "currentChanges": "Current changes", "commitHistory": "Commit history", "starting": "Starting…", "htmlOpened": "Opened HTML with the system app"
   },
   "docs": {

@@ -56,6 +56,13 @@
     ,"configureTargets": "配置启动方式…", "identifyAgain": "重新用 AI 识别…", "identifyTargets": "识别启动方式…", "addTarget": "手动添加一条…",
     "code": "代码", "recentThree": "最近 3 次提交", "changeCount": "{{count}} 处改动", "allCommits": "全部提交", "commitAction": "提交…",
     "runnable": "可运行命令", "runnableSource": "来自项目配置 / AI 识别", "configure": "配置", "customConfig": "自定义配置", "reIdentify": "再次AI识别", "noRunnable": "还没有可运行的命令",
+    "targetActions": "启动方式操作",
+    "editTargetTitle": "编辑启动方式",
+    "editTargetDescription": "修改名称、说明、目录或命令后保存。",
+    "deleteTargetTitle": "删除「{{name}}」？",
+    "deleteTargetDescription": "删除后可从运行列表中移除该启动方式，也可再次用 AI 识别重新添加。",
+    "targetUpdated": "已更新启动方式 · {{name}}",
+    "targetDeleted": "已删除启动方式 · {{name}}",
     "discardAll": "放弃所有更改", "currentChanges": "当前改动", "commitHistory": "提交记录", "starting": "正在启动…", "htmlOpened": "已用系统应用打开 HTML"
   },
   "docs": {

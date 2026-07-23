@@ -220,9 +220,16 @@ function App() {
         title: t("projects:board.chooseDirectory"),
       });
       if (!selected || Array.isArray(selected)) return;
-      await api.addProject(selected);
+      const record = await api.addProject(selected);
       await refresh();
       showToast(t("projects:board.added"));
+      openProject(record.id);
+      // 导入后立刻 AI 识别启动方式，并自动全部写入运行列表
+      openAiSession({
+        kind: "identify",
+        projectId: record.id,
+        projectName: record.name,
+      });
     } catch (e) {
       setError(formatBackendError(e, t));
     }
@@ -314,6 +321,9 @@ function App() {
               },
         )
       }
+      onTargetsUpdated={(projectId) => {
+        void refreshOne(projectId);
+      }}
       onGenerateTasks={() =>
         openAiSession({
           kind: "generateTasks",
