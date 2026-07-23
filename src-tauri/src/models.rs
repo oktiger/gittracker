@@ -344,6 +344,24 @@ pub struct FileChange {
     pub untracked: bool,
 }
 
+/// 本地或远程分支的只读信息。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BranchInfo {
+    pub name: String,
+    /// "local" | "remote"
+    pub kind: String,
+    pub current: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BranchList {
+    pub current: String,
+    pub local: Vec<BranchInfo>,
+    pub remote: Vec<BranchInfo>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectStatus {

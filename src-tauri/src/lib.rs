@@ -37,6 +37,7 @@ pub fn run() {
             commands::get_project_status,
             commands::refresh_all,
             commands::list_changed_files,
+            commands::list_branches,
             commands::get_file_diff,
             commands::read_project_file,
             commands::write_project_file,

@@ -97,6 +97,19 @@ export interface FileChange {
   untracked: boolean;
 }
 
+export interface BranchInfo {
+  name: string;
+  /** "local" | "remote" */
+  kind: string;
+  current: boolean;
+}
+
+export interface BranchList {
+  current: string;
+  local: BranchInfo[];
+  remote: BranchInfo[];
+}
+
 export interface ProjectStatus {
   id: string;
   name: string;

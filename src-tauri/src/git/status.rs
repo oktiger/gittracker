@@ -1,6 +1,6 @@
 use crate::error::AppResult;
 use crate::git::{run_git, run_git_allow_fail};
-use crate::models::{CommitInfo, FileChange, ProjectRecord, ProjectStatus};
+use crate::models::{BranchInfo, BranchList, CommitInfo, FileChange, ProjectRecord, ProjectStatus};
 use std::path::Path;
 
 pub fn fetch_project_status(project: &ProjectRecord) -> ProjectStatus {
@@ -146,6 +146,68 @@ fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
         }
     }
     Ok(commits)
+}
+
+pub fn list_branches(repo: &Path) -> AppResult<BranchList> {
+    let current = run_git(repo, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|_| "HEAD".into());
+
+    let out = run_git(
+        repo,
+        &[
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname)%09%(refname:short)%09%(HEAD)",
+            "refs/heads/",
+            "refs/remotes/",
+        ],
+    )?;
+
+    let mut local = Vec::new();
+    let mut remote = Vec::new();
+
+    for line in out.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.splitn(3, '\t');
+        let full_ref = parts.next().unwrap_or("");
+        let short = parts.next().unwrap_or("").to_string();
+        let head_mark = parts.next().unwrap_or("");
+        if short.is_empty() {
+            continue;
+        }
+
+        if full_ref.starts_with("refs/remotes/") {
+            // Skip remote symbolic HEAD pointers such as refs/remotes/origin/HEAD
+            // (short name is often just "origin", not "origin/HEAD").
+            if full_ref.ends_with("/HEAD") {
+                continue;
+            }
+            remote.push(BranchInfo {
+                name: short,
+                kind: "remote".into(),
+                current: false,
+            });
+            continue;
+        }
+
+        if full_ref.starts_with("refs/heads/") {
+            let is_current = head_mark == "*" || short == current;
+            local.push(BranchInfo {
+                name: short,
+                kind: "local".into(),
+                current: is_current,
+            });
+        }
+    }
+
+    Ok(BranchList {
+        current,
+        local,
+        remote,
+    })
 }
 
 pub fn list_changed_files(repo: &Path) -> AppResult<Vec<FileChange>> {

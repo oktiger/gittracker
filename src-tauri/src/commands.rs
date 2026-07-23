@@ -65,6 +65,12 @@ pub fn list_changed_files(id: String) -> AppResult<Vec<crate::models::FileChange
 }
 
 #[tauri::command]
+pub fn list_branches(id: String) -> AppResult<crate::models::BranchList> {
+    let project = store::find_project(&id)?;
+    git::list_branches(Path::new(&project.path))
+}
+
+#[tauri::command]
 pub fn get_file_diff(id: String, path: String, staged: bool) -> AppResult<String> {
     let project = store::find_project(&id)?;
     git::file_diff(Path::new(&project.path), &path, staged)

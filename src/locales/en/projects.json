@@ -56,7 +56,8 @@
     ,"configureTargets": "Configure run targets…", "identifyAgain": "Identify again with AI…", "identifyTargets": "Identify run targets…", "addTarget": "Add a target manually…",
     "code": "Code", "recentThree": "Latest 3 commits", "changeCount": "{{count}} changes", "allCommits": "All commits", "commitAction": "Commit…",
     "runnable": "Runnable commands", "runnableSource": "From project settings / AI identification", "configure": "Configure", "customConfig": "Custom config", "reIdentify": "Identify again with AI", "noRunnable": "No runnable commands",
-    "discardAll": "Discard all changes", "currentChanges": "Current changes", "commitHistory": "Commit history", "starting": "Starting…", "htmlOpened": "Opened HTML with the system app"
+    "discardAll": "Discard all changes", "currentChanges": "Current changes", "commitHistory": "Commit history", "starting": "Starting…", "htmlOpened": "Opened HTML with the system app",
+    "localBranches": "Local", "remoteBranches": "Remote", "noBranches": "No branches", "loadingBranches": "Loading branches…", "currentBranch": "Current"
   },
   "docs": {
     "loadingEvolution": "Loading evolution data…",

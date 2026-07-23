@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AiConnectionTestResult,
   AppSettings,
+  BranchList,
   DailyCompletionResult,
   DiscardPreview,
   DiscardResult,
@@ -36,6 +37,7 @@ export const api = {
   refreshAll: () => invoke<ProjectStatus[]>("refresh_all"),
   listChangedFiles: (id: string) =>
     invoke<FileChange[]>("list_changed_files", { id }),
+  listBranches: (id: string) => invoke<BranchList>("list_branches", { id }),
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
   readProjectFile: (id: string, relativePath: string) =>

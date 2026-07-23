@@ -1,8 +1,9 @@
-import { MoreHorizontal, Play } from "lucide-react";
+import { Check, ChevronDown, MoreHorizontal, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type {
+  BranchList,
   DocsOverview,
   DocsTaskItem,
   FileChange,
@@ -26,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -95,6 +97,8 @@ export function ProjectCard({
   const [detailTab, setDetailTab] = useState("run");
   const [changedFiles, setChangedFiles] = useState<Awaited<ReturnType<typeof api.listChangedFiles>>>([]);
   const [changesLoading, setChangesLoading] = useState(false);
+  const [branches, setBranches] = useState<BranchList | null>(null);
+  const [branchesLoading, setBranchesLoading] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
@@ -121,6 +125,19 @@ export function ProjectCard({
     setChangesLoading(true);
     void api.listChangedFiles(project.id).then(setChangedFiles).catch((e) => onError(formatBackendError(e, t))).finally(() => setChangesLoading(false));
   }, [detailTab, project.id, project.clean, project.staged, project.unstaged, project.untracked]);
+
+  useEffect(() => {
+    if (detailTab !== "code") return;
+    setBranchesLoading(true);
+    void api
+      .listBranches(project.id)
+      .then(setBranches)
+      .catch((e) => {
+        setBranches(null);
+        onError(formatBackendError(e, t));
+      })
+      .finally(() => setBranchesLoading(false));
+  }, [detailTab, project.id, project.branch]);
 
   const onRunTarget = async (targetId: string) => {
     setRunBusy(true);
@@ -457,9 +474,68 @@ export function ProjectCard({
 
           <TabsContent value="code" className="mt-4 space-y-6">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono">
-                {project.branch || "—"}
-              </code>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    className="h-7 gap-1 font-mono text-xs"
+                    aria-label={t("projects:card.currentBranch")}
+                  >
+                    {project.branch || "—"}
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[14rem] max-w-[20rem]">
+                  {branchesLoading ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      {t("projects:card.loadingBranches")}
+                    </div>
+                  ) : !branches || (branches.local.length === 0 && branches.remote.length === 0) ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      {t("projects:card.noBranches")}
+                    </div>
+                  ) : (
+                    <>
+                      {branches.local.length > 0 ? (
+                        <>
+                          <DropdownMenuLabel>{t("projects:card.localBranches")}</DropdownMenuLabel>
+                          {branches.local.map((branch) => (
+                            <DropdownMenuItem
+                              key={`local:${branch.name}`}
+                              className="font-mono text-xs"
+                              onSelect={(event) => event.preventDefault()}
+                            >
+                              <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+                              {branch.current ? (
+                                <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />
+                              ) : null}
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      ) : null}
+                      {branches.local.length > 0 && branches.remote.length > 0 ? (
+                        <DropdownMenuSeparator />
+                      ) : null}
+                      {branches.remote.length > 0 ? (
+                        <>
+                          <DropdownMenuLabel>{t("projects:card.remoteBranches")}</DropdownMenuLabel>
+                          {branches.remote.map((branch) => (
+                            <DropdownMenuItem
+                              key={`remote:${branch.name}`}
+                              className="font-mono text-xs text-muted-foreground"
+                              onSelect={(event) => event.preventDefault()}
+                            >
+                              <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      ) : null}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               {statusBadge}
               {(project.ahead > 0 || project.behind > 0) && (
                 <span className="text-muted-foreground">
