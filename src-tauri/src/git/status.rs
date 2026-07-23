@@ -123,8 +123,36 @@ fn parse_branch_header(header: &str) -> (String, u32, u32) {
 }
 
 fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
-    let (code, stdout, _) =
-        run_git_allow_fail(repo, &["log", "-3", "--pretty=format:%h\t%ct\t%an\t%s"])?;
+    let unsynced = parse_recent_commit_log(
+        repo,
+        &["log", "HEAD..@{upstream}", "-3", "--pretty=format:%h\t%ct\t%an\t%s"],
+        true,
+    )?;
+    let local = parse_recent_commit_log(
+        repo,
+        &["log", "-3", "--pretty=format:%h\t%ct\t%an\t%s"],
+        false,
+    )?;
+
+    let mut seen = HashSet::new();
+    let mut commits = Vec::new();
+    for commit in unsynced.into_iter().chain(local.into_iter()) {
+        if seen.insert(commit.hash.clone()) {
+            commits.push(commit);
+        }
+        if commits.len() >= 3 {
+            break;
+        }
+    }
+    Ok(commits)
+}
+
+fn parse_recent_commit_log(
+    repo: &Path,
+    args: &[&str],
+    unsynced: bool,
+) -> AppResult<Vec<CommitInfo>> {
+    let (code, stdout, _) = run_git_allow_fail(repo, args)?;
     if code != 0 || stdout.trim().is_empty() {
         return Ok(vec![]);
     }
@@ -146,6 +174,7 @@ fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
                 author,
                 subject,
                 branches: vec![],
+                unsynced,
             });
         }
     }
@@ -160,6 +189,16 @@ pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
     if branch_refs.is_empty() {
         return Ok(vec![]);
     }
+
+    let unsynced_hashes: HashSet<String> = {
+        let (code, stdout, _) =
+            run_git_allow_fail(repo, &["rev-list", "HEAD..@{upstream}"])?;
+        if code == 0 {
+            stdout.lines().map(|line| line.trim().to_string()).filter(|h| !h.is_empty()).collect()
+        } else {
+            HashSet::new()
+        }
+    };
 
     let out = run_git(
         repo,
@@ -188,6 +227,7 @@ pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
             .unwrap_or(0);
         let author = parts.next().unwrap_or("").to_string();
         let subject = parts.next().unwrap_or("").to_string();
+        let unsynced = unsynced_hashes.contains(&hash);
         commit_hashes.insert(hash.clone());
         commits.push(CommitInfo {
             hash,
@@ -195,6 +235,7 @@ pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
             author,
             subject,
             branches: vec![],
+            unsynced,
         });
     }
 

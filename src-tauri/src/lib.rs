@@ -45,6 +45,7 @@ pub fn run() {
             commands::generate_commit_message,
             commands::commit_project,
             commands::push_project,
+            commands::sync_project,
             commands::commit_and_push,
             commands::one_click_commit,
             commands::preview_discard,

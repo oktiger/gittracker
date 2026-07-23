@@ -25,6 +25,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -32,6 +40,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -57,6 +67,7 @@ interface Props {
   onOpenProject?: () => void;
   onManualCommit: () => void;
   onOneClick: () => void;
+  onSync: () => void;
   onDiscard: () => void;
   onViewChanges: () => void;
   onViewChangedFile: (file: FileChange) => void;
@@ -64,6 +75,7 @@ interface Props {
   onRunTarget: (target: RunTarget) => void;
   onOpenDoc: (relativePath: string, title: string, libraryFile?: boolean) => void;
   onConfigureRun: (mode: "identify" | "config") => void;
+  onTargetsUpdated?: (projectId: string) => void;
   onGenerateTasks: () => void;
   onImplementTask: (task: DocsTaskItem) => void;
   onExecuteDocument: (node: import("../types").DocumentNode) => void;
@@ -80,6 +92,7 @@ export function ProjectCard({
   onOpenProject,
   onManualCommit,
   onOneClick,
+  onSync,
   onDiscard,
   onViewChanges: _onViewChanges,
   onViewChangedFile,
@@ -87,6 +100,7 @@ export function ProjectCard({
   onRunTarget: onRunTargetFromCenter,
   onOpenDoc,
   onConfigureRun,
+  onTargetsUpdated,
   onGenerateTasks,
   onImplementTask,
   onExecuteDocument,
@@ -95,7 +109,7 @@ export function ProjectCard({
   onToast,
   onLog,
 }: Props) {
-  const { t } = useTranslation(["projects", "common", "errors"]);
+  const { t } = useTranslation(["projects", "common", "errors", "activity"]);
   const { language } = useLanguage();
   const disabled = Boolean(busy);
   const hasChanges = !project.clean;
@@ -111,9 +125,13 @@ export function ProjectCard({
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
   const [commitHistoryLoading, setCommitHistoryLoading] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [editingTarget, setEditingTarget] = useState<RunTarget | null>(null);
+  const [editDraft, setEditDraft] = useState<RunTarget | null>(null);
+  const [deletingTarget, setDeletingTarget] = useState<RunTarget | null>(null);
+  const [targetSaving, setTargetSaving] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
-  const locked = disabled || Boolean(docsBusy) || runBusy;
+  const locked = disabled || Boolean(docsBusy) || runBusy || targetSaving;
   const detailTabTriggerClass =
     "rounded-full px-3 py-1.5 text-muted-foreground shadow-none data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-muted dark:data-[state=active]:text-foreground";
 
@@ -239,6 +257,83 @@ export function ProjectCard({
     onConfigureRun("identify");
   };
 
+  const openEditTarget = (target: RunTarget) => {
+    setEditingTarget(target);
+    setEditDraft({ ...target });
+  };
+
+  const onSaveEditedTarget = async () => {
+    if (!editDraft || !editingTarget) return;
+    if (!editDraft.name.trim() || !editDraft.command.trim()) {
+      onError(t("activity:ai.fieldsRequired"));
+      return;
+    }
+    setTargetSaving(true);
+    try {
+      const next = targets.map((item) => {
+        if (item.id !== editingTarget.id) {
+          return editDraft.isDefault ? { ...item, isDefault: false } : item;
+        }
+        return {
+          ...item,
+          name: editDraft.name.trim(),
+          description: editDraft.description?.trim() || null,
+          cwd: (editDraft.cwd || ".").trim() || ".",
+          command: editDraft.command.trim(),
+          kind: editDraft.kind ?? null,
+          isDefault: Boolean(editDraft.isDefault),
+        };
+      });
+      let payload = next;
+      if (payload.length > 0 && !payload.some((t) => t.isDefault)) {
+        payload = payload.map((t, i) => ({ ...t, isDefault: i === 0 }));
+      }
+      await api.setRunTargets(project.id, payload);
+      onLog({
+        kind: "saveRunTargets",
+        status: "ok",
+        title: t("projects:card.targetUpdated", { name: editDraft.name.trim() }),
+        projectId: project.id,
+        projectName: project.name,
+        detail: `${editDraft.cwd} · ${editDraft.command}`,
+      });
+      onToast(t("projects:card.targetUpdated", { name: editDraft.name.trim() }));
+      setEditingTarget(null);
+      setEditDraft(null);
+      onTargetsUpdated?.(project.id);
+    } catch (e) {
+      onError(formatBackendError(e, t));
+    } finally {
+      setTargetSaving(false);
+    }
+  };
+
+  const onDeleteTarget = async () => {
+    if (!deletingTarget) return;
+    setTargetSaving(true);
+    try {
+      let next = targets.filter((item) => item.id !== deletingTarget.id);
+      if (next.length > 0 && !next.some((t) => t.isDefault)) {
+        next = next.map((t, i) => ({ ...t, isDefault: i === 0 }));
+      }
+      await api.setRunTargets(project.id, next);
+      onLog({
+        kind: "saveRunTargets",
+        status: "ok",
+        title: t("projects:card.targetDeleted", { name: deletingTarget.name }),
+        projectId: project.id,
+        projectName: project.name,
+      });
+      onToast(t("projects:card.targetDeleted", { name: deletingTarget.name }));
+      setDeletingTarget(null);
+      onTargetsUpdated?.(project.id);
+    } catch (e) {
+      onError(formatBackendError(e, t));
+    } finally {
+      setTargetSaving(false);
+    }
+  };
+
   const onCreateDocs = async () => {
     setDocsBusy(t("projects:docs.initializing"));
     try {
@@ -333,6 +428,135 @@ export function ProjectCard({
     </AlertDialog>
   );
 
+  const runTargetDialogs = (
+    <>
+      <Dialog
+        open={Boolean(editingTarget && editDraft)}
+        onOpenChange={(open) => {
+          if (!open && !targetSaving) {
+            setEditingTarget(null);
+            setEditDraft(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("projects:card.editTargetTitle")}</DialogTitle>
+            <DialogDescription>{t("projects:card.editTargetDescription")}</DialogDescription>
+          </DialogHeader>
+          {editDraft ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="run-target-name">{t("activity:ai.name")}</Label>
+                <Input
+                  id="run-target-name"
+                  value={editDraft.name}
+                  onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+                  placeholder={t("activity:ai.namePlaceholder")}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="run-target-description">{t("activity:ai.description")}</Label>
+                <Input
+                  id="run-target-description"
+                  value={editDraft.description ?? ""}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, description: e.target.value || null })
+                  }
+                  placeholder={t("activity:ai.descriptionPlaceholder")}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="run-target-cwd">{t("activity:ai.directory")}</Label>
+                <Input
+                  id="run-target-cwd"
+                  value={editDraft.cwd}
+                  onChange={(e) => setEditDraft({ ...editDraft, cwd: e.target.value })}
+                  placeholder="."
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="run-target-command">{t("activity:ai.command")}</Label>
+                <Input
+                  id="run-target-command"
+                  value={editDraft.command}
+                  onChange={(e) => setEditDraft({ ...editDraft, command: e.target.value })}
+                  placeholder="pnpm dev"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={Boolean(editDraft.isDefault)}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, isDefault: e.target.checked })
+                  }
+                />
+                {t("activity:ai.default")}
+              </label>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={targetSaving}
+              onClick={() => {
+                setEditingTarget(null);
+                setEditDraft(null);
+              }}
+            >
+              {t("common:actions.cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={targetSaving}
+              onClick={() => void onSaveEditedTarget()}
+            >
+              {targetSaving ? t("common:actions.saving") : t("common:actions.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={Boolean(deletingTarget)}
+        onOpenChange={(open) => {
+          if (!open && !targetSaving) setDeletingTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("projects:card.deleteTargetTitle", { name: deletingTarget?.name ?? "" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("projects:card.deleteTargetDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={targetSaving}>
+              {t("common:actions.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={targetSaving}
+              onClick={(e) => {
+                e.preventDefault();
+                void onDeleteTarget();
+              }}
+            >
+              {t("common:actions.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+
   const currentChangesSection = (
     <section className="space-y-1.5">
       <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
@@ -402,9 +626,15 @@ export function ProjectCard({
                 <span className="truncate text-foreground/90" title={c.subject}>
                   {c.subject}
                 </span>
-                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                  {formatRelativeTime(c.timestamp, language)}
-                </span>
+                {"unsynced" in c && (c as CommitInfo & { unsynced?: boolean }).unsynced ? (
+                  <span className="whitespace-nowrap text-[10px] text-amber-500">
+                    {t("projects:status.unsynced")}
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                    {formatRelativeTime(c.timestamp, language)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -449,6 +679,7 @@ export function ProjectCard({
     return (
       <div className="space-y-4">
         {removeConfirmDialog}
+        {runTargetDialogs}
         <Tabs value={detailTab} onValueChange={setDetailTab}>
           <div className="flex items-center justify-between gap-2">
             <TabsList className="h-auto gap-1 bg-transparent p-0">
@@ -499,17 +730,43 @@ export function ProjectCard({
                           </span>
                         ) : null}
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        className="shrink-0"
-                        disabled={locked}
-                        onClick={() => void onRunTarget(target.id)}
-                      >
-                        <Play className="h-3 w-3" />
-                        {t("projects:card.run")}
-                      </Button>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          disabled={locked}
+                          onClick={() => void onRunTarget(target.id)}
+                        >
+                          <Play className="h-3 w-3" />
+                          {t("projects:card.run")}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              disabled={locked}
+                              aria-label={t("projects:card.targetActions")}
+                              title={t("projects:card.targetActions")}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditTarget(target)}>
+                              {t("common:actions.edit")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeletingTarget(target)}
+                            >
+                              {t("common:actions.delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -615,6 +872,15 @@ export function ProjectCard({
               <div className="ml-auto flex flex-wrap items-center gap-1.5">
                 <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
+                  disabled={locked}
+                  onClick={onSync}
+                >
+                  {t("projects:card.sync")}
+                </Button>
+                <Button
+                  type="button"
                   size="xs"
                   disabled={locked || !hasChanges}
                   onClick={onOneClick}
@@ -684,7 +950,13 @@ export function ProjectCard({
                           </TableCell>
                           <TableCell className="max-w-[360px] truncate" title={commit.subject}>{commit.subject}</TableCell>
                           <TableCell className="text-muted-foreground">{commit.author}</TableCell>
-                          <TableCell className="whitespace-nowrap text-muted-foreground">{formatRelativeTime(commit.timestamp, language)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {"unsynced" in commit && (commit as CommitInfo & { unsynced?: boolean }).unsynced ? (
+                              <span className="text-amber-500">{t("projects:status.unsynced")}</span>
+                            ) : (
+                              formatRelativeTime(commit.timestamp, language)
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -746,6 +1018,7 @@ export function ProjectCard({
   return (
     <article className="rounded-xl border border-border bg-card p-5">
       {removeConfirmDialog}
+      {runTargetDialogs}
       <header className="flex items-center justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 truncate text-base font-semibold tracking-tight">

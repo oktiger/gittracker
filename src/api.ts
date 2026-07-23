@@ -50,6 +50,7 @@ export const api = {
   commitProject: (id: string, message: string) =>
     invoke<void>("commit_project", { id, message }),
   pushProject: (id: string) => invoke<void>("push_project", { id }),
+  syncProject: (id: string) => invoke<ProjectStatus>("sync_project", { id }),
   commitAndPush: (id: string, message: string) =>
     invoke<void>("commit_and_push", { id, message }),
   oneClickCommit: (id: string, sessionId: string, locale: ResolvedLanguage) =>

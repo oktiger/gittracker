@@ -263,8 +263,6 @@ export function AiSidePanel({
           case "identify": {
             const result = await api.suggestRunTargets(session.projectId, sessionId, outputLanguage);
             if (cancelled) return;
-            setDrafts(toDraft(result.targets));
-            if (result.warning) setError(result.warning);
             const preview = result.targets
               .map((t) => {
                 const desc = t.description?.trim();
@@ -282,7 +280,43 @@ export function AiSidePanel({
               detail: t("activity:ai.log.source", { source: result.source, count: result.targets.length, preview: preview || t("activity:ai.log.empty") }),
               error: result.warning ?? undefined,
             });
-            setPhase("edit");
+
+            // 识别结果直接全部写入运行列表，不再进入勾选确认步骤
+            const valid = result.targets.filter((t) => t.name.trim() && t.command.trim());
+            let payload = valid.map((t) => ({
+              id: t.id || "",
+              name: t.name.trim(),
+              description: t.description?.trim() || null,
+              cwd: (t.cwd || ".").trim() || ".",
+              command: t.command.trim(),
+              kind: t.kind ?? null,
+              isDefault: Boolean(t.isDefault),
+            }));
+            if (payload.length > 0 && !payload.some((t) => t.isDefault)) {
+              payload = payload.map((t, i) => ({ ...t, isDefault: i === 0 }));
+            }
+            const saved = await api.setRunTargets(session.projectId, payload);
+            if (cancelled) return;
+            onLog({
+              kind: "saveRunTargets",
+              status: "ok",
+              title: t("activity:ai.saveTitle", { project: session.projectName }),
+              projectId: session.projectId,
+              projectName: session.projectName,
+              detail: saved
+                .map((t) => `- ${t.name}${t.isDefault ? " ★" : ""}: ${t.cwd} · ${t.command}`)
+                .join("\n"),
+            });
+            const summary = t("activity:ai.log.source", {
+              source: result.source,
+              count: saved.length,
+              preview: preview || t("activity:ai.log.empty"),
+            });
+            setResultSummary(
+              result.warning ? `${result.warning}\n\n${summary}` : summary,
+            );
+            onTargetsSaved?.(session.projectId, saved);
+            setPhase("done");
             break;
           }
           case "testConnection": {
@@ -422,18 +456,7 @@ export function AiSidePanel({
               detail: t("activity:ai.log.identifyFailure"),
               error: err,
             });
-            setDrafts(
-              toDraft([
-                {
-                  id: "",
-                  name: t("activity:ai.development"),
-                  cwd: ".",
-                  command: "npm run dev",
-                  isDefault: true,
-                },
-              ]),
-            );
-            setPhase("edit");
+            setPhase("done");
             break;
           case "testConnection": {
             const label =
@@ -565,7 +588,7 @@ export function AiSidePanel({
   };
 
   const onSaveTargets = async () => {
-    if (session.kind !== "identify" && session.kind !== "config") return;
+    if (session.kind !== "config") return;
     const kept = drafts.filter((d) => d.checked);
     if (kept.length === 0) {
       setError(t("activity:ai.selectRequired"));
@@ -622,9 +645,7 @@ export function AiSidePanel({
     }
   };
 
-  const title = phase === "edit" && session.kind === "identify"
-    ? t("activity:ai.configTitle")
-    : aiSessionTitle(session, t);
+  const title = aiSessionTitle(session, t);
   const subtitle = aiSessionSubtitle(session, t);
 
   const canCopy =
@@ -785,29 +806,13 @@ export function AiSidePanel({
         </div>
       )}
 
-      {phase === "edit" && (session.kind === "identify" || session.kind === "config") && (
+      {phase === "edit" && session.kind === "config" && (
         <div className="space-y-3 p-3">
-          {transcript.length > 0 && (
-            <details className="rounded-md border border-border">
-              <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
-                {t("activity:ai.showProcess", { count: transcript.length })}
-              </summary>
-              <div className="border-t border-border p-2">{renderTranscript(true)}</div>
-            </details>
-          )}
-
           <p className="text-xs text-muted-foreground">
-            {session.kind === "config"
-              ? t("activity:ai.configDescription")
-              : t("activity:ai.identifyDescription")}
+            {t("activity:ai.configDescription")}
           </p>
           {error ? (
-            <p
-              className={cn(
-                "text-sm",
-                session.kind === "identify" ? "text-amber-400" : "text-destructive",
-              )}
-            >
+            <p className="text-sm text-destructive">
               {error}
             </p>
           ) : null}

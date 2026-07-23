@@ -338,6 +338,9 @@ pub struct CommitInfo {
     pub subject: String,
     #[serde(default)]
     pub branches: Vec<BranchInfo>,
+    /// 远程已有、本地尚未拉取的提交。
+    #[serde(default)]
+    pub unsynced: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

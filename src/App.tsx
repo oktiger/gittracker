@@ -254,9 +254,16 @@ function App() {
         title: t("projects:board.chooseDirectory"),
       });
       if (!selected || Array.isArray(selected)) return;
-      await api.addProject(selected);
+      const record = await api.addProject(selected);
       await refresh();
       showToast(t("projects:board.added"));
+      openProject(record.id);
+      // 导入后立刻 AI 识别启动方式，并自动全部写入运行列表
+      openAiSession({
+        kind: "identify",
+        projectId: record.id,
+        projectName: record.name,
+      });
     } catch (e) {
       setError(formatBackendError(e, t));
     }
@@ -286,6 +293,22 @@ function App() {
       projectId: id,
       projectName,
     });
+  };
+
+  const onSync = async (id: string) => {
+    const project = projects.find((p) => p.id === id);
+    const projectName = project?.name ?? id;
+    setBusy(id, t("projects:card.syncBusy"));
+    setError(null);
+    try {
+      await api.syncProject(id);
+      showToast(t("projects:card.synced"));
+    } catch (e) {
+      setError(formatBackendError(e, t));
+      showToast(t("projects:card.syncFailed", { name: projectName }));
+    } finally {
+      setBusy(id, null);
+    }
   };
 
   const selectedProject =
@@ -318,6 +341,7 @@ function App() {
       onOpenProject={() => openProject(p.id)}
       onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
       onOneClick={() => onOneClick(p.id)}
+      onSync={() => void onSync(p.id)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
       onViewChangedFile={(file) => setDialog({ type: "changedFile", id: p.id, file })}
@@ -348,6 +372,9 @@ function App() {
               },
         )
       }
+      onTargetsUpdated={(projectId) => {
+        void refreshOne(projectId);
+      }}
       onGenerateTasks={() =>
         openAiSession({
           kind: "generateTasks",

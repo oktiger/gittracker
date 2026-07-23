@@ -90,6 +90,8 @@ export interface CommitInfo {
   author: string;
   subject: string;
   branches: BranchInfo[];
+  /** 远程已有、本地尚未拉取 */
+  unsynced?: boolean;
 }
 
 export interface FileChange {

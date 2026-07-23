@@ -35,7 +35,7 @@ impl WatchState {
         let app_tick = app.clone();
         std::thread::spawn(move || loop {
             std::thread::sleep(Duration::from_secs(60));
-            let _ = refresh_all_and_emit(&app_tick);
+            let _ = fetch_and_refresh_all_and_emit(&app_tick);
         });
     }
 }
@@ -120,8 +120,25 @@ pub fn refresh_and_emit(app: &AppHandle, project_id: &str) -> Result<(), String>
 }
 
 pub fn refresh_all_and_emit(app: &AppHandle) -> Result<(), String> {
+    refresh_all_and_emit_inner(app, false)
+}
+
+/// 定时 / 手动同步：先 fetch 远程，再刷新状态，以便发现「未同步」提交。
+pub fn fetch_and_refresh_all_and_emit(app: &AppHandle) -> Result<(), String> {
+    refresh_all_and_emit_inner(app, true)
+}
+
+fn refresh_all_and_emit_inner(app: &AppHandle, fetch_remote: bool) -> Result<(), String> {
     let projects = store::list_projects().map_err(|e| e.to_string())?;
-    let statuses: Vec<_> = projects.iter().map(git::fetch_project_status).collect();
+    let statuses: Vec<_> = projects
+        .iter()
+        .map(|project| {
+            if fetch_remote {
+                let _ = git::fetch_remote(Path::new(&project.path));
+            }
+            git::fetch_project_status(project)
+        })
+        .collect();
     app.emit("projects-status", &statuses)
         .map_err(|e| e.to_string())?;
     Ok(())
