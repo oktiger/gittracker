@@ -29,11 +29,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-<<<<<<< HEAD
   DropdownMenuLabel,
   DropdownMenuSeparator,
-=======
->>>>>>> pr-1
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -675,43 +672,7 @@ export function ProjectCard({
               </div>
             </div>
 
-<<<<<<< HEAD
-            <section className="space-y-1.5">
-              <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                {t("projects:card.currentChanges")}
-                {changeCount > 0 ? (
-                  <span className="ml-1.5 font-normal tabular-nums">{changeCount}</span>
-                ) : null}
-              </h3>
-              {changesLoading ? (
-                <p className="py-3 text-xs text-muted-foreground">{t("common:state.loading")}</p>
-              ) : changedFiles.length === 0 ? (
-                <p className="py-3 text-xs text-muted-foreground">{t("projects:changesDialog.empty")}</p>
-              ) : (
-                <ul className="max-h-64 overflow-y-auto">
-                  {changedFiles.map((file) => {
-                    const badge = workingTreeBadge(file);
-                    return (
-                      <li key={file.path}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-xs hover:bg-accent/40"
-                          onClick={() => onViewChangedFile(file)}
-                        >
-                          <span
-                            className="min-w-0 truncate font-mono text-muted-foreground"
-                            title={file.path}
-                          >
-                            {file.path}
-                          </span>
-                          <GitStatusIcon badge={badge} />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
+            {currentChangesSection}
 
             <section className="space-y-1.5">
               <div className="flex justify-end">
@@ -804,10 +765,6 @@ export function ProjectCard({
                 </div>
               )}
             </section>
-=======
-            {currentChangesSection}
-            {commitHistorySection()}
->>>>>>> pr-1
           </TabsContent>
 
           <TabsContent value="docs" className="mt-4">
