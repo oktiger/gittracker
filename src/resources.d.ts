@@ -377,8 +377,12 @@ export default interface Resources {
       "currentBranch": "Current",
       "currentChanges": "Current changes",
       "customConfig": "Custom config",
+      "deleteTargetDescription": "This only removes the run configuration from GitTracker. Project files are not deleted.",
+      "deleteTargetTitle": "Delete run target “{{name}}”?",
       "discard": "Discard changes",
       "discardAll": "Discard all changes",
+      "editTargetDescription": "Update its name, directory, and command.",
+      "editTargetTitle": "Edit run target",
       "htmlOpened": "Opened HTML with the system app",
       "identify": "Identify with AI",
       "identifyAgain": "Identify again with AI…",
@@ -411,6 +415,10 @@ export default interface Resources {
       "runnable": "Runnable commands",
       "runnableSource": "From project settings / AI identification",
       "starting": "Starting…",
+      "sync": "Sync",
+      "syncBusy": "Syncing…",
+      "syncFailed": "Sync failed · {{name}}",
+      "synced": "Synced to the latest remote version",
       "syncedWithBranch": "Synced with {{branch}}",
       "tabs": {
         "code": "Code",
@@ -418,6 +426,9 @@ export default interface Resources {
         "evolution": "Evolution",
         "run": "Run"
       },
+      "targetActions": "Run target actions",
+      "targetDeleted": "Deleted run target “{{name}}”",
+      "targetUpdated": "Updated run target “{{name}}”",
       "viewChanges": "View changes"
     },
     "changedFileDialog": {
@@ -598,6 +609,7 @@ export default interface Resources {
       "renamed": "Renamed",
       "staged": "Staged",
       "unstaged": "Unstaged",
+      "unsynced": "Remote update",
       "untracked": "New"
     }
   },
