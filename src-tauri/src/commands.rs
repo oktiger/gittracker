@@ -102,9 +102,16 @@ pub async fn merge_open_pull_requests(
         git::run_git(repo, &["fetch", "origin", "--prune"])?;
 
         progress("status", "正在读取待合并 PR…");
-        let prs = git::list_open_pull_requests(repo)?;
+        // Draft 是 GitHub 明确标注的“尚未准备好”状态：保持展示，但不让
+        // 一键合并绕过这个信号。命令层再次过滤，避免 UI 被绕过。
+        let prs: Vec<_> = git::list_open_pull_requests(repo)?
+            .into_iter()
+            .filter(|pr| !pr.draft)
+            .collect();
         if prs.is_empty() {
-            return Err(AppError::msg("没有可合并到默认分支的开放 PR"));
+            return Err(AppError::msg(
+                "没有可自动合并的开放 PR；草稿 PR 会保留在列表中，但不会自动合并",
+            ));
         }
 
         let merge_id = uuid::Uuid::new_v4().simple().to_string();

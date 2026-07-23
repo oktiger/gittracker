@@ -330,26 +330,30 @@ pub fn merge_pull_requests(
             "你是 Git 集成代理。当前目录是隔离的临时集成 Worktree，基于 {default_branch} 创建；只允许在这里工作。\n\
              目标：将下列 PR 的改动合并为一个经过验证的集成结果。\n{pr_list}\n\n\
              严格规则：\n\
-             1. 先检查每个 PR 的 diff、依赖及文件重叠，自行决定最安全的合并顺序。\n\
-             2. 使用给出的 merge ref 逐个执行 git merge；如有冲突，基于项目现有代码和 PR 意图解决。\n\
-             3. 绝不能 checkout 或修改 {default_branch}，绝不能执行 git push、force push、git reset --hard，也不能删除分支或 Worktree。\n\
-             4. 必须找到并运行项目已有的合理验证（至少 build 或 test）；修复由合并造成的问题后再次验证。\n\
-             5. 任一步无法安全完成时，立即停止，保留当前集成 Worktree，并在最终回复中说明原因；不要伪造成功。\n\
-             6. 只有全部 PR 都已合并且验证通过时，最终回复第一行必须完全是 MERGE_READY，随后用简体中文简洁总结合并顺序、冲突处理和验证结果。\n\
-             7. 不要修改与 PR 合并无关的功能或文件。"
+             1. 先检查每个 PR 的 diff、依赖及文件重叠，按依赖关系决定最安全的合并顺序，不能仅按 PR 编号排序。\n\
+             2. 使用给出的 merge ref 逐个执行 git merge。发生冲突时，优先保留与当前 {default_branch} 行为兼容、符合对应 PR 意图且能通过验证的实现；绝不能简单以最后合并的 PR 覆盖前者。\n\
+             3. 每个已解决冲突都必须在最终摘要列出：文件、涉及 PR、最终保留的方案、舍弃的方案及理由。\n\
+             4. 若冲突涉及互斥的业务行为、数据库迁移、权限或安全、依赖版本，或无法通过验证证明结果正确，必须停止，不得猜测或合并到 main。\n\
+             5. 绝不能 checkout 或修改 {default_branch}，绝不能执行 git push、force push、git reset --hard，也不能删除分支或 Worktree。\n\
+             6. 必须找到并运行项目已有的合理验证（至少 build 或 test）；修复由合并造成的问题后再次验证。\n\
+             7. 任一步无法安全完成时，立即停止，保留当前集成 Worktree，并在最终回复中说明原因；不要伪造成功。\n\
+             8. 只有全部 PR 都已合并且验证通过时，最终回复第一行必须完全是 MERGE_READY，随后用简体中文简洁总结合并顺序、冲突处理和验证结果。\n\
+             9. 不要修改与 PR 合并无关的功能或文件。"
         )
     } else {
         format!(
             "You are a Git integration agent. The current directory is an isolated temporary integration worktree based on {default_branch}; work only here.\n\
              Goal: merge and validate the following PRs.\n{pr_list}\n\n\
              Rules:\n\
-             1. Inspect each PR's diff, dependencies, and file overlap, then choose the safest merge order.\n\
-             2. Merge the supplied refs one by one; resolve conflicts according to the existing code and each PR's intent.\n\
-             3. Never check out or modify {default_branch}; never run git push, force push, git reset --hard, or delete branches/worktrees.\n\
-             4. Run the repository's appropriate validation (at least build or test) and fix merge-caused failures before validating again.\n\
-             5. If any step cannot be completed safely, stop, preserve this integration worktree, and explain why. Never claim success.\n\
-             6. Only if every PR is merged and validation passes, make the first line of your final response exactly MERGE_READY, then summarize the order, conflict handling, and verification.\n\
-             7. Do not modify unrelated functionality or files."
+             1. Inspect each PR's diff, dependencies, and file overlap, then choose the safest merge order based on dependencies, not PR number.\n\
+             2. Merge the supplied refs one by one. On conflicts, prefer an implementation compatible with current {default_branch} behavior, the relevant PR intent, and passing validation; never simply let the last merged PR win.\n\
+             3. In the final summary, report every resolved conflict: file, involved PRs, retained approach, discarded approach, and reason.\n\
+             4. Stop rather than guess if a conflict involves mutually exclusive product behavior, database migrations, permissions or security, dependency versions, or cannot be proven correct by validation. Do not merge it to main.\n\
+             5. Never check out or modify {default_branch}; never run git push, force push, git reset --hard, or delete branches/worktrees.\n\
+             6. Run the repository's appropriate validation (at least build or test) and fix merge-caused failures before validating again.\n\
+             7. If any step cannot be completed safely, stop, preserve this integration worktree, and explain why. Never claim success.\n\
+             8. Only if every PR is merged and validation passes, make the first line of your final response exactly MERGE_READY, then summarize the order, conflict handling, and verification.\n\
+             9. Do not modify unrelated functionality or files."
         )
     };
     run_writable(&truncate_prompt(&prompt), integration_path, progress)
@@ -635,14 +639,11 @@ fn run_cursor_agent(
         "未找到 Cursor Agent CLI。请先安装并登录：curl https://cursor.com/install -fsS | bash && agent login",
     )?;
 
-    let mode = if writable { "agent" } else { "ask" };
     let sandbox = if writable { "disabled" } else { "enabled" };
     let stream = progress.is_some();
 
     let mut args = vec![
         "-p".into(),
-        "--mode".into(),
-        mode.into(),
         "--output-format".into(),
         if stream {
             "stream-json".into()
@@ -653,6 +654,12 @@ fn run_cursor_agent(
         sandbox.into(),
         "--trust".into(),
     ];
+    // Cursor CLI 的 --mode 仅支持 plan / ask。可写的 print 调用不传
+    // --mode，使用 CLI 默认的 Agent 能力；只读任务明确限制为 ask。
+    if !writable {
+        args.push("--mode".into());
+        args.push("ask".into());
+    }
     if stream {
         args.push("--stream-partial-output".into());
     }

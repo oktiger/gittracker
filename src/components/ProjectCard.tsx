@@ -115,6 +115,7 @@ export function ProjectCard({
   const [commitHistoryLoading, setCommitHistoryLoading] = useState(false);
   const [pullRequests, setPullRequests] = useState<PullRequestInfo[]>([]);
   const [pullRequestsLoading, setPullRequestsLoading] = useState(false);
+  const mergeablePullRequests = pullRequests.filter((pullRequest) => !pullRequest.draft);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
@@ -616,15 +617,15 @@ export function ProjectCard({
                 </span>
               )}
               <div className="ml-auto flex flex-wrap items-center gap-1.5">
-                {pullRequests.length > 0 ? (
+                {mergeablePullRequests.length > 0 ? (
                   <Button
                     type="button"
                     variant="secondary"
                     size="xs"
                     disabled={locked || pullRequestsLoading}
-                    onClick={() => onMergePullRequests(pullRequests.length)}
+                    onClick={() => onMergePullRequests(mergeablePullRequests.length)}
                   >
-                    ✦ {t("projects:card.aiMergePullRequests", { count: pullRequests.length })}
+                    ✦ {t("projects:card.aiMergePullRequests", { count: mergeablePullRequests.length })}
                   </Button>
                 ) : null}
                 <Button
