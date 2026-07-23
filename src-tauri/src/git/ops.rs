@@ -53,6 +53,29 @@ pub fn push(repo: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// 静默拉取远程跟踪引用；网络失败时不打断本地状态刷新。
+pub fn fetch_remote(repo: &Path) -> AppResult<()> {
+    let (code, _stdout, stderr) = run_git_allow_fail(
+        repo,
+        &["fetch", "--quiet", "--prune"],
+    )?;
+    if code != 0 {
+        let detail = stderr.trim();
+        if detail.is_empty() {
+            return Err(AppError::msg("git fetch 失败"));
+        }
+        return Err(AppError::msg(detail.to_string()));
+    }
+    Ok(())
+}
+
+/// 将当前分支 fast-forward 到远程跟踪分支（先 fetch 再 pull --ff-only）。
+pub fn sync_from_remote(repo: &Path) -> AppResult<()> {
+    fetch_remote(repo)?;
+    run_git(repo, &["pull", "--ff-only", "--quiet"])?;
+    Ok(())
+}
+
 /// 读取指定时间范围内的提交主题。
 /// `since` / `until` 使用 git 支持的日期表达式，例如 "midnight"、"yesterday"、"7 days ago"。
 pub fn commit_subjects_since(

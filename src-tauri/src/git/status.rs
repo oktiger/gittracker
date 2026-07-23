@@ -122,8 +122,25 @@ fn parse_branch_header(header: &str) -> (String, u32, u32) {
 }
 
 fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
-    let (code, stdout, _) =
-        run_git_allow_fail(repo, &["log", "--pretty=format:%h\t%ct\t%s"])?;
+    let unsynced = parse_commit_log(
+        repo,
+        &["log", "HEAD..@{upstream}", "--pretty=format:%h\t%ct\t%s"],
+        true,
+    )?;
+    let local = parse_commit_log(repo, &["log", "--pretty=format:%h\t%ct\t%s"], false)?;
+
+    let mut seen = std::collections::HashSet::new();
+    let mut commits = Vec::new();
+    for commit in unsynced.into_iter().chain(local.into_iter()) {
+        if seen.insert(commit.hash.clone()) {
+            commits.push(commit);
+        }
+    }
+    Ok(commits)
+}
+
+fn parse_commit_log(repo: &Path, args: &[&str], unsynced: bool) -> AppResult<Vec<CommitInfo>> {
+    let (code, stdout, _) = run_git_allow_fail(repo, args)?;
     if code != 0 || stdout.trim().is_empty() {
         return Ok(vec![]);
     }
@@ -142,6 +159,7 @@ fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
                 hash,
                 timestamp: ts,
                 subject,
+                unsynced,
             });
         }
     }

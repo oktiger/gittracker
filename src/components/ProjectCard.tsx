@@ -46,6 +46,7 @@ interface Props {
   onOpenProject?: () => void;
   onManualCommit: () => void;
   onOneClick: () => void;
+  onSync: () => void;
   onDiscard: () => void;
   onViewChanges: () => void;
   onViewChangedFile: (file: FileChange) => void;
@@ -69,6 +70,7 @@ export function ProjectCard({
   onOpenProject,
   onManualCommit,
   onOneClick,
+  onSync,
   onDiscard,
   onViewChanges,
   onViewChangedFile,
@@ -315,9 +317,15 @@ export function ProjectCard({
               <span className="truncate text-foreground/90" title={c.subject}>
                 {c.subject}
               </span>
-              <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                {formatRelativeTime(c.timestamp, language)}
-              </span>
+              {c.unsynced ? (
+                <span className="whitespace-nowrap text-[10px] text-amber-500">
+                  {t("projects:status.unsynced")}
+                </span>
+              ) : (
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                  {formatRelativeTime(c.timestamp, language)}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -470,6 +478,15 @@ export function ProjectCard({
               <div className="ml-auto flex flex-wrap items-center gap-1.5">
                 <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
+                  disabled={locked}
+                  onClick={onSync}
+                >
+                  {t("projects:card.sync")}
+                </Button>
+                <Button
+                  type="button"
                   size="xs"
                   disabled={locked || !hasChanges}
                   onClick={onOneClick}
@@ -552,9 +569,15 @@ export function ProjectCard({
                       <span className="truncate text-foreground/90" title={c.subject}>
                         {c.subject}
                       </span>
-                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                        {formatRelativeTime(c.timestamp, language)}
-                      </span>
+                      {c.unsynced ? (
+                        <span className="whitespace-nowrap text-[10px] text-amber-500">
+                          {t("projects:status.unsynced")}
+                        </span>
+                      ) : (
+                        <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                          {formatRelativeTime(c.timestamp, language)}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

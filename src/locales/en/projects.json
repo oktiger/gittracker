@@ -28,7 +28,8 @@
     "staged": "Staged",
     "unstaged": "Unstaged",
     "ahead": "Ahead",
-    "behind": "Behind"
+    "behind": "Behind",
+    "unsynced": "Unsynced"
   },
   "card": {
     "projectSettings": "Project settings",
@@ -39,6 +40,10 @@
     "replaceTargets": "Replace the current run targets with new suggestions?",
     "runTargetMissing": "Run target not found",
     "runFailed": "Run failed · {{name}}",
+    "sync": "Sync",
+    "syncBusy": "Syncing…",
+    "synced": "Synced to latest",
+    "syncFailed": "Sync failed · {{name}}",
     "oneClick": "One-click commit",
     "oneClickBusy": "Committing…",
     "manualCommit": "Commit manually",

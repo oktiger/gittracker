@@ -385,6 +385,10 @@ export default interface Resources {
       "runnable": "Runnable commands",
       "runnableSource": "From project settings / AI identification",
       "starting": "Starting…",
+      "sync": "Sync",
+      "syncBusy": "Syncing…",
+      "syncFailed": "Sync failed · {{name}}",
+      "synced": "Synced to latest",
       "tabs": {
         "code": "Code",
         "documents": "Documents",
@@ -567,6 +571,7 @@ export default interface Resources {
       "renamed": "Renamed",
       "staged": "Staged",
       "unstaged": "Unstaged",
+      "unsynced": "Unsynced",
       "untracked": "New"
     }
   },

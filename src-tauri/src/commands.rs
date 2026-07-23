@@ -54,7 +54,7 @@ pub fn get_project_status(id: String) -> AppResult<ProjectStatus> {
 
 #[tauri::command]
 pub fn refresh_all(app: AppHandle) -> AppResult<Vec<ProjectStatus>> {
-    watch::refresh_all_and_emit(&app).map_err(AppError::msg)?;
+    watch::fetch_and_refresh_all_and_emit(&app).map_err(AppError::msg)?;
     get_all_statuses()
 }
 
@@ -120,6 +120,22 @@ pub fn push_project(id: String, operations: State<'_, git::GitOperationState>) -
     let project = store::find_project(&id)?;
     let _operation = operations.try_acquire(Path::new(&project.path))?;
     git::push(Path::new(&project.path))
+}
+
+/// 将项目拉取到远程最新（fetch + pull --ff-only），并推送最新状态。
+#[tauri::command]
+pub fn sync_project(
+    app: AppHandle,
+    id: String,
+    operations: State<'_, git::GitOperationState>,
+) -> AppResult<ProjectStatus> {
+    let project = store::find_project(&id)?;
+    let repo = Path::new(&project.path);
+    let _operation = operations.try_acquire(repo)?;
+    git::sync_from_remote(repo)?;
+    drop(_operation);
+    watch::refresh_and_emit(&app, &id).map_err(AppError::msg)?;
+    Ok(git::fetch_project_status(&project))
 }
 
 #[tauri::command]

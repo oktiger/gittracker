@@ -332,6 +332,9 @@ pub struct CommitInfo {
     pub hash: String,
     pub timestamp: i64,
     pub subject: String,
+    /// 远程已有、本地尚未拉取的提交。
+    #[serde(default)]
+    pub unsynced: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
