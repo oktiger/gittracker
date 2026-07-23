@@ -1,9 +1,11 @@
 mod ops;
 mod operation;
+mod pull_requests;
 mod status;
 
 pub use ops::*;
 pub use operation::*;
+pub use pull_requests::*;
 pub use status::*;
 
 use crate::error::{AppError, AppResult};

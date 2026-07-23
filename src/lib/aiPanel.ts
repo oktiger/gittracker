@@ -39,6 +39,12 @@ export type AiPanelSession = (
       projectName: string;
     }
   | {
+      kind: "mergePullRequests";
+      projectId: string;
+      projectName: string;
+      pullRequestCount: number;
+    }
+  | {
       kind: "generateTasks";
       projectId: string;
       projectName: string;
@@ -90,6 +96,8 @@ export function aiSessionTitle(session: AiPanelSession, t: TFunction<any>): stri
       return t("activity:ai.titles.generateCommit");
     case "oneClick":
       return t("activity:ai.titles.oneClick");
+    case "mergePullRequests":
+      return t("activity:ai.titles.mergePullRequests");
     case "generateTasks":
       return t("activity:ai.titles.generateTasks");
     case "runTask":
@@ -111,6 +119,7 @@ export function aiSessionSubtitle(session: AiPanelSession, t: TFunction<any>): s
     case "config":
     case "generateCommit":
     case "oneClick":
+    case "mergePullRequests":
     case "generateTasks":
       return session.projectName;
     case "runTask":

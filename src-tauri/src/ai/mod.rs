@@ -300,6 +300,61 @@ pub fn run_task(
     run_writable(&prompt, project_path, progress)
 }
 
+/// 在隔离的集成 Worktree 内合并 PR。最终是否更新 main 由业务层在
+/// 验证 `MERGE_READY` 标记和提交可达性后决定，AI 不得自行 push。
+pub fn merge_pull_requests(
+    integration_path: &Path,
+    default_branch: &str,
+    prs: &[(u64, String, String)],
+    locale: ResolvedLanguage,
+    progress: Option<&ProgressSink>,
+) -> AppResult<String> {
+    let label = provider_label().unwrap_or("AI");
+    emit(
+        progress,
+        "status",
+        &if locale.is_zh() {
+            format!("使用 {label} 分析并合并 {} 个 PR…", prs.len())
+        } else {
+            format!("Using {label} to analyze and merge {} PRs…", prs.len())
+        },
+    );
+
+    let pr_list = prs
+        .iter()
+        .map(|(number, title, reference)| format!("- PR #{number}: {title}\n  merge ref: {reference}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let prompt = if locale.is_zh() {
+        format!(
+            "你是 Git 集成代理。当前目录是隔离的临时集成 Worktree，基于 {default_branch} 创建；只允许在这里工作。\n\
+             目标：将下列 PR 的改动合并为一个经过验证的集成结果。\n{pr_list}\n\n\
+             严格规则：\n\
+             1. 先检查每个 PR 的 diff、依赖及文件重叠，自行决定最安全的合并顺序。\n\
+             2. 使用给出的 merge ref 逐个执行 git merge；如有冲突，基于项目现有代码和 PR 意图解决。\n\
+             3. 绝不能 checkout 或修改 {default_branch}，绝不能执行 git push、force push、git reset --hard，也不能删除分支或 Worktree。\n\
+             4. 必须找到并运行项目已有的合理验证（至少 build 或 test）；修复由合并造成的问题后再次验证。\n\
+             5. 任一步无法安全完成时，立即停止，保留当前集成 Worktree，并在最终回复中说明原因；不要伪造成功。\n\
+             6. 只有全部 PR 都已合并且验证通过时，最终回复第一行必须完全是 MERGE_READY，随后用简体中文简洁总结合并顺序、冲突处理和验证结果。\n\
+             7. 不要修改与 PR 合并无关的功能或文件。"
+        )
+    } else {
+        format!(
+            "You are a Git integration agent. The current directory is an isolated temporary integration worktree based on {default_branch}; work only here.\n\
+             Goal: merge and validate the following PRs.\n{pr_list}\n\n\
+             Rules:\n\
+             1. Inspect each PR's diff, dependencies, and file overlap, then choose the safest merge order.\n\
+             2. Merge the supplied refs one by one; resolve conflicts according to the existing code and each PR's intent.\n\
+             3. Never check out or modify {default_branch}; never run git push, force push, git reset --hard, or delete branches/worktrees.\n\
+             4. Run the repository's appropriate validation (at least build or test) and fix merge-caused failures before validating again.\n\
+             5. If any step cannot be completed safely, stop, preserve this integration worktree, and explain why. Never claim success.\n\
+             6. Only if every PR is merged and validation passes, make the first line of your final response exactly MERGE_READY, then summarize the order, conflict handling, and verification.\n\
+             7. Do not modify unrelated functionality or files."
+        )
+    };
+    run_writable(&truncate_prompt(&prompt), integration_path, progress)
+}
+
 fn truncate_prompt(prompt: &str) -> String {
     if prompt.len() <= MAX_PROMPT_CHARS {
         prompt.to_string()

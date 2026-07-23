@@ -91,6 +91,22 @@ export interface CommitInfo {
   branches: BranchInfo[];
 }
 
+export interface PullRequestInfo {
+  number: number;
+  title: string;
+  headBranch: string;
+  author: string;
+  draft: boolean;
+  updatedAt: string;
+  url: string;
+  mergeable?: string | null;
+}
+
+export interface MergePullRequestsResult {
+  mergedCount: number;
+  summary: string;
+}
+
 export interface FileChange {
   path: string;
   status: string;

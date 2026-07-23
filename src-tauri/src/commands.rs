@@ -6,8 +6,8 @@ use crate::log_diary;
 use crate::models::{
     AiConnectionTestResult, AiProvider, AppSettings, DailyCompletionResult, DiscardPreview,
     DiscardResult, DocsOverview, DocumentLibrary, GenerateTasksResult, LanguagePreference,
-    LogDiaryEntry, NewLogDiaryEntry, OneClickResult, ProjectRecord, ProjectStatus, PromptTemplateSet,
-    ResolvedLanguage, RunSession, RunTarget, RunTaskResult, SuggestRunTargetsResult,
+    LogDiaryEntry, MergePullRequestsResult, NewLogDiaryEntry, OneClickResult, ProjectRecord,
+    ProjectStatus, PromptTemplateSet, ResolvedLanguage, RunSession, RunTarget, RunTaskResult, SuggestRunTargetsResult,
     UpdateLogDiaryByRunSession,
 };
 use crate::run;
@@ -74,6 +74,114 @@ pub fn list_branches(id: String) -> AppResult<crate::models::BranchList> {
 pub fn list_commit_history(id: String) -> AppResult<Vec<crate::models::CommitInfo>> {
     let project = store::find_project(&id)?;
     git::list_commit_history(Path::new(&project.path))
+}
+
+#[tauri::command]
+pub fn list_open_pull_requests(id: String) -> AppResult<Vec<crate::models::PullRequestInfo>> {
+    let project = store::find_project(&id)?;
+    git::list_open_pull_requests(Path::new(&project.path))
+}
+
+#[tauri::command]
+pub async fn merge_open_pull_requests(
+    app: AppHandle,
+    id: String,
+    session_id: String,
+    locale: ResolvedLanguage,
+) -> AppResult<MergePullRequestsResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let progress = ai::make_progress_sink(app.clone(), session_id);
+        let project = store::find_project(&id)?;
+        let repo = Path::new(&project.path);
+        let operations = app.state::<git::GitOperationState>();
+        let _operation = operations.try_acquire(repo)?;
+
+        progress("status", "正在检查 main 与工作区状态…");
+        let default_branch = git::default_branch(repo)?;
+        git::ensure_clean_default_branch(repo, &default_branch)?;
+        git::run_git(repo, &["fetch", "origin", "--prune"])?;
+
+        progress("status", "正在读取待合并 PR…");
+        let prs = git::list_open_pull_requests(repo)?;
+        if prs.is_empty() {
+            return Err(AppError::msg("没有可合并到默认分支的开放 PR"));
+        }
+
+        let merge_id = uuid::Uuid::new_v4().simple().to_string();
+        let integration_branch = format!("codex/ai-merge-{}", &merge_id[..8]);
+        let worktree = std::env::temp_dir().join(format!("gittracker-ai-merge-{merge_id}"));
+        let worktree_str = worktree.to_string_lossy();
+        let base_ref = format!("origin/{default_branch}");
+
+        progress("status", "正在创建隔离集成分支…");
+        git::run_git(repo, &["worktree", "add", "--detach", worktree_str.as_ref(), &base_ref])?;
+        let setup = (|| -> AppResult<Vec<(u64, String, String)>> {
+            git::run_git(&worktree, &["switch", "-c", &integration_branch])?;
+            let mut refs = Vec::new();
+            for pr in &prs {
+                let reference = git::fetch_pr_head(&worktree, pr.number)?;
+                refs.push((pr.number, pr.title.clone(), reference));
+            }
+            Ok(refs)
+        })();
+        let refs = match setup {
+            Ok(refs) => refs,
+            Err(error) => {
+                let _ = git::run_git(repo, &["worktree", "remove", "--force", worktree_str.as_ref()]);
+                return Err(error);
+            }
+        };
+
+        progress("status", "AI 正在分析合并顺序、处理冲突并验证…");
+        let summary = match ai::merge_pull_requests(&worktree, &default_branch, &refs, locale, Some(&progress)) {
+            Ok(summary) => summary,
+            Err(error) => {
+                return Err(AppError::msg(format!(
+                    "AI 合并未完成。已保留集成分支 {integration_branch} 以便后续排查：{error}"
+                )));
+            }
+        };
+        if summary.lines().next().map(str::trim) != Some("MERGE_READY") {
+            return Err(AppError::msg(format!(
+                "AI 未确认验证通过，main 未被修改。已保留集成分支 {integration_branch}。\n{summary}"
+            )));
+        }
+
+        let status = git::run_git(&worktree, &["status", "--porcelain=v1"])?;
+        if !status.trim().is_empty() {
+            return Err(AppError::msg(format!(
+                "集成分支仍有未提交改动，main 未被修改。已保留 {integration_branch}。"
+            )));
+        }
+        for (_, _, reference) in &refs {
+            let (code, _, _) = git::run_git_allow_fail(&worktree, &["merge-base", "--is-ancestor", reference, "HEAD"])?;
+            if code != 0 {
+                return Err(AppError::msg(format!(
+                    "集成结果不包含 {reference}，main 未被修改。已保留 {integration_branch}。"
+                )));
+            }
+        }
+
+        progress("status", "验证通过，正在安全合入 main…");
+        git::run_git(repo, &["merge", "--ff-only", &integration_branch])?;
+        git::push(repo)?;
+        let _ = git::run_git(repo, &["worktree", "remove", "--force", worktree_str.as_ref()]);
+        let _ = git::run_git(repo, &["branch", "-D", &integration_branch]);
+        progress("status", "已合入 main 并同步远程。");
+
+        Ok(MergePullRequestsResult {
+            merged_count: prs.len(),
+            summary: summary
+                .lines()
+                .skip_while(|line| line.trim() == "MERGE_READY")
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim()
+                .to_string(),
+        })
+    })
+    .await
+    .map_err(|error| AppError::msg(format!("任务中断：{error}")))?
 }
 
 #[tauri::command]

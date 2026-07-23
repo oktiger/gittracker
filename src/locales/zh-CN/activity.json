@@ -27,17 +27,17 @@
     "titles": {
       "dailyAutomatic": "每日完成自动生成", "daily": "AI 总结每日完成", "identify": "AI 识别启动方式", "config": "配置启动方式",
       "testCursor": "测试 Cursor Agent", "testCodex": "测试 Codex", "generateCommit": "AI 生成 Commit Message",
-      "oneClick": "一键提交", "generateTasks": "AI 生成任务", "runTask": "实现任务 {{number}}", "runDocument": "执行文档 {{name}}"
+      "oneClick": "一键提交", "mergePullRequests": "AI 一键合并 PR", "generateTasks": "AI 生成任务", "runTask": "实现任务 {{number}}", "runDocument": "执行文档 {{name}}"
     },
     "subtitles": { "today": "本日 commit message", "yesterday": "昨日 commit message", "week": "本周 commit message", "sevenDays": "过去 7 天 commit message", "test": "验证 CLI 已安装并可返回" },
     "boot": {
       "daily": "开始整理{{period}}的完成事项…", "identify": "开始识别「{{project}}」的启动方式…", "test": "开始测试 {{provider}}…",
-      "commit": "开始为「{{project}}」生成 Commit message…", "oneClick": "一键提交「{{project}}」：AI → Commit → Push…",
+      "commit": "开始为「{{project}}」生成 Commit message…", "oneClick": "一键提交「{{project}}」：AI → Commit → Push…", "mergePullRequests": "开始为「{{project}}」安全合并 {{count}} 个 PR…",
       "tasks": "根据 Goal 为「{{project}}」生成任务…", "implement": "实现任务 {{number}}「{{title}}」…", "runDocument": "执行文档「{{name}}」…"
     },
     "done": {
       "dailyAutomatic": "已自动生成每日完成", "daily": "每日完成已生成", "commitPushed": "已提交并推送：\n{{message}}",
-      "tasks": "已生成 {{count}} 条任务", "task": "已实现 {{number}}", "document": "文档执行完成"
+      "tasks": "已生成 {{count}} 条任务", "task": "已实现 {{number}}", "document": "文档执行完成", "mergePullRequests": "已安全合并 {{count}} 个 PR\n{{summary}}", "mergePullRequestsToast": "已安全合并 {{count}} 个 PR", "mergePullRequestsNoSummary": "验证通过并已同步 main"
     },
     "phase": { "running": "进行中", "done": "完成" },
     "showProcess": "查看 AI 过程（{{count}} 条）", "processCount": "AI 过程（{{count}} 条）",
@@ -49,7 +49,7 @@
     "saveTitle": "保存启动目标 · {{project}}", "saveFailed": "保存启动目标失败 · {{project}}",
     "dailyFailed": "每日完成总结失败", "identifyFailed": "识别启动方式失败 · {{project}}",
     "testFailed": "测试 {{provider}} 失败", "generateFailed": "AI Generate 失败 · {{project}}", "oneClickFailed": "一键提交失败 · {{project}}",
-    "tasksFailed": "生成任务失败 · {{project}}", "taskFailed": "实现任务失败 {{number}} · {{title}}",
+    "tasksFailed": "生成任务失败 · {{project}}", "taskFailed": "实现任务失败 {{number}} · {{title}}", "mergePullRequestsFailed": "AI 合并 PR 失败 · {{project}}",
     "log": {
       "dailyTitle": "{{mode}}总结 · {{period}}", "automatic": "自动", "manual": "手动",
       "identifyTitle": "识别启动方式 · {{project}}", "source": "来源: {{source}}\n建议 {{count}} 条:\n{{preview}}", "testTitle": "测试 {{provider}}", "reply": "回复: {{reply}}",
@@ -58,7 +58,7 @@
       "taskDetail": "路径: {{path}}\n\n实现摘要:\n{{summary}}", "empty": "（空）", "noSummary": "（无摘要）",
       "dailyFailure": "根据各项目 commit message，经统一 AI 通道生成总结。", "identifyFailure": "经统一 AI 通道分析仓库并建议 Run Targets。",
       "testFailure": "验证 CLI 已安装并可返回最小只读回复。", "generateFailure": "根据当前 Worktree 的全部 Changes，经统一 AI 通道生成 Commit message。",
-      "oneClickFailure": "流程：AI 生成 Commit Message → Commit → Push", "tasksFailure": "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。", "path": "路径: {{path}}"
+      "oneClickFailure": "流程：AI 生成 Commit Message → Commit → Push", "mergePullRequestsTitle": "AI 一键合并 PR · {{project}}", "mergePullRequestsFailure": "流程：读取开放 PR → 创建隔离集成分支 → AI 合并与验证 → 安全合入 main。", "tasksFailure": "根据 Goal + 提示词模板，经统一 AI 通道生成 Task。", "path": "路径: {{path}}"
     }
   },
   "logs": {
@@ -69,7 +69,7 @@
     "kinds": {
       "oneClick": "一键提交", "generateCommit": "生成提交说明", "commit": "手动提交", "ensureDocs": "创建文档", "generateTasks": "生成任务",
       "runTask": "实现任务", "suggestRunTargets": "识别启动方式", "saveRunTargets": "保存启动方式", "runTarget": "运行 / 升级",
-      "discard": "放弃更改", "testConnection": "测试 AI 连接", "dailyCompletion": "每日完成情况"
+      "discard": "放弃更改", "testConnection": "测试 AI 连接", "dailyCompletion": "每日完成情况", "mergePullRequests": "AI 合并 PR"
     },
     "statuses": { "ok": "成功", "error": "失败", "running": "进行中", "ended": "已结束" }
   },

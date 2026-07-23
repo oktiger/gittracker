@@ -9,6 +9,7 @@ import type {
   DocsTaskItem,
   FileChange,
   NewLogDiaryEntry,
+  PullRequestInfo,
   ProjectStatus,
   RunTarget,
 } from "../types";
@@ -57,6 +58,7 @@ interface Props {
   onOpenProject?: () => void;
   onManualCommit: () => void;
   onOneClick: () => void;
+  onMergePullRequests: (count: number) => void;
   onDiscard: () => void;
   onViewChanges: () => void;
   onViewChangedFile: (file: FileChange) => void;
@@ -80,6 +82,7 @@ export function ProjectCard({
   onOpenProject,
   onManualCommit,
   onOneClick,
+  onMergePullRequests,
   onDiscard,
   onViewChanges,
   onViewChangedFile,
@@ -110,6 +113,8 @@ export function ProjectCard({
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
   const [commitHistoryLoading, setCommitHistoryLoading] = useState(false);
+  const [pullRequests, setPullRequests] = useState<PullRequestInfo[]>([]);
+  const [pullRequestsLoading, setPullRequestsLoading] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
@@ -161,6 +166,19 @@ export function ProjectCard({
         onError(formatBackendError(e, t));
       })
       .finally(() => setCommitHistoryLoading(false));
+  }, [detailTab, project.id, project.branch, project.commits[0]?.hash]);
+
+  useEffect(() => {
+    if (detailTab !== "code") return;
+    setPullRequestsLoading(true);
+    void api
+      .listOpenPullRequests(project.id)
+      .then(setPullRequests)
+      .catch((e) => {
+        setPullRequests([]);
+        onError(formatBackendError(e, t));
+      })
+      .finally(() => setPullRequestsLoading(false));
   }, [detailTab, project.id, project.branch, project.commits[0]?.hash]);
 
   const branchBadgeClass = (branch: BranchList["local"][number]) => {
@@ -598,6 +616,17 @@ export function ProjectCard({
                 </span>
               )}
               <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                {pullRequests.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="xs"
+                    disabled={locked || pullRequestsLoading}
+                    onClick={() => onMergePullRequests(pullRequests.length)}
+                  >
+                    ✦ {t("projects:card.aiMergePullRequests", { count: pullRequests.length })}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="xs"
@@ -666,31 +695,69 @@ export function ProjectCard({
             </section>
 
             <section className="space-y-1.5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                  {t("projects:card.commitHistory")}
-                </h3>
-                <span className="text-[11px] text-muted-foreground">
-                  {syncStatus}
-                </span>
+              <div className="flex justify-end">
+                <span className="text-[11px] text-muted-foreground">{syncStatus}</span>
               </div>
-              {commitHistoryLoading ? (
+              {commitHistoryLoading || pullRequestsLoading ? (
                 <p className="py-3 text-xs text-muted-foreground">{t("projects:card.loadingCommits")}</p>
-              ) : commitHistory.length === 0 ? (
+              ) : commitHistory.length === 0 && pullRequests.length === 0 ? (
                 <p className="py-3 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
               ) : (
                 <div className="max-h-[min(45vh,480px)] overflow-y-auto rounded-lg border border-border">
-                  <Table className="min-w-[860px] text-xs">
+                  <Table className="min-w-[980px] text-xs">
                     <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                       <TableRow>
-                        <TableHead>{t("projects:card.commitHash")}</TableHead>
+                        <TableHead>{t("projects:card.recordType")}</TableHead>
                         <TableHead>{t("projects:card.commitBranches")}</TableHead>
                         <TableHead>{t("projects:card.commitSubject")}</TableHead>
                         <TableHead>{t("projects:card.commitAuthor")}</TableHead>
                         <TableHead>{t("projects:card.commitTime")}</TableHead>
+                        <TableHead className="text-right">{t("projects:card.recordAction")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
+                      {pullRequests.length > 0 ? (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={6} className="bg-amber-500/5 py-2 text-xs font-medium text-amber-500">
+                            {t("projects:card.pendingPullRequests", { count: pullRequests.length })}
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                      {pullRequests.map((pullRequest) => (
+                        <TableRow key={`pr:${pullRequest.number}`}>
+                          <TableCell>
+                            <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-500">
+                              PR #{pullRequest.number}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[220px] truncate font-mono text-violet-400" title={pullRequest.headBranch}>
+                            {pullRequest.headBranch}
+                          </TableCell>
+                          <TableCell className="max-w-[360px] whitespace-normal">
+                            <div className="font-medium">{pullRequest.title}</div>
+                            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <span className="rounded-full bg-muted px-1.5 py-0.5">{pullRequest.draft ? t("projects:card.draftPullRequest") : t("projects:card.openPullRequest")}</span>
+                              <span>{t("projects:card.notMerged")}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{pullRequest.author}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {formatRelativeTime(Math.floor(Date.parse(pullRequest.updatedAt) / 1000), language)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <a className="text-xs text-blue-500 hover:underline" href={pullRequest.url} target="_blank" rel="noreferrer">
+                              {t("projects:card.openPullRequestAction")}
+                            </a>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {pullRequests.length > 0 ? (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={6} className="bg-emerald-500/[.04] py-2 text-xs font-medium text-emerald-500">
+                            {t("projects:card.mainCommitHistory")}
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
                       {commitHistory.map((commit) => (
                         <TableRow key={commit.hash}>
                           <TableCell className="font-mono text-sky-500">{commit.hash.slice(0, 7)}</TableCell>
@@ -710,6 +777,7 @@ export function ProjectCard({
                           <TableCell className="max-w-[360px] truncate" title={commit.subject}>{commit.subject}</TableCell>
                           <TableCell className="text-muted-foreground">{commit.author}</TableCell>
                           <TableCell className="whitespace-nowrap text-muted-foreground">{formatRelativeTime(commit.timestamp, language)}</TableCell>
+                          <TableCell />
                         </TableRow>
                       ))}
                     </TableBody>

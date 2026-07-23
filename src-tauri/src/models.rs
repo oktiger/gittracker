@@ -337,6 +337,28 @@ pub struct CommitInfo {
     pub branches: Vec<BranchInfo>,
 }
 
+/// GitHub 上尚未合入默认分支的 Pull Request。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PullRequestInfo {
+    pub number: u64,
+    pub title: String,
+    pub head_branch: String,
+    pub author: String,
+    pub draft: bool,
+    pub updated_at: String,
+    pub url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mergeable: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MergePullRequestsResult {
+    pub merged_count: usize,
+    pub summary: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileChange {
