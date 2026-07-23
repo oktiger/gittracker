@@ -27,7 +27,10 @@ type Draft = RunTarget & { checked: boolean };
 interface Props {
   session: AiPanelSession;
   embedded?: boolean;
+  tone?: "running" | "queued" | "done" | "stopped" | "failed";
+  badgeLabel?: string;
   onClose: () => void;
+  onPhaseChange?: (phase: "running" | "done" | "edit", failed: boolean) => void;
   onLog: (entry: NewLogDiaryEntry) => void;
   onTargetsSaved?: (projectId: string, targets: RunTarget[]) => void;
   onProjectRefresh?: (projectId: string) => void;
@@ -129,7 +132,10 @@ function bootLine(session: AiPanelSession, t: TFunction<any>): AiTranscriptLine 
 export function AiSidePanel({
   session,
   embedded: _embedded = false,
+  tone = "running",
+  badgeLabel,
   onClose,
+  onPhaseChange,
   onLog,
   onTargetsSaved,
   onProjectRefresh,
@@ -176,6 +182,15 @@ export function AiSidePanel({
   transcriptRef.current = transcript;
   const lineIdRef = useRef(0);
   const closedRef = useRef(false);
+
+  const lastPhaseNoticeRef = useRef("");
+  useEffect(() => {
+    const failed = Boolean(error) && phase === "done";
+    const key = `${phase}:${failed ? 1 : 0}`;
+    if (lastPhaseNoticeRef.current === key) return;
+    lastPhaseNoticeRef.current = key;
+    onPhaseChange?.(phase, failed);
+  }, [phase, error, onPhaseChange]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -692,20 +707,50 @@ export function AiSidePanel({
     </div>
   );
 
+  const toneClass =
+    tone === "running"
+      ? "border-l-[3px] border-l-amber-500/55 bg-amber-500/[0.07]"
+      : tone === "queued"
+        ? "border-l-[3px] border-l-slate-500/45 bg-slate-500/[0.08]"
+        : tone === "failed"
+          ? "border-l-[3px] border-l-destructive/50 bg-destructive/[0.08]"
+          : tone === "stopped"
+            ? "border-l-[3px] border-l-emerald-500/30 bg-emerald-500/[0.05]"
+            : "border-l-[3px] border-l-emerald-500/45 bg-emerald-500/[0.07]";
+
+  const badgeToneClass =
+    tone === "running"
+      ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+      : tone === "queued"
+        ? "border-slate-500/40 bg-slate-500/10 text-slate-300"
+        : tone === "failed"
+          ? "border-destructive/30 bg-destructive/10 text-destructive"
+          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400";
+
   return (
     <section
-      className="overflow-hidden rounded-lg border border-border bg-card"
+      className={cn("overflow-hidden rounded-lg border border-border", toneClass)}
       aria-label={title}
     >
-      <header className="flex items-start justify-between gap-2 border-b border-border px-3 py-2.5">
+      <header className="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-medium">{title}</h3>
-          <p className="truncate text-xs text-muted-foreground">
-            {subtitle}
-            {phase === "running" ? ` · ${t("activity:ai.phase.running")}` : ""}
-          </p>
+          <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {badgeLabel ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                badgeToneClass,
+              )}
+            >
+              {tone === "running" ? (
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+              ) : null}
+              {badgeLabel}
+            </span>
+          ) : null}
           <Button
             type="button"
             variant="outline"

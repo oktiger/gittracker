@@ -101,9 +101,30 @@ function App() {
   );
 
   const openAiSession = useCallback((session: AiPanelSession) => {
-    setAiSessions((items) => [...items, { id: newAiSessionId(), session: { ...session, outputLanguage: session.outputLanguage ?? language } }]);
+    const now = Math.floor(Date.now() / 1000);
+    setAiSessions((items) => [
+      ...items,
+      {
+        id: newAiSessionId(),
+        session: { ...session, outputLanguage: session.outputLanguage ?? language },
+        startedAt: now,
+        phase: session.kind === "config" ? "edit" : "running",
+      },
+    ]);
     setActivityOpen(true);
   }, [language]);
+
+  const onAiActivityChange = useCallback(
+    (
+      id: string,
+      update: Partial<Pick<AiActivity, "phase" | "endedAt" | "failed">>,
+    ) => {
+      setAiSessions((items) =>
+        items.map((item) => (item.id === id ? { ...item, ...update } : item)),
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     void api.listRunSessions().then(setRunSessions).catch(() => undefined);
@@ -121,14 +142,23 @@ function App() {
   const activityIndicator = useMemo<ActivityIndicator>(() => {
     if (activityOpen) return null;
     if (runSessions.some((session) => session.status === "failed")) return "failed";
-    if (runSessions.some((session) => session.status === "running" || session.status === "stopping")) {
+    if (
+      runSessions.some(
+        (session) =>
+          session.status === "running" ||
+          session.status === "stopping" ||
+          session.status === "queued" ||
+          session.status === "starting",
+      ) ||
+      aiSessions.some((item) => item.phase === "running" || item.phase === "edit")
+    ) {
       return "running";
     }
     if (runSessions.some((session) => isCompletedRun(session) && !seenCompletedRunIds.has(session.id))) {
       return "completed";
     }
     return null;
-  }, [activityOpen, runSessions, seenCompletedRunIds]);
+  }, [activityOpen, runSessions, seenCompletedRunIds, aiSessions]);
 
   const onRunTarget = async (project: { id: string; name: string }, target: RunTarget) => {
     setActivityOpen(true);
@@ -142,7 +172,11 @@ function App() {
         projectId: project.id,
         projectName: project.name,
         runSessionId: session.id,
-        detail: `cwd: ${target.cwd}\ncommand: ${target.command}\n\n${t("activity:center.runStarted")}`,
+        detail: `cwd: ${target.cwd}\ncommand: ${target.command}\n\n${
+          session.status === "queued"
+            ? t("activity:center.queuedWaiting")
+            : t("activity:center.runStarted")
+        }`,
       });
     } catch (e) {
       setError(formatBackendError(e, t));
@@ -574,6 +608,7 @@ function App() {
             if (session.kind === "oneClick" || session.kind === "mergePullRequests") setBusy(session.projectId, null);
             setAiSessions((items) => items.filter((item) => item.id !== id));
           }}
+          onAiActivityChange={onAiActivityChange}
           onRunSessionsChange={setRunSessions}
           onLog={appendLog}
           onUpdateRunLog={updateRunLog}

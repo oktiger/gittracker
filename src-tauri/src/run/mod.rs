@@ -16,15 +16,28 @@ use tauri::{AppHandle, Emitter};
 
 const MAX_OUTPUT_LINES: usize = 2_000;
 
+#[derive(Clone)]
+struct PendingSpawn {
+    command: String,
+    cwd: PathBuf,
+}
+
 #[derive(Default)]
 struct RunState {
     sessions: std::collections::HashMap<String, RunSession>,
     children: std::collections::HashMap<String, Child>,
+    pending: std::collections::HashMap<String, PendingSpawn>,
+    /// 命令队列（FIFO）：全局同时只跑一个命令会话。
+    queue: Vec<String>,
 }
 
 #[derive(Clone, Default)]
 pub struct RunManager {
     state: Arc<Mutex<RunState>>,
+}
+
+fn is_active_command_status(status: &str) -> bool {
+    matches!(status, "starting" | "running" | "stopping")
 }
 
 impl RunManager {
@@ -45,13 +58,143 @@ impl RunManager {
         validate_command(&target.command)?;
         let cwd = resolve_cwd(repo, &target.cwd)?;
         let id = uuid::Uuid::new_v4().to_string();
+        let pending = PendingSpawn {
+            command: target.command.clone(),
+            cwd: cwd.clone(),
+        };
+        let (session, should_spawn) = {
+            let mut state = self.state.lock();
+            let busy = state
+                .sessions
+                .values()
+                .any(|session| is_active_command_status(&session.status));
+            let session = RunSession {
+                id: id.clone(),
+                project_id,
+                project_name,
+                target_id: target.id,
+                target_name: target.name,
+                cwd: cwd.to_string_lossy().to_string(),
+                command: target.command,
+                status: if busy {
+                    "queued".into()
+                } else {
+                    "running".into()
+                },
+                started_at: Utc::now().timestamp(),
+                ended_at: None,
+                exit_code: None,
+                output: Vec::new(),
+                output_truncated: false,
+            };
+            state.sessions.insert(id.clone(), session.clone());
+            state.pending.insert(id.clone(), pending);
+            if busy {
+                state.queue.push(id.clone());
+            }
+            (session, !busy)
+        };
+        if !should_spawn {
+            self.emit(
+                &app,
+                &id,
+                "status",
+                None,
+                Some("queued"),
+                "i18n:activity:backend.commandQueued",
+            );
+            return Ok(session);
+        }
+        self.spawn_pending(&app, &id)?;
+        Ok(session)
+    }
+
+    pub fn stop(&self, app: &AppHandle, id: &str) -> AppResult<()> {
+        enum StopAction {
+            CancelQueue,
+            Kill(u32),
+            AlreadyDone,
+        }
+
+        let action = {
+            let mut state = self.state.lock();
+            let status = state
+                .sessions
+                .get(id)
+                .map(|session| session.status.clone())
+                .ok_or_else(|| AppError::msg("未找到运行会话"))?;
+            if status == "queued" {
+                state.queue.retain(|queued_id| queued_id != id);
+                state.pending.remove(id);
+                if let Some(session) = state.sessions.get_mut(id) {
+                    session.status = "stopped".into();
+                    session.ended_at = Some(Utc::now().timestamp());
+                }
+                StopAction::CancelQueue
+            } else if !is_active_command_status(&status) {
+                StopAction::AlreadyDone
+            } else {
+                let pid = state
+                    .children
+                    .get(id)
+                    .map(Child::id)
+                    .ok_or_else(|| AppError::msg("运行会话已结束"))?;
+                if let Some(session) = state.sessions.get_mut(id) {
+                    session.status = "stopping".into();
+                }
+                StopAction::Kill(pid)
+            }
+        };
+
+        match action {
+            StopAction::AlreadyDone => Ok(()),
+            StopAction::CancelQueue => {
+                self.emit_exit(
+                    app,
+                    id,
+                    true,
+                    "activity:backend.commandQueueCancelled",
+                    "—".into(),
+                    Some("stopped"),
+                );
+                Ok(())
+            }
+            StopAction::Kill(pid) => {
+                let result = unsafe { libc::kill(-(pid as i32), libc::SIGTERM) };
+                if result == -1 {
+                    return Err(AppError::msg(format!(
+                        "无法停止命令：{}",
+                        std::io::Error::last_os_error()
+                    )));
+                }
+                self.emit(
+                    app,
+                    id,
+                    "status",
+                    None,
+                    Some("stopping"),
+                    "i18n:activity:backend.commandStopping",
+                );
+                Ok(())
+            }
+        }
+    }
+
+    fn spawn_pending(&self, app: &AppHandle, id: &str) -> AppResult<()> {
+        let pending = {
+            let mut state = self.state.lock();
+            state
+                .pending
+                .remove(id)
+                .ok_or_else(|| AppError::msg("未找到待启动命令"))?
+        };
         // 不用 login shell（-l）：macOS path_helper 会冲掉我们补好的 PATH。
         // GUI 进程本身也没有 nvm，必须显式注入 augmented_path。
         let mut command = Command::new("/bin/zsh");
         command
             .arg("-c")
-            .arg(&target.command)
-            .current_dir(&cwd)
+            .arg(&pending.command)
+            .current_dir(&pending.cwd)
             .env("PATH", crate::path_env::augmented_path())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -66,81 +209,75 @@ impl RunManager {
         let mut child = command
             .spawn()
             .map_err(|e| AppError::msg(format!("无法启动命令：{e}")))?;
-        let session = RunSession {
-            id: id.clone(),
-            project_id,
-            project_name,
-            target_id: target.id,
-            target_name: target.name,
-            cwd: cwd.to_string_lossy().to_string(),
-            command: target.command,
-            status: "running".into(),
-            started_at: Utc::now().timestamp(),
-            ended_at: None,
-            exit_code: None,
-            output: Vec::new(),
-            output_truncated: false,
-        };
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
         {
             let mut state = self.state.lock();
-            state.sessions.insert(id.clone(), session.clone());
-            state.children.insert(id.clone(), child);
-        }
-        self.emit(
-            &app,
-            &id,
-            "status",
-            None,
-            "i18n:activity:backend.commandStarted",
-        );
-        if let Some(stdout) = stdout {
-            self.read_stream(app.clone(), id.clone(), "stdout", stdout);
-        }
-        if let Some(stderr) = stderr {
-            self.read_stream(app.clone(), id.clone(), "stderr", stderr);
-        }
-        self.watch_exit(app, id);
-        Ok(session)
-    }
-
-    pub fn stop(&self, app: &AppHandle, id: &str) -> AppResult<()> {
-        let pid = {
-            let mut state = self.state.lock();
-            let pid = state
-                .children
-                .get(id)
-                .map(Child::id)
-                .ok_or_else(|| AppError::msg("运行会话已结束"))?;
-            let session = state
-                .sessions
-                .get_mut(id)
-                .ok_or_else(|| AppError::msg("未找到运行会话"))?;
-            session.status = "stopping".into();
-            pid
-        };
-        let result = unsafe { libc::kill(-(pid as i32), libc::SIGTERM) };
-        if result == -1 {
-            return Err(AppError::msg(format!(
-                "无法停止命令：{}",
-                std::io::Error::last_os_error()
-            )));
+            if let Some(session) = state.sessions.get_mut(id) {
+                session.status = "running".into();
+            }
+            state.children.insert(id.to_string(), child);
         }
         self.emit(
             app,
             id,
             "status",
             None,
-            "i18n:activity:backend.commandStopping",
+            Some("running"),
+            "i18n:activity:backend.commandStarted",
         );
+        if let Some(stdout) = stdout {
+            self.read_stream(app.clone(), id.to_string(), "stdout", stdout);
+        }
+        if let Some(stderr) = stderr {
+            self.read_stream(app.clone(), id.to_string(), "stderr", stderr);
+        }
+        self.watch_exit(app.clone(), id.to_string());
         Ok(())
+    }
+
+    fn promote_next(&self, app: &AppHandle) {
+        let next_id = {
+            let state = self.state.lock();
+            if state
+                .sessions
+                .values()
+                .any(|session| is_active_command_status(&session.status))
+            {
+                return;
+            }
+            state.queue.first().cloned()
+        };
+        let Some(next_id) = next_id else {
+            return;
+        };
+        {
+            let mut state = self.state.lock();
+            state.queue.retain(|queued_id| queued_id != &next_id);
+        }
+        if let Err(err) = self.spawn_pending(app, &next_id) {
+            if let Some(session) = self.state.lock().sessions.get_mut(&next_id) {
+                session.status = "failed".into();
+                session.ended_at = Some(Utc::now().timestamp());
+            }
+            self.emit(app, &next_id, "error", None, Some("failed"), &err.to_string());
+            self.promote_next(app);
+        }
     }
 
     pub fn stop_all(&self) {
         let ids: Vec<_> = self.state.lock().children.keys().cloned().collect();
         for id in ids {
             let _ = self.stop_all_one(&id);
+        }
+        let mut state = self.state.lock();
+        let queued = std::mem::take(&mut state.queue);
+        for id in queued {
+            state.pending.remove(&id);
+            if let Some(session) = state.sessions.get_mut(&id) {
+                session.status = "stopped".into();
+                session.ended_at = Some(Utc::now().timestamp());
+            }
         }
     }
 
@@ -176,6 +313,7 @@ impl RunManager {
                             &id,
                             "error",
                             Some(stream),
+                            Some("failed"),
                             &format!("读取输出失败：{err}"),
                         );
                         break;
@@ -208,22 +346,23 @@ impl RunManager {
             match status {
                 None => thread::sleep(Duration::from_millis(250)),
                 Some(Ok(exit)) => {
-                    let was_stopping = {
+                    let (was_stopping, final_status) = {
                         let mut state = manager.state.lock();
                         let Some(session) = state.sessions.get_mut(&id) else {
                             return;
                         };
                         let stopping = session.status == "stopping";
-                        session.status = if stopping {
-                            "stopped".into()
+                        let final_status = if stopping {
+                            "stopped"
                         } else if exit.success() {
-                            "exited".into()
+                            "exited"
                         } else {
-                            "failed".into()
+                            "failed"
                         };
+                        session.status = final_status.into();
                         session.ended_at = Some(Utc::now().timestamp());
                         session.exit_code = exit.code();
-                        stopping
+                        (stopping, final_status.to_string())
                     };
                     let message = if was_stopping {
                         "命令已停止".into()
@@ -265,7 +404,15 @@ impl RunManager {
                         .code()
                         .map(|value| value.to_string())
                         .unwrap_or_else(|| "—".into());
-                    manager.emit_exit(&app, &id, was_stopping || exit.success(), key, code);
+                    manager.emit_exit(
+                        &app,
+                        &id,
+                        was_stopping || exit.success(),
+                        key,
+                        code,
+                        Some(&final_status),
+                    );
+                    manager.promote_next(&app);
                     return;
                 }
                 Some(Err(err)) => {
@@ -282,7 +429,8 @@ impl RunManager {
                             error: Some(message.clone()),
                         },
                     );
-                    manager.emit(&app, &id, "error", None, &message);
+                    manager.emit(&app, &id, "error", None, Some("failed"), &message);
+                    manager.promote_next(&app);
                     return;
                 }
             }
@@ -304,10 +452,18 @@ impl RunManager {
                 text: text.clone(),
             });
         }
-        self.emit(app, id, "output", Some(stream), &text);
+        self.emit(app, id, "output", Some(stream), None, &text);
     }
 
-    fn emit(&self, app: &AppHandle, id: &str, kind: &str, stream: Option<&str>, text: &str) {
+    fn emit(
+        &self,
+        app: &AppHandle,
+        id: &str,
+        kind: &str,
+        stream: Option<&str>,
+        status: Option<&str>,
+        text: &str,
+    ) {
         let (text, message) = if let Some(key) = text.strip_prefix("i18n:") {
             (
                 None,
@@ -328,11 +484,20 @@ impl RunManager {
                 text,
                 message,
                 success: None,
+                status: status.map(str::to_string),
             },
         );
     }
 
-    fn emit_exit(&self, app: &AppHandle, id: &str, success: bool, key: &str, code: String) {
+    fn emit_exit(
+        &self,
+        app: &AppHandle,
+        id: &str,
+        success: bool,
+        key: &str,
+        code: String,
+        status: Option<&str>,
+    ) {
         let mut params = std::collections::HashMap::new();
         params.insert("code".into(), serde_json::Value::String(code));
         let _ = app.emit(
@@ -347,6 +512,7 @@ impl RunManager {
                     params,
                 }),
                 success: Some(success),
+                status: status.map(str::to_string),
             },
         );
     }

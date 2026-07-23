@@ -2,11 +2,15 @@
   "center": {
     "title": "运行中心", "aria": "运行中心", "show": "显示运行中心", "hide": "隐藏运行中心", "resize": "调整运行中心宽度",
     "copyAll": "复制全部", "empty": "还没有运行中的会话。", "waiting": "正在等待输出…",
+    "queuedWaiting": "排队中：当前有命令在运行，将于结束后自动启动。",
+    "cancelQueue": "取消排队", "activeSection": "进行中", "finishedSection": "已结束",
+    "sortActiveHint": "按开始时间 · 旧→新", "sortFinishedHint": "按结束时间 · 新→旧",
+    "queueBadge": "排队中 · #{{n}}", "pendingConfirm": "待确认",
     "showLogs": "查看完整日志（{{count}} 行）", "hideLogs": "收起日志", "exitCode": "退出码 {{code}}",
     "runStarted": "已在运行中心启动，输出会实时显示。", "runRestarted": "已在运行中心重新启动。",
     "runCopied": "运行信息已复制", "copyFailed": "复制失败，请手动选择文本", "targetsSaved": "已保存 {{count}} 个启动目标"
   },
-  "runStatus": { "starting": "启动中", "running": "运行中", "stopping": "停止中", "stopped": "已停止", "exited": "已结束", "failed": "运行失败" },
+  "runStatus": { "starting": "启动中", "running": "运行中", "stopping": "停止中", "queued": "排队中", "stopped": "已停止", "exited": "已结束", "failed": "运行失败" },
   "transcript": { "status": "状态", "thinking": "思考", "assistant": "AI", "log": "日志", "error": "错误" },
   "backend": {
     "readingProject": "正在读取项目信息…", "collectingChanges": "正在汇总全部 Changes…", "generatingCommit": "AI 正在生成 Commit message…",
@@ -18,8 +22,8 @@
     "codexStarted": "Codex 任务已开始…", "codexTurnDone": "Codex 回合完成…", "startingCursor": "正在启动 Cursor Agent CLI…",
     "cursorAnalyzing": "Cursor Agent 正在分析项目…", "cursorFinishing": "Cursor Agent 已完成，正在整理结果…",
     "requestSent": "已发送分析请求…", "thinkingDone": "思考完成，正在生成建议…", "analysisDone": "分析完成",
-    "commandStarted": "命令已启动", "commandStopping": "正在停止命令…", "commandStopped": "命令已停止", "commandFinished": "命令已结束",
-    "commandFailed": "命令异常结束（退出码 {{code}}）"
+    "commandStarted": "命令已启动", "commandQueued": "命令已加入排队", "commandStopping": "正在停止命令…", "commandStopped": "命令已停止", "commandFinished": "命令已结束",
+    "commandFailed": "命令异常结束（退出码 {{code}}）", "commandQueueCancelled": "已取消排队"
   },
   "ai": {
     "copy": "复制 AI 运行过程", "copyTitle": "复制整段 AI 过程", "close": "关闭会话", "cancelled": "已取消",

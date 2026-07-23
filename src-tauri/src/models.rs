@@ -43,7 +43,7 @@ pub struct RunSession {
     pub target_name: String,
     pub cwd: String,
     pub command: String,
-    /// starting | running | stopping | exited | failed | stopped
+    /// queued | starting | running | stopping | exited | failed | stopped
     pub status: String,
     pub started_at: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -69,6 +69,9 @@ pub struct RunProgressEvent {
     pub message: Option<LocalizedMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub success: Option<bool>,
+    /// 会话状态快照：queued | running | stopping | exited | failed | stopped
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
 }
 
 fn is_false(v: &bool) -> bool {

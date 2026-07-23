@@ -8,6 +8,14 @@
     "copyAll": "Copy all",
     "empty": "No active sessions.",
     "waiting": "Waiting for output…",
+    "queuedWaiting": "Queued: another command is running. This will start automatically when it finishes.",
+    "cancelQueue": "Cancel queue",
+    "activeSection": "In progress",
+    "finishedSection": "Finished",
+    "sortActiveHint": "By start time · oldest → newest",
+    "sortFinishedHint": "By end time · newest → oldest",
+    "queueBadge": "Queued · #{{n}}",
+    "pendingConfirm": "Awaiting confirmation",
     "showLogs": "View full log ({{count}} lines)",
     "hideLogs": "Collapse log",
     "exitCode": "Exit code {{code}}",
@@ -21,6 +29,7 @@
     "starting": "Starting",
     "running": "Running",
     "stopping": "Stopping",
+    "queued": "Queued",
     "stopped": "Stopped",
     "exited": "Finished",
     "failed": "Failed"
@@ -36,8 +45,8 @@
     "codexStarted": "Codex task started…", "codexTurnDone": "Codex turn completed…", "startingCursor": "Starting Cursor Agent CLI…",
     "cursorAnalyzing": "Cursor Agent is analyzing the project…", "cursorFinishing": "Cursor Agent finished; preparing the result…",
     "requestSent": "Analysis request sent…", "thinkingDone": "Thinking complete; generating suggestions…", "analysisDone": "Analysis complete",
-    "commandStarted": "Command started", "commandStopping": "Stopping command…", "commandStopped": "Command stopped", "commandFinished": "Command finished",
-    "commandFailed": "Command exited with code {{code}}"
+    "commandStarted": "Command started", "commandQueued": "Command queued", "commandStopping": "Stopping command…", "commandStopped": "Command stopped", "commandFinished": "Command finished",
+    "commandFailed": "Command exited with code {{code}}", "commandQueueCancelled": "Queue entry cancelled"
   },
   "ai": {
     "copy": "Copy AI run",

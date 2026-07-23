@@ -75,7 +75,7 @@ fn wait_then_install(
             return;
         };
         match session.status.as_str() {
-            "running" | "stopping" | "starting" => continue,
+            "queued" | "running" | "stopping" | "starting" => continue,
             "exited" if session.exit_code == Some(0) => break,
             _ => return,
         }
@@ -122,6 +122,7 @@ impl UpgradeEmit for AppHandle {
                 text: Some(text.into()),
                 message: None,
                 success: None,
+                status: None,
             },
         )
     }

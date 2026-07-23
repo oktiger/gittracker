@@ -22,7 +22,7 @@ export interface RunSession {
   targetName: string;
   cwd: string;
   command: string;
-  status: "starting" | "running" | "stopping" | "exited" | "failed" | "stopped" | string;
+  status: "starting" | "running" | "stopping" | "queued" | "exited" | "failed" | "stopped" | string;
   startedAt: number;
   endedAt?: number | null;
   exitCode?: number | null;
@@ -37,6 +37,7 @@ export interface RunProgressEvent {
   text?: string;
   message?: LocalizedMessage;
   success?: boolean;
+  status?: string | null;
 }
 
 export interface ProjectRecord {
