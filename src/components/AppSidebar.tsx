@@ -2,8 +2,8 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarCheck2,
-  ChevronsLeft,
   LayoutGrid,
+  PanelLeft,
   ScrollText,
   Settings,
   Target,
@@ -75,7 +75,7 @@ export function AppSidebar({
           </div>
           <div className="flex items-center gap-0.5">
             <Button type="button" variant="ghost" size="icon-sm" onClick={onCollapse} aria-label={t("navigation:collapse")} title={t("navigation:collapse")}>
-              <ChevronsLeft className="h-4 w-4" />
+              <PanelLeft className="h-4 w-4" />
             </Button>
             <Button type="button" variant="ghost" size="icon-sm" onClick={onBack} disabled={!canGoBack} aria-label={t("common:window.back")} title={t("common:window.back")}>
               <ArrowLeft className="h-4 w-4" />

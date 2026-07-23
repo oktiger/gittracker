@@ -678,6 +678,55 @@ pub fn clear_log_diary() -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn delete_log_diary(id: String) -> AppResult<bool> {
+    log_diary::delete_log(&id)
+}
+
+/// 解析 `HH:MM`；非法时回退到 00:00。
+fn parse_daily_completion_hm(raw: &str) -> (u32, u32) {
+    let mut parts = raw.trim().split(':');
+    let hour = parts
+        .next()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|value| *value <= 23)
+        .unwrap_or(0);
+    let minute = parts
+        .next()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|value| *value <= 59)
+        .unwrap_or(0);
+    (hour, minute)
+}
+
+/// 以设定的每日总结时间为极点，取最近一个已结束日界对应的过去 24 小时。
+/// 例如设定 01:00：在 01:00 及之后，窗口为「昨日 01:00 → 今日 01:00」。
+fn daily_completion_window(
+    now: chrono::DateTime<chrono::Local>,
+    daily_time: &str,
+) -> (String, String, String) {
+    use chrono::{Duration, NaiveTime};
+
+    let (hour, minute) = parse_daily_completion_hm(daily_time);
+    let pole_time =
+        NaiveTime::from_hms_opt(hour, minute, 0).unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+    let today = now.date_naive();
+    let pole_today = today.and_time(pole_time);
+    let now_naive = now.naive_local();
+    let until = if now_naive >= pole_today {
+        pole_today
+    } else {
+        pole_today - Duration::days(1)
+    };
+    let since = until - Duration::hours(24);
+    let git_fmt = "%Y-%m-%d %H:%M:%S";
+    (
+        since.format(git_fmt).to_string(),
+        until.format(git_fmt).to_string(),
+        until.format("%Y/%m/%d").to_string(),
+    )
+}
+
+#[tauri::command]
 pub async fn generate_daily_completion(
     app: AppHandle,
     period: String,
@@ -691,20 +740,25 @@ pub async fn generate_daily_completion(
         let now = Local::now();
         let today = now.date_naive();
 
-        // 自动与手动「本日」走同一流程：总结日当天 00:00 → 当前时刻；标题为 YYYY/MM/DD。
+        // 自动与手动「本日」同一流程：以设定时间为极点，取过去 24 小时；标题为极点日 YYYY/MM/DD。
         let (period_label, since, until, title) = match period.as_str() {
-            "today" => (
-                if locale.is_zh() { "今天" } else { "today" },
-                "midnight",
-                None,
-                today.format("%Y/%m/%d").to_string(),
-            ),
+            "today" => {
+                let settings = store::get_settings()?;
+                let (since, until, title) =
+                    daily_completion_window(now, &settings.daily_completion_time);
+                (
+                    if locale.is_zh() { "今天" } else { "today" },
+                    since,
+                    Some(until),
+                    title,
+                )
+            }
             "week" => {
                 let weekday = today.weekday().num_days_from_monday() as i64;
                 let week_start = today - Duration::days(weekday);
                 (
                     if locale.is_zh() { "本周" } else { "this week" },
-                    "monday",
+                    "monday".to_string(),
                     None,
                     format!("{} – {}", week_start.format("%Y/%m/%d"), today.format("%Y/%m/%d")),
                 )
@@ -717,7 +771,7 @@ pub async fn generate_daily_completion(
                     } else {
                         "the past 7 days"
                     },
-                    "7 days ago",
+                    "7 days ago".to_string(),
                     None,
                     format!("{} – {}", start.format("%Y/%m/%d"), today.format("%Y/%m/%d")),
                 )
@@ -728,7 +782,7 @@ pub async fn generate_daily_completion(
         progress("status", "i18n:activity:backend.collectingCommits");
         let mut blocks = Vec::new();
         for project in store::list_projects()? {
-            match git::commit_subjects_since(Path::new(&project.path), since, until) {
+            match git::commit_subjects_since(Path::new(&project.path), &since, until.as_deref()) {
                 Ok(subjects) if !subjects.is_empty() => {
                     let mut block = Vec::with_capacity(subjects.len() + 1);
                     if locale.is_zh() {
@@ -749,4 +803,46 @@ pub async fn generate_daily_completion(
     })
     .await
     .map_err(|e| AppError::msg(format!("总结任务中断：{e}")))?
+}
+
+#[cfg(test)]
+mod daily_completion_window_tests {
+    use super::{daily_completion_window, parse_daily_completion_hm};
+    use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+
+    fn at(date: NaiveDate, hour: u32, minute: u32) -> chrono::DateTime<Local> {
+        let naive = NaiveDateTime::new(
+            date,
+            NaiveTime::from_hms_opt(hour, minute, 0).expect("valid time"),
+        );
+        Local
+            .from_local_datetime(&naive)
+            .single()
+            .expect("local datetime")
+    }
+
+    #[test]
+    fn parse_hhmm_defaults_invalid_to_midnight() {
+        assert_eq!(parse_daily_completion_hm("01:30"), (1, 30));
+        assert_eq!(parse_daily_completion_hm("25:00"), (0, 0));
+        assert_eq!(parse_daily_completion_hm("bad"), (0, 0));
+    }
+
+    #[test]
+    fn window_uses_configured_pole_for_past_24_hours() {
+        let day = NaiveDate::from_ymd_opt(2026, 7, 23).unwrap();
+        let (since, until, title) = daily_completion_window(at(day, 1, 5), "01:00");
+        assert_eq!(since, "2026-07-22 01:00:00");
+        assert_eq!(until, "2026-07-23 01:00:00");
+        assert_eq!(title, "2026/07/23");
+    }
+
+    #[test]
+    fn window_before_pole_uses_previous_day_boundary() {
+        let day = NaiveDate::from_ymd_opt(2026, 7, 23).unwrap();
+        let (since, until, title) = daily_completion_window(at(day, 0, 30), "01:00");
+        assert_eq!(since, "2026-07-21 01:00:00");
+        assert_eq!(until, "2026-07-22 01:00:00");
+        assert_eq!(title, "2026/07/22");
+    }
 }

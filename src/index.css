@@ -86,10 +86,28 @@
     height: 100%;
   }
 
+  html {
+    background: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background: transparent;
     font-family: var(--font-sans);
     margin: 0;
     overflow: hidden;
+    border-radius: 12px;
+  }
+
+  /* Frameless macOS window: clip content to rounded corners (square when maximized). */
+  #root {
+    @apply bg-background;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  html.window-maximized body,
+  html.window-maximized #root {
+    border-radius: 0;
   }
 }

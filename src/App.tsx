@@ -160,7 +160,7 @@ function App() {
         const key = "gittracker.daily-completion.last-run";
         if (time < settings.dailyCompletionTime || localStorage.getItem(key) === today) return;
         localStorage.setItem(key, today);
-        // 与手动「本日做了什么」同一流程：当天 00:00 → 触发时刻。
+        // 与手动「本日做了什么」同一流程：以设定时间为极点，过去 24 小时。
         openAiSession({ kind: "dailyCompletion", period: "today", automatic: true });
       } catch {
         /* 下次轮询重试；不打断主界面 */
@@ -529,6 +529,7 @@ function App() {
               <DailyCompletionPage
                 entries={logDiary.entries}
                 onToast={showToast}
+                onDelete={logDiary.remove}
                 onGenerate={(period, onResult, onComplete) =>
                   openAiSession({ kind: "dailyCompletion", period, onResult, onComplete })
                 }

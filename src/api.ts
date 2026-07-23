@@ -125,6 +125,7 @@ export const api = {
     invoke<LogDiaryEntry | null>("update_log_diary_by_run_session", { entry }),
   reconcileLogDiary: () => invoke<LogDiaryEntry[]>("reconcile_log_diary"),
   clearLogDiary: () => invoke<void>("clear_log_diary"),
+  deleteLogDiary: (id: string) => invoke<boolean>("delete_log_diary", { id }),
   generateDailyCompletion: (
     period: "today" | "week" | "sevenDays",
     sessionId: string,

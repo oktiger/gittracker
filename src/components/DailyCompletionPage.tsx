@@ -5,6 +5,7 @@ import type { AppSettings, LogDiaryEntry } from "../types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -22,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -30,7 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { formatBackendError } from "../i18n";
 import { formatLogTime } from "../lib/logDiaryFormat";
 import { useLanguage } from "../contexts/LanguageContext";
-import { Copy, ImageIcon, MoreHorizontal } from "lucide-react";
+import { Copy, ImageIcon, MoreHorizontal, Trash2 } from "lucide-react";
 
 type Period = "today" | "week" | "sevenDays";
 
@@ -108,6 +110,7 @@ function buildShareImage(title: string, summary: string, footer: string, qr: str
 interface Props {
   entries: LogDiaryEntry[];
   onToast: (message: string) => void;
+  onDelete: (id: string) => Promise<boolean>;
   onGenerate: (
     period: Period,
     onResult: (result: { title: string; body: string }) => void,
@@ -115,7 +118,7 @@ interface Props {
   ) => void;
 }
 
-export function DailyCompletionPage({ entries, onToast, onGenerate }: Props) {
+export function DailyCompletionPage({ entries, onToast, onDelete, onGenerate }: Props) {
   const { t } = useTranslation(["projects", "common", "errors"]);
   const { language } = useLanguage();
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -171,7 +174,7 @@ export function DailyCompletionPage({ entries, onToast, onGenerate }: Props) {
   const handleSwitchChange = (checked: boolean) => {
     if (!settings || saving) return;
     if (checked) {
-      setDraftTime(DEFAULT_DAILY_TIME);
+      setDraftTime(settings.dailyCompletionTime || DEFAULT_DAILY_TIME);
       setPendingEnable(true);
       return;
     }
@@ -208,10 +211,28 @@ export function DailyCompletionPage({ entries, onToast, onGenerate }: Props) {
 
   const copyText = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error("clipboard unavailable");
+      }
       onToast(t("projects:daily.copied"));
     } catch {
-      onToast(t("projects:daily.copyFailed"));
+      try {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.left = "-9999px";
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(area);
+        if (!ok) throw new Error("execCommand copy failed");
+        onToast(t("projects:daily.copied"));
+      } catch {
+        onToast(t("projects:daily.copyFailed"));
+      }
     }
   };
 
@@ -229,6 +250,16 @@ export function DailyCompletionPage({ entries, onToast, onGenerate }: Props) {
     link.download = `git-tracker-${imageDialog.title.replace(/\s+/g, "-")}.svg`;
     link.click();
     onToast(t("projects:daily.imageSaved"));
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm(t("projects:daily.deleteConfirm"))) return;
+    try {
+      const deleted = await onDelete(id);
+      onToast(deleted ? t("projects:daily.deleted") : t("projects:daily.deleteFailed"));
+    } catch (error) {
+      onToast(formatBackendError(error, t));
+    }
   };
 
   return (
@@ -335,36 +366,49 @@ export function DailyCompletionPage({ entries, onToast, onGenerate }: Props) {
             const body = normalizeBody(entry.detail);
             return (
               <Card key={entry.id} className="gap-0 py-4">
-                <CardHeader className="flex-row items-start justify-between gap-3 px-4 pb-3">
-                  <div className="min-w-0 space-y-1">
-                    <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                    <CardDescription className="text-xs">
-                      {formatLogTime(entry.createdAt, language)}
-                    </CardDescription>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="shrink-0"
-                        aria-label={t("projects:daily.moreActions")}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onClick={() => void copyText(body)}>
-                        <Copy className="size-4" />
-                        {t("projects:daily.copy")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openImageDialog(title, body)}>
-                        <ImageIcon className="size-4" />
-                        {t("projects:daily.generateImage")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <CardHeader className="px-4 pb-3">
+                  <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                  <CardDescription className="text-xs">
+                    {formatLogTime(entry.createdAt, language)}
+                  </CardDescription>
+                  <CardAction>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t("projects:daily.moreActions")}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            void copyText(body);
+                          }}
+                        >
+                          <Copy className="size-4" />
+                          {t("projects:daily.copy")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => openImageDialog(title, body)}>
+                          <ImageIcon className="size-4" />
+                          {t("projects:daily.generateImage")}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => {
+                            void handleDelete(entry.id);
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                          {t("projects:daily.delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardAction>
                 </CardHeader>
                 <CardContent className="px-4">
                   <pre className="select-text whitespace-pre-wrap text-sm text-muted-foreground">{body}</pre>

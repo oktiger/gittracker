@@ -161,3 +161,18 @@ pub fn reconcile_stale_running(active_session_ids: &[String]) -> AppResult<Vec<L
 pub fn clear_logs() -> AppResult<()> {
     save(&LogDiaryStore::default())
 }
+
+pub fn delete_log(id: &str) -> AppResult<bool> {
+    let id = id.trim();
+    if id.is_empty() {
+        return Err(AppError::msg("日志 id 不能为空"));
+    }
+    let mut store = load()?;
+    let before = store.entries.len();
+    store.entries.retain(|entry| entry.id != id);
+    if store.entries.len() == before {
+        return Ok(false);
+    }
+    save(&store)?;
+    Ok(true)
+}

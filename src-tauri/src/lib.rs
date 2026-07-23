@@ -79,6 +79,7 @@ pub fn run() {
             commands::update_log_diary_by_run_session,
             commands::reconcile_log_diary,
             commands::clear_log_diary,
+            commands::delete_log_diary,
             commands::generate_daily_completion,
         ])
         .setup(|app| {

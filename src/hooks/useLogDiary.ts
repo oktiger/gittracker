@@ -53,5 +53,13 @@ export function useLogDiary() {
     setEntries([]);
   }, []);
 
-  return { entries, loading, refresh, append, updateByRunSession, clear };
+  const remove = useCallback(async (id: string) => {
+    const deleted = await api.deleteLogDiary(id);
+    if (deleted) {
+      setEntries((prev) => prev.filter((entry) => entry.id !== id));
+    }
+    return deleted;
+  }, []);
+
+  return { entries, loading, refresh, append, updateByRunSession, clear, remove };
 }

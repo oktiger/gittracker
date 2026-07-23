@@ -244,7 +244,7 @@ pub struct AppSettings {
     /// 每日完成自动生成开关；默认关闭。
     #[serde(default)]
     pub daily_completion_enabled: bool,
-    /// 本地时间，格式 HH:MM。
+    /// 本地时间，格式 HH:MM。既是自动触发时刻，也是「本日」总结的 24 小时日界极点。
     #[serde(default = "default_daily_completion_time")]
     pub daily_completion_time: String,
     #[serde(default)]
