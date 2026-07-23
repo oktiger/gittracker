@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitTracker · 运行中心统一设计</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+            secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+            muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+            accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+            destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+            card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+            popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
+          },
+          borderRadius: {
+            lg: "var(--radius)",
+            md: "calc(var(--radius) - 2px)",
+            sm: "calc(var(--radius) - 4px)",
+          },
+          fontFamily: {
+            sans: ["Geist", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+            mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 240 10% 3.9%;
+      --primary: 240 5.9% 10%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 240 4.8% 95.9%;
+      --secondary-foreground: 240 5.9% 10%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --accent: 240 4.8% 95.9%;
+      --accent-foreground: 240 5.9% 10%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 5.9% 90%;
+      --input: 240 5.9% 90%;
+      --ring: 240 5.9% 10%;
+      --radius: 0.625rem;
+    }
+    .dark {
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 5.5%;
+      --card-foreground: 0 0% 98%;
+      --popover: 240 10% 5.5%;
+      --popover-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 240 5.9% 10%;
+      --secondary: 240 3.7% 15.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --accent: 240 3.7% 15.9%;
+      --accent-foreground: 0 0% 98%;
+      --destructive: 0 62.8% 50%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 3.7% 15.9%;
+      --input: 240 3.7% 15.9%;
+      --ring: 240 4.9% 83.9%;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-family: Geist, Inter, ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: hsl(var(--muted-foreground) / 0.25);
+      border-radius: 999px;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
+
+    .run-card {
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .run-card--running {
+      background: hsl(38 92% 50% / 0.07);
+      border-left: 3px solid hsl(38 92% 50% / 0.55);
+    }
+    .run-card--queued {
+      background: hsl(215 16% 47% / 0.08);
+      border-left: 3px solid hsl(215 16% 47% / 0.45);
+    }
+    .run-card--done {
+      background: hsl(160 84% 39% / 0.07);
+      border-left: 3px solid hsl(160 84% 39% / 0.45);
+    }
+    .run-card--stopped {
+      background: hsl(160 84% 39% / 0.05);
+      border-left: 3px solid hsl(160 84% 39% / 0.3);
+    }
+    .run-card--failed {
+      background: hsl(0 72% 51% / 0.08);
+      border-left: 3px solid hsl(0 72% 51% / 0.5);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      border: 1px solid;
+      padding: 1px 8px;
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .badge--running {
+      border-color: hsl(38 92% 50% / 0.35);
+      background: hsl(38 92% 50% / 0.12);
+      color: hsl(38 95% 65%);
+    }
+    .badge--queued {
+      border-color: hsl(215 16% 47% / 0.4);
+      background: hsl(215 16% 47% / 0.12);
+      color: hsl(215 20% 72%);
+    }
+    .badge--done {
+      border-color: hsl(160 84% 39% / 0.35);
+      background: hsl(160 84% 39% / 0.12);
+      color: hsl(160 70% 55%);
+    }
+    .badge--stopped {
+      border-color: hsl(160 84% 39% / 0.28);
+      background: hsl(160 84% 39% / 0.08);
+      color: hsl(160 40% 58%);
+    }
+    .badge--failed {
+      border-color: hsl(0 72% 51% / 0.35);
+      background: hsl(0 72% 51% / 0.12);
+      color: hsl(0 85% 68%);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 26px;
+      border-radius: calc(var(--radius) - 2px);
+      border: 1px solid hsl(var(--border));
+      background: transparent;
+      padding: 0 10px;
+      font-size: 11px;
+      color: hsl(var(--foreground));
+      cursor: default;
+    }
+    .btn:hover { background: hsl(var(--accent)); }
+    .btn-ghost {
+      border-color: transparent;
+      color: hsl(var(--muted-foreground));
+    }
+    .btn-ghost:hover { color: hsl(var(--foreground)); }
+    .btn-icon {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: hsl(var(--secondary));
+    }
+
+    .swatch {
+      width: 36px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid hsl(var(--border));
+    }
+  </style>
+</head>
+<body class="h-full overflow-hidden">
+  <div class="flex h-full flex-col">
+    <!-- 规则说明 -->
+    <section class="shrink-0 border-b border-border bg-card/60 px-5 py-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div class="text-sm font-semibold tracking-tight">运行中心 · 统一设计方案</div>
+          <p class="mt-0.5 text-xs text-muted-foreground">右侧 Sheet 为正式构图；命令串行排队 · 两段排序 · 统一状态底色 / Badge</p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-[11px]">
+          <span class="rounded-md border border-border bg-background px-2 py-1 text-muted-foreground">设计稿 · 非实现</span>
+          <span class="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-400">命令全局单飞</span>
+          <span class="rounded-md border border-border bg-background px-2 py-1 text-muted-foreground">AI 可并行 · 同款视觉</span>
+        </div>
+      </div>
+      <div class="mt-3 grid gap-2 sm:grid-cols-3">
+        <div class="rounded-md border border-border bg-background/80 px-3 py-2">
+          <div class="text-[11px] font-medium">① 排队</div>
+          <p class="mt-1 text-[11px] leading-relaxed text-muted-foreground">运行 / 升级 / 打包等命令全局串行。同时只跑一个；其余进入「排队中」，结束后自动启动队首。AI 不占命令队列。</p>
+        </div>
+        <div class="rounded-md border border-border bg-background/80 px-3 py-2">
+          <div class="text-[11px] font-medium">② 排序</div>
+          <p class="mt-1 text-[11px] leading-relaxed text-muted-foreground">进行中在上：按你点「执行」的时间 <b class="font-medium text-foreground">旧→新</b>。已结束在下：按完成 / 失败 / 停止的时间 <b class="font-medium text-foreground">新→旧</b>。</p>
+        </div>
+        <div class="rounded-md border border-border bg-background/80 px-3 py-2">
+          <div class="text-[11px] font-medium">③ 视觉</div>
+          <p class="mt-1 text-[11px] leading-relaxed text-muted-foreground">所有入口进运行中心后共用同一卡片骨架：状态 Badge + 极浅状态底色 + 左边框色条。命令与 AI 不再两套样式。</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="flex min-h-0 flex-1">
+      <!-- 左侧：说明与色板 -->
+      <div class="flex min-w-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
+        <header class="flex items-center justify-between border-b border-border px-5 py-3">
+          <div>
+            <h1 class="text-base font-semibold tracking-tight">看板</h1>
+            <p class="text-xs text-muted-foreground">示意：从项目卡「运行 / 升级 / 打包」或 AI 入口进入运行中心</p>
+          </div>
+          <button type="button" class="btn btn-icon relative" title="运行中心（有运行中）">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+            <span class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span>
+          </button>
+        </header>
+
+        <div class="space-y-4 p-5">
+          <section>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">状态色板</h2>
+            <div class="mt-2 overflow-hidden rounded-lg border border-border">
+              <table class="w-full text-left text-xs">
+                <thead class="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th class="px-3 py-2 font-medium">状态</th>
+                    <th class="px-3 py-2 font-medium">Badge</th>
+                    <th class="px-3 py-2 font-medium">卡片底色</th>
+                    <th class="px-3 py-2 font-medium">用于</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  <tr>
+                    <td class="px-3 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <span class="swatch run-card--running"></span>
+                        <span>运行中</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2.5"><span class="badge badge--running"><span class="h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span>运行中</span></td>
+                    <td class="px-3 py-2.5 font-mono text-[10px] text-muted-foreground">amber / 7%</td>
+                    <td class="px-3 py-2.5 text-muted-foreground">命令 running · AI 进行中 · starting / stopping</td>
+                  </tr>
+                  <tr>
+                    <td class="px-3 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <span class="swatch run-card--queued"></span>
+                        <span>排队中</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2.5"><span class="badge badge--queued">排队中 · #1</span></td>
+                    <td class="px-3 py-2.5 font-mono text-[10px] text-muted-foreground">slate / 8%</td>
+                    <td class="px-3 py-2.5 text-muted-foreground">命令等待执行（仅命令队列）</td>
+                  </tr>
+                  <tr>
+                    <td class="px-3 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <span class="swatch run-card--done"></span>
+                        <span>已结束</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2.5"><span class="badge badge--done">已结束</span></td>
+                    <td class="px-3 py-2.5 font-mono text-[10px] text-muted-foreground">emerald / 7%</td>
+                    <td class="px-3 py-2.5 text-muted-foreground">命令 exited · AI 完成</td>
+                  </tr>
+                  <tr>
+                    <td class="px-3 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <span class="swatch run-card--stopped"></span>
+                        <span>已停止</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2.5"><span class="badge badge--stopped">已停止</span></td>
+                    <td class="px-3 py-2.5 font-mono text-[10px] text-muted-foreground">emerald / 5%</td>
+                    <td class="px-3 py-2.5 text-muted-foreground">用户主动停止</td>
+                  </tr>
+                  <tr>
+                    <td class="px-3 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <span class="swatch run-card--failed"></span>
+                        <span>失败</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2.5"><span class="badge badge--failed">运行失败</span></td>
+                    <td class="px-3 py-2.5 font-mono text-[10px] text-muted-foreground">destructive / 8%</td>
+                    <td class="px-3 py-2.5 text-muted-foreground">命令 / AI 失败</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">列表示意</h2>
+            <div class="mt-2 grid gap-3 sm:grid-cols-2">
+              <div class="rounded-lg border border-border bg-card p-3">
+                <div class="mb-2 flex items-center justify-between">
+                  <span class="text-xs font-medium">进行中 · 置顶</span>
+                  <span class="text-[10px] text-muted-foreground">执行时间 · 旧 → 新</span>
+                </div>
+                <ol class="space-y-1.5 text-[11px] text-muted-foreground">
+                  <li class="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/[0.06] px-2 py-1.5">
+                    <span class="badge badge--running"><span class="h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span>运行中</span>
+                    <span class="text-foreground">一键提交（AI）· 点执行 16:00</span>
+                  </li>
+                  <li class="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/[0.06] px-2 py-1.5">
+                    <span class="badge badge--running"><span class="h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span>运行中</span>
+                    <span class="text-foreground">启动开发 · 点执行 16:01</span>
+                  </li>
+                  <li class="flex items-center gap-2 rounded-md border border-slate-500/20 bg-slate-500/[0.06] px-2 py-1.5">
+                    <span class="badge badge--queued">排队 · #1</span>
+                    <span class="text-foreground">升级 APP · 点执行 16:02</span>
+                  </li>
+                  <li class="flex items-center gap-2 rounded-md border border-slate-500/20 bg-slate-500/[0.06] px-2 py-1.5">
+                    <span class="badge badge--queued">排队 · #2</span>
+                    <span class="text-foreground">打包 APP · 点执行 16:03</span>
+                  </li>
+                </ol>
+                <p class="mt-2 text-[10px] leading-relaxed text-muted-foreground">以你确认执行的时间为准，旧的在上、新的在下；命令「运行中」全局最多一条。</p>
+              </div>
+              <div class="rounded-lg border border-border bg-card p-3">
+                <div class="mb-2 flex items-center justify-between">
+                  <span class="text-xs font-medium">已结束 · 置底</span>
+                  <span class="text-[10px] text-muted-foreground">结束时间 · 新 → 旧</span>
+                </div>
+                <ol class="space-y-1.5 text-[11px] text-muted-foreground">
+                  <li class="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] px-2 py-1.5">
+                    <span class="badge badge--done">已结束</span>
+                    <span class="text-foreground">识别启动方式 · 完成 15:59</span>
+                  </li>
+                  <li class="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/[0.06] px-2 py-1.5">
+                    <span class="badge badge--failed">运行失败</span>
+                    <span class="text-foreground">打包 APP · 失败 15:52</span>
+                  </li>
+                  <li class="flex items-center gap-2 rounded-md border border-emerald-500/15 bg-emerald-500/[0.04] px-2 py-1.5">
+                    <span class="badge badge--stopped">已停止</span>
+                    <span class="text-foreground">启动开发 · 停止 15:42</span>
+                  </li>
+                </ol>
+                <p class="mt-2 text-[10px] leading-relaxed text-muted-foreground">按完成 / 失败 / 停止的最终时间倒序；刚结束的永远更靠上。</p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">空状态</h2>
+            <div class="mt-2 flex max-w-md flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/40 px-6 py-10 text-center">
+              <p class="text-sm text-muted-foreground">还没有运行中的会话。</p>
+              <p class="mt-1 text-[11px] text-muted-foreground">从项目卡选择运行目标，或触发 AI 任务后会出现在这里。</p>
+            </div>
+          </section>
+
+          <section class="pb-6">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">统一卡片骨架</h2>
+            <pre class="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">┌─────────────────────────────────────┐
+│ 标题（目标名 / AI 标题）    [状态Badge] │
+│ 副标题：项目 · 路径 / AI 说明           │
+├─────────────────────────────────────┤
+│ 命令行 或 AI 过程摘要（muted）         │
+├─────────────────────────────────────┤
+│ 输出 / 过程（默认可折叠）               │
+├─────────────────────────────────────┤
+│ 次要操作          [停止|重新运行|关闭]   │
+└─────────────────────────────────────┘</pre>
+          </section>
+        </div>
+      </div>
+
+      <!-- 右侧：运行中心 Sheet -->
+      <aside class="flex w-full max-w-md shrink-0 flex-col border-l border-border bg-background shadow-xl" aria-label="运行中心">
+        <header class="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
+          <div class="flex min-w-0 items-center gap-2">
+            <h2 class="truncate text-sm font-semibold">运行中心</h2>
+            <button type="button" class="btn">复制全部</button>
+          </div>
+          <button type="button" class="btn btn-icon" title="隐藏运行中心" aria-label="隐藏运行中心">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+          </button>
+        </header>
+
+        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 scrollbar-thin">
+          <div class="flex items-center gap-2 px-0.5">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">进行中</span>
+            <span class="h-px flex-1 bg-border"></span>
+            <span class="text-[10px] text-muted-foreground">点执行时间 · 旧→新</span>
+          </div>
+
+          <!-- AI · 进行中 · 最早点执行 -->
+          <article class="run-card run-card--running">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">一键提交</div>
+                <div class="break-all text-xs text-muted-foreground">gittracker · AI → Commit → Push</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--running"><span class="h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span>运行中</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <div class="border-b border-border/60 bg-black/10 px-3 py-2 text-[11px] text-muted-foreground">正在推送到远程…</div>
+            <pre class="max-h-36 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">[状态] 已发送分析请求…
+[思考] 汇总 12 个文件变更…
+[AI] 建议 message：42.feat: 统一运行中心状态展示
+[日志] 正在创建 Commit 快照…</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">点执行 16:00</span>
+              <div class="flex items-center gap-2">
+                <button type="button" class="btn btn-ghost">查看 AI 过程（9 条）</button>
+                <button type="button" class="btn">停止</button>
+              </div>
+            </div>
+          </article>
+
+          <!-- 启动开发 · 运行中 -->
+          <article class="run-card run-card--running">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">启动开发</div>
+                <div class="break-all text-xs text-muted-foreground">docs-site · /Users/…/docs-site</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--running"><span class="h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span>运行中</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <code class="block break-all border-b border-border/60 bg-black/10 px-3 py-2 font-mono text-[11px] text-muted-foreground">npm run dev</code>
+            <pre class="max-h-36 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">[stdout] &gt; docs-site@1.0.0 dev
+[stdout] VITE v6.0.0  ready in 312 ms
+[stdout] ➜  Local:   http://localhost:5173/
+[stderr] warn: unused env DEV_PORT</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">点执行 16:01</span>
+              <div class="flex items-center gap-2">
+                <button type="button" class="btn btn-ghost">查看完整日志（48 行）</button>
+                <button type="button" class="btn">停止</button>
+              </div>
+            </div>
+          </article>
+
+          <!-- 升级 · 排队 #1 -->
+          <article class="run-card run-card--queued">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">升级 APP</div>
+                <div class="break-all text-xs text-muted-foreground">gittracker · /Users/…/gittracker</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--queued">排队中 · #1</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <code class="block break-all border-b border-border/60 bg-black/10 px-3 py-2 font-mono text-[11px] text-muted-foreground">__self_upgrade__</code>
+            <pre class="max-h-24 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">排队中：当前有命令在运行，将于结束后启动。</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">点执行 16:02</span>
+              <button type="button" class="btn btn-ghost">取消排队</button>
+            </div>
+          </article>
+
+          <!-- 打包 · 排队 #2 · 最新点执行 -->
+          <article class="run-card run-card--queued">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">打包 APP</div>
+                <div class="break-all text-xs text-muted-foreground">hero-base · /Users/…/hero-base</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--queued">排队中 · #2</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <code class="block break-all border-b border-border/60 bg-black/10 px-3 py-2 font-mono text-[11px] text-muted-foreground">npm run build:app</code>
+            <pre class="max-h-24 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">等待前序任务结束后自动启动…</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">点执行 16:03</span>
+              <button type="button" class="btn btn-ghost">取消排队</button>
+            </div>
+          </article>
+
+          <div class="flex items-center gap-2 px-0.5 pt-2">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">已结束</span>
+            <span class="h-px flex-1 bg-border"></span>
+            <span class="text-[10px] text-muted-foreground">结束时间 · 新→旧</span>
+          </div>
+
+          <!-- AI · 已结束 · 最近完成 -->
+          <article class="run-card run-card--done">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">AI 识别启动方式</div>
+                <div class="break-all text-xs text-muted-foreground">docs-site · 建议启动目标</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--done">已结束</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <div class="border-b border-border/60 bg-black/10 px-3 py-2 text-[11px] text-muted-foreground">识别完成 · 建议 3 条目标</div>
+            <pre class="max-h-28 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">[结果] 已解析 package.json scripts
+· 启动开发 → npm run dev
+· 预览构建 → npm run preview
+· 类型检查 → npm run typecheck</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">完成于 15:59</span>
+              <button type="button" class="btn">关闭</button>
+            </div>
+          </article>
+
+          <!-- 命令 · 失败 -->
+          <article class="run-card run-card--failed">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">打包 APP</div>
+                <div class="break-all text-xs text-muted-foreground">hero-base · /Users/…/hero-base</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--failed">运行失败</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <code class="block break-all border-b border-border/60 bg-black/10 px-3 py-2 font-mono text-[11px] text-muted-foreground">npm run build:app</code>
+            <pre class="max-h-28 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">[stdout] building…
+[stderr] error TS2307: Cannot find module '@/lib/foo'
+[错误] 命令异常结束（退出码 1）</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">退出码 1 · 失败于 15:52</span>
+              <button type="button" class="btn">重新运行</button>
+            </div>
+          </article>
+
+          <!-- 命令 · 已停止 -->
+          <article class="run-card run-card--stopped">
+            <div class="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">启动开发</div>
+                <div class="break-all text-xs text-muted-foreground">gittracker · /Users/…/gittracker</div>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span class="badge badge--stopped">已停止</span>
+                <button type="button" class="btn">复制</button>
+              </div>
+            </div>
+            <code class="block break-all border-b border-border/60 bg-black/10 px-3 py-2 font-mono text-[11px] text-muted-foreground">npm run tauri:dev</code>
+            <pre class="max-h-24 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">[stdout] Compiling gittracker…
+[日志] 命令已停止</pre>
+            <div class="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2">
+              <span class="text-[11px] text-muted-foreground">停止于 15:42</span>
+              <button type="button" class="btn">重新运行</button>
+            </div>
+          </article>
+        </div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>
