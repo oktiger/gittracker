@@ -153,7 +153,8 @@ pub fn generate_commit_message(
     let prompt = commit_message_prompt(&truncated, locale);
 
     // 必须锁在项目目录：否则 CLI 会落到 App 的 CWD（常为 / 或家目录），触发无关文件夹授权。
-    run_readonly(&prompt, Some(project_path), progress)
+    let message = run_readonly(&prompt, Some(project_path), progress)?;
+    Ok(normalize_commit_message(&message))
 }
 
 fn commit_message_prompt(changes: &str, locale: ResolvedLanguage) -> String {
@@ -162,9 +163,10 @@ fn commit_message_prompt(changes: &str, locale: ResolvedLanguage) -> String {
             "你是 Git commit message 助手。根据下方全部 Changes 的 diff，生成一条简体中文 commit message。\n\
              要求：\n\
              1. 只输出 commit message 本身，不要解释、不要代码块、不要引号\n\
-             2. 第一行尽量不超过 60 个中文字符，简洁说明实际修改\n\
-             3. 如有必要可加简短正文，用空行分隔\n\
-             4. 不要执行任何命令，不要修改文件\n\n\
+             2. 第一行是摘要：尽量不超过 60 个中文字符，简洁说明实际修改\n\
+             3. 第一行之后必须紧跟详细正文：用多行列出主要改动、动机与影响，尽量写全、写具体\n\
+             4. 摘要与详细正文之间只换行，不要空一行；正文各行之间也不要空行\n\
+             5. 不要执行任何命令，不要修改文件\n\n\
              Changes diff:\n{changes}"
         )
     } else {
@@ -172,12 +174,22 @@ fn commit_message_prompt(changes: &str, locale: ResolvedLanguage) -> String {
             "You are a Git commit-message assistant. Create one English commit message from the complete Changes diff below.\n\
              Requirements:\n\
              1. Output only the commit message, with no explanation, code fence, or quotation marks\n\
-             2. Keep the subject concise, preferably under 72 characters, and describe the actual change\n\
-             3. Add a short body separated by a blank line only when useful\n\
-             4. Do not execute commands or modify files\n\n\
+             2. First line is the summary: keep it concise, preferably under 72 characters, and describe the actual change\n\
+             3. Immediately after the summary, write a detailed body on following lines covering key changes, motivation, and impact; be thorough and specific\n\
+             4. Use line breaks between the summary and body, and between body lines, but do not insert blank lines\n\
+             5. Do not execute commands or modify files\n\n\
              Changes diff:\n{changes}"
         )
     }
+}
+
+/// 去掉摘要与正文之间的空行，保留普通换行。
+fn normalize_commit_message(raw: &str) -> String {
+    raw.lines()
+        .map(str::trim_end)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// 根据多个仓库的 commit message 生成面向用户的工作总结。
@@ -1006,5 +1018,18 @@ mod tests {
         assert!(zh.contains("简体中文"));
         assert!(en.contains("English commit message"));
         assert!(!en.contains("中文字符"));
+        assert!(zh.contains("详细正文"));
+        assert!(zh.contains("不要空一行"));
+        assert!(en.contains("detailed body"));
+        assert!(en.contains("do not insert blank lines"));
+    }
+
+    #[test]
+    fn normalize_commit_message_drops_blank_lines() {
+        let raw = "feat: 摘要\n\n- 详细一\n\n- 详细二\n";
+        assert_eq!(
+            normalize_commit_message(raw),
+            "feat: 摘要\n- 详细一\n- 详细二"
+        );
     }
 }

@@ -44,7 +44,21 @@ pub fn commit_staged(repo: &Path, message: &str) -> AppResult<()> {
         return Err(AppError::msg("没有可提交的更改"));
     }
 
-    run_git(repo, &["commit", "-m", msg])?;
+    // 多行 message 用 -F 写入，避免 -m 对换行的边界问题。
+    let msg_path = std::env::temp_dir().join(format!("gittracker-commit-{}.msg", Uuid::new_v4()));
+    let result = (|| {
+        {
+            let mut file = fs::File::create(&msg_path).map_err(AppError::from)?;
+            file.write_all(msg.as_bytes()).map_err(AppError::from)?;
+            if !msg.ends_with('\n') {
+                file.write_all(b"\n").map_err(AppError::from)?;
+            }
+        }
+        let msg_path_str = msg_path.to_string_lossy();
+        run_git(repo, &["commit", "-F", msg_path_str.as_ref()])
+    })();
+    let _ = fs::remove_file(&msg_path);
+    result?;
     Ok(())
 }
 
