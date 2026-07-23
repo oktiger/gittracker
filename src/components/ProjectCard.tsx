@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type {
   BranchList,
+  CommitInfo,
   DocsOverview,
   DocsTaskItem,
   FileChange,
@@ -32,6 +33,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { workingTreeBadge } from "../lib/gitStatusBadge";
 import { DocumentLibraryTab } from "./DocumentLibraryTab";
@@ -99,6 +108,8 @@ export function ProjectCard({
   const [changesLoading, setChangesLoading] = useState(false);
   const [branches, setBranches] = useState<BranchList | null>(null);
   const [branchesLoading, setBranchesLoading] = useState(false);
+  const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
+  const [commitHistoryLoading, setCommitHistoryLoading] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const targets: RunTarget[] = project.runTargets ?? [];
   const hasTargets = targets.length > 0;
@@ -138,6 +149,26 @@ export function ProjectCard({
       })
       .finally(() => setBranchesLoading(false));
   }, [detailTab, project.id, project.branch]);
+
+  useEffect(() => {
+    if (detailTab !== "code") return;
+    setCommitHistoryLoading(true);
+    void api
+      .listCommitHistory(project.id)
+      .then(setCommitHistory)
+      .catch((e) => {
+        setCommitHistory([]);
+        onError(formatBackendError(e, t));
+      })
+      .finally(() => setCommitHistoryLoading(false));
+  }, [detailTab, project.id, project.branch, project.commits[0]?.hash]);
+
+  const branchBadgeClass = (branch: BranchList["local"][number]) => {
+    if (branch.current) return "border-emerald-500/30 bg-emerald-500/10 text-emerald-500";
+    if (branch.kind === "remote") return "border-border bg-muted text-muted-foreground";
+    if (branch.name === "main" || branch.name === "master") return "border-sky-500/30 bg-sky-500/10 text-sky-500";
+    return "border-violet-500/30 bg-violet-500/10 text-violet-500";
+  };
 
   const onRunTarget = async (targetId: string) => {
     setRunBusy(true);
@@ -612,28 +643,55 @@ export function ProjectCard({
             </section>
 
             <section className="space-y-1.5">
-              <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                {t("projects:card.commitHistory")}
-              </h3>
-              {project.commits.length === 0 ? (
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
+                  {t("projects:card.commitHistory")}
+                </h3>
+                <span className="text-[11px] text-muted-foreground">
+                  {t("projects:card.allBranches")}
+                </span>
+              </div>
+              {commitHistoryLoading ? (
+                <p className="py-3 text-xs text-muted-foreground">{t("projects:card.loadingCommits")}</p>
+              ) : commitHistory.length === 0 ? (
                 <p className="py-3 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
               ) : (
-                <ul className="max-h-[min(45vh,480px)] overflow-y-auto">
-                  {project.commits.map((c) => (
-                    <li
-                      key={c.hash}
-                      className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-1.5 text-xs"
-                    >
-                      <span className="font-mono text-sky-400">{c.hash}</span>
-                      <span className="truncate text-foreground/90" title={c.subject}>
-                        {c.subject}
-                      </span>
-                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                        {formatRelativeTime(c.timestamp, language)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="max-h-[min(45vh,480px)] overflow-y-auto rounded-lg border border-border">
+                  <Table className="min-w-[860px] text-xs">
+                    <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+                      <TableRow>
+                        <TableHead>{t("projects:card.commitHash")}</TableHead>
+                        <TableHead>{t("projects:card.commitBranches")}</TableHead>
+                        <TableHead>{t("projects:card.commitSubject")}</TableHead>
+                        <TableHead>{t("projects:card.commitAuthor")}</TableHead>
+                        <TableHead>{t("projects:card.commitTime")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {commitHistory.map((commit) => (
+                        <TableRow key={commit.hash}>
+                          <TableCell className="font-mono text-sky-500">{commit.hash.slice(0, 7)}</TableCell>
+                          <TableCell className="max-w-[320px] whitespace-normal">
+                            <div className="flex flex-wrap gap-1">
+                              {commit.branches.map((branch) => (
+                                <Badge
+                                  key={`${branch.kind}:${branch.name}`}
+                                  variant="outline"
+                                  className={cn("rounded-full px-1.5 py-0 text-[10px] font-medium", branchBadgeClass(branch))}
+                                >
+                                  {branch.current ? `HEAD → ${branch.name}` : branch.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[360px] truncate" title={commit.subject}>{commit.subject}</TableCell>
+                          <TableCell className="text-muted-foreground">{commit.author}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">{formatRelativeTime(commit.timestamp, language)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </section>
           </TabsContent>

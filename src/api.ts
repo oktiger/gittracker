@@ -38,6 +38,7 @@ export const api = {
   listChangedFiles: (id: string) =>
     invoke<FileChange[]>("list_changed_files", { id }),
   listBranches: (id: string) => invoke<BranchList>("list_branches", { id }),
+  listCommitHistory: (id: string) => invoke<import("./types").CommitInfo[]>("list_commit_history", { id }),
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
   readProjectFile: (id: string, relativePath: string) =>

@@ -331,7 +331,10 @@ pub struct AppStore {
 pub struct CommitInfo {
     pub hash: String,
     pub timestamp: i64,
+    pub author: String,
     pub subject: String,
+    #[serde(default)]
+    pub branches: Vec<BranchInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

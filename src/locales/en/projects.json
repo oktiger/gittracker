@@ -57,7 +57,8 @@
     "code": "Code", "recentThree": "Latest 3 commits", "changeCount": "{{count}} changes", "allCommits": "All commits", "commitAction": "Commit…",
     "runnable": "Runnable commands", "runnableSource": "From project settings / AI identification", "configure": "Configure", "customConfig": "Custom config", "reIdentify": "Identify again with AI", "noRunnable": "No runnable commands",
     "discardAll": "Discard all changes", "currentChanges": "Current changes", "commitHistory": "Commit history", "starting": "Starting…", "htmlOpened": "Opened HTML with the system app",
-    "localBranches": "Local", "remoteBranches": "Remote", "noBranches": "No branches", "loadingBranches": "Loading branches…", "currentBranch": "Current"
+    "localBranches": "Local", "remoteBranches": "Remote", "noBranches": "No branches", "loadingBranches": "Loading branches…", "currentBranch": "Current",
+    "allBranches": "All local and remote branches", "loadingCommits": "Loading commits from all branches…", "commitHash": "Git version", "commitBranches": "Branches", "commitSubject": "Commit message", "commitAuthor": "Author", "commitTime": "Time"
   },
   "docs": {
     "loadingEvolution": "Loading evolution data…",

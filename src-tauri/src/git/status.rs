@@ -1,6 +1,7 @@
 use crate::error::AppResult;
 use crate::git::{run_git, run_git_allow_fail};
 use crate::models::{BranchInfo, BranchList, CommitInfo, FileChange, ProjectRecord, ProjectStatus};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 pub fn fetch_project_status(project: &ProjectRecord) -> ProjectStatus {
@@ -123,29 +124,147 @@ fn parse_branch_header(header: &str) -> (String, u32, u32) {
 
 fn fetch_recent_commits(repo: &Path) -> AppResult<Vec<CommitInfo>> {
     let (code, stdout, _) =
-        run_git_allow_fail(repo, &["log", "--pretty=format:%h\t%ct\t%s"])?;
+        run_git_allow_fail(repo, &["log", "-3", "--pretty=format:%h\t%ct\t%an\t%s"])?;
     if code != 0 || stdout.trim().is_empty() {
         return Ok(vec![]);
     }
 
     let mut commits = Vec::new();
     for line in stdout.lines() {
-        let mut parts = line.splitn(3, '\t');
+        let mut parts = line.splitn(4, '\t');
         let hash = parts.next().unwrap_or("").to_string();
         let ts = parts
             .next()
             .and_then(|s| s.parse::<i64>().ok())
             .unwrap_or(0);
+        let author = parts.next().unwrap_or("").to_string();
         let subject = parts.next().unwrap_or("").to_string();
         if !hash.is_empty() {
             commits.push(CommitInfo {
                 hash,
                 timestamp: ts,
+                author,
                 subject,
+                branches: vec![],
             });
         }
     }
     Ok(commits)
+}
+
+/// Returns one chronological history for all local and remote branches.  A branch is
+/// attached to every commit it currently contains, so users can see the complete
+/// branch context without duplicating the commit in the list.
+pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
+    const HISTORY_LIMIT: &str = "500";
+
+    let branch_refs = history_branch_refs(repo)?;
+    if branch_refs.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let out = run_git(
+        repo,
+        &[
+            "log",
+            "--date-order",
+            "--max-count",
+            HISTORY_LIMIT,
+            "--pretty=format:%H\t%ct\t%an\t%s",
+            "--branches",
+            "--remotes",
+        ],
+    )?;
+
+    let mut commits = Vec::new();
+    let mut commit_hashes = HashSet::new();
+    for line in out.lines() {
+        let mut parts = line.splitn(4, '\t');
+        let hash = parts.next().unwrap_or("").to_string();
+        if hash.is_empty() {
+            continue;
+        }
+        let timestamp = parts
+            .next()
+            .and_then(|value| value.parse::<i64>().ok())
+            .unwrap_or(0);
+        let author = parts.next().unwrap_or("").to_string();
+        let subject = parts.next().unwrap_or("").to_string();
+        commit_hashes.insert(hash.clone());
+        commits.push(CommitInfo {
+            hash,
+            timestamp,
+            author,
+            subject,
+            branches: vec![],
+        });
+    }
+
+    let mut branches_by_commit: HashMap<String, Vec<BranchInfo>> = HashMap::new();
+    for (ref_name, branch) in branch_refs {
+        let out = run_git(repo, &["rev-list", &ref_name])?;
+        for hash in out.lines() {
+            if commit_hashes.contains(hash) {
+                branches_by_commit
+                    .entry(hash.to_string())
+                    .or_default()
+                    .push(branch.clone());
+            }
+        }
+    }
+
+    for commit in &mut commits {
+        let mut branches = branches_by_commit.remove(&commit.hash).unwrap_or_default();
+        branches.sort_by(|left, right| {
+            right
+                .current
+                .cmp(&left.current)
+                .then_with(|| left.kind.cmp(&right.kind))
+                .then_with(|| left.name.cmp(&right.name))
+        });
+        commit.branches = branches;
+    }
+
+    Ok(commits)
+}
+
+fn history_branch_refs(repo: &Path) -> AppResult<Vec<(String, BranchInfo)>> {
+    let current = run_git(repo, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .map(|value| value.trim().to_string())
+        .unwrap_or_else(|_| "HEAD".into());
+    let out = run_git(
+        repo,
+        &[
+            "for-each-ref",
+            "--format=%(refname)%09%(refname:short)",
+            "refs/heads/",
+            "refs/remotes/",
+        ],
+    )?;
+
+    let mut refs = Vec::new();
+    for line in out.lines() {
+        let Some((ref_name, short_name)) = line.split_once('\t') else {
+            continue;
+        };
+        if short_name.is_empty() || ref_name.ends_with("/HEAD") {
+            continue;
+        }
+        let kind = if ref_name.starts_with("refs/remotes/") {
+            "remote"
+        } else {
+            "local"
+        };
+        refs.push((
+            ref_name.to_string(),
+            BranchInfo {
+                name: short_name.to_string(),
+                kind: kind.into(),
+                current: kind == "local" && short_name == current,
+            },
+        ));
+    }
+    Ok(refs)
 }
 
 pub fn list_branches(repo: &Path) -> AppResult<BranchList> {

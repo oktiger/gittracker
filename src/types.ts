@@ -86,7 +86,9 @@ export interface AiConnectionTestResult {
 export interface CommitInfo {
   hash: string;
   timestamp: number;
+  author: string;
   subject: string;
+  branches: BranchInfo[];
 }
 
 export interface FileChange {
