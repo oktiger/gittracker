@@ -26,6 +26,11 @@ type Draft = RunTarget & { checked: boolean };
 
 interface Props {
   session: AiPanelSession;
+  /**
+   * An AI activity can move between the active and completed sections, which
+   * remounts this card. Only its original active mount may start the command.
+   */
+  shouldExecute?: boolean;
   embedded?: boolean;
   tone?: "running" | "queued" | "done" | "stopped" | "failed";
   badgeLabel?: string;
@@ -152,6 +157,7 @@ function bootLine(session: AiPanelSession, t: TFunction<any>): AiTranscriptLine 
 
 export function AiSidePanel({
   session,
+  shouldExecute = true,
   embedded: _embedded = false,
   tone = "running",
   badgeLabel,
@@ -225,7 +231,9 @@ export function AiSidePanel({
   }, [session]);
 
   useEffect(() => {
-    if (!needsAi) return;
+    // Finished cards are rendered in a separate list and are remounted when
+    // they move there. Never turn that display remount into another AI call.
+    if (!needsAi || !shouldExecute) return;
     let cancelled = false;
     const sessionId = newAiSessionId();
     const unlistenPromise = listen<AiProgressEvent>("ai-progress", (event) => {
@@ -564,7 +572,7 @@ export function AiSidePanel({
     };
     // session object identity changes each open — intentional
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.kind, needsAi]);
+  }, [session.kind, needsAi, shouldExecute]);
 
   const handleClose = () => {
     if (closedRef.current) return;

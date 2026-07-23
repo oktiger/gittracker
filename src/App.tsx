@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -75,6 +75,9 @@ function App() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [docsEpoch, setDocsEpoch] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  // State updates are asynchronous, so a double click can arrive before the
+  // button becomes disabled. Keep an immediate guard for destructive commits.
+  const oneClickProjectsRef = useRef(new Set<string>());
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -284,6 +287,8 @@ function App() {
   };
 
   const onOneClick = (id: string) => {
+    if (oneClickProjectsRef.current.has(id)) return;
+    oneClickProjectsRef.current.add(id);
     const project = projects.find((p) => p.id === id);
     const projectName = project?.name ?? id;
     setBusy(id, t("projects:card.oneClickBusy"));
@@ -619,7 +624,10 @@ function App() {
           runSessions={runSessions}
           onHide={() => setActivityOpen(false)}
           onDismissAi={(id, session) => {
-            if (session.kind === "oneClick") setBusy(session.projectId, null);
+            if (session.kind === "oneClick") {
+              oneClickProjectsRef.current.delete(session.projectId);
+              setBusy(session.projectId, null);
+            }
             setAiSessions((items) => items.filter((item) => item.id !== id));
           }}
           onAiActivityChange={onAiActivityChange}
@@ -632,6 +640,7 @@ function App() {
           }}
           onProjectRefresh={(projectId, session) => {
             if (session.kind === "oneClick") {
+              oneClickProjectsRef.current.delete(projectId);
               setBusy(projectId, null);
             }
             if (session.kind === "generateTasks" || session.kind === "runTask") {

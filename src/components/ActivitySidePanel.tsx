@@ -435,6 +435,7 @@ export function ActivitySidePanel(props: Props) {
       key={item.id}
       embedded
       session={item.session}
+      shouldExecute={item.phase === "running"}
       tone={aiTone(item)}
       badgeLabel={
         item.failed
