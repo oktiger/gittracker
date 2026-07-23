@@ -26,7 +26,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,7 +69,7 @@ export function ProjectCard({
   onManualCommit,
   onOneClick,
   onDiscard,
-  onViewChanges,
+  onViewChanges: _onViewChanges,
   onViewChangedFile,
   onRemove,
   onRunTarget: onRunTargetFromCenter,
@@ -117,10 +116,23 @@ export function ProjectCard({
   }, [project.id, project.path, docsEpoch]);
 
   useEffect(() => {
-    if (detailTab !== "code") return;
+    // 看板始终加载改动；详情页仅在「代码」Tab 加载
+    if (hideTitle && detailTab !== "code") return;
     setChangesLoading(true);
-    void api.listChangedFiles(project.id).then(setChangedFiles).catch((e) => onError(formatBackendError(e, t))).finally(() => setChangesLoading(false));
-  }, [detailTab, project.id, project.clean, project.staged, project.unstaged, project.untracked]);
+    void api
+      .listChangedFiles(project.id)
+      .then(setChangedFiles)
+      .catch((e) => onError(formatBackendError(e, t)))
+      .finally(() => setChangesLoading(false));
+  }, [
+    hideTitle,
+    detailTab,
+    project.id,
+    project.clean,
+    project.staged,
+    project.unstaged,
+    project.untracked,
+  ]);
 
   const onRunTarget = async (targetId: string) => {
     setRunBusy(true);
@@ -199,51 +211,6 @@ export function ProjectCard({
     </Badge>
   );
 
-  const runMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="xs" disabled={locked}>
-          <Play className="h-3 w-3" />
-          {t("projects:card.run")}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        {hasTargets ? (
-          <>
-            {targets.map((t) => (
-              <DropdownMenuItem
-                key={t.id}
-                className="flex-col items-start gap-0.5"
-                onClick={() => void onRunTarget(t.id)}
-              >
-                <span className="text-sm font-medium">
-                  {t.name}
-                  {t.isDefault ? " ★" : ""}
-                </span>
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  {t.description?.trim() || `${t.cwd} · ${t.command}`}
-                </span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onConfigureRun("config")}>
-              {t("projects:card.configureTargets")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onIdentify}>{t("projects:card.identifyAgain")}</DropdownMenuItem>
-          </>
-        ) : (
-          <>
-            <DropdownMenuItem onClick={onIdentify}>{t("projects:card.identifyTargets")}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onConfigureRun("config")}>
-              {t("projects:card.addTarget")}
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
   const projectSettingsMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -294,68 +261,115 @@ export function ProjectCard({
     </AlertDialog>
   );
 
-  const codeModule = (
-    <section className="overflow-hidden">
-      <header className="mb-2 flex items-center justify-between gap-2 pt-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">{t("projects:card.code")}</span>
-        </div>
-        <span className="text-[11px] text-muted-foreground">{t("projects:card.recentThree")}</span>
-      </header>
-      {project.commits.length === 0 ? (
-        <p className="px-3 py-4 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
+  const currentChangesSection = (
+    <section className="space-y-1.5">
+      <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
+        {t("projects:card.currentChanges")}
+        {changeCount > 0 ? (
+          <span className="ml-1.5 font-normal tabular-nums">{changeCount}</span>
+        ) : null}
+      </h3>
+      {changesLoading ? (
+        <p className="py-3 text-xs text-muted-foreground">{t("common:state.loading")}</p>
+      ) : changedFiles.length === 0 ? (
+        <p className="py-3 text-xs text-muted-foreground">{t("projects:changesDialog.empty")}</p>
       ) : (
-        <ul className="max-h-[min(55vh,640px)] divide-y divide-border overflow-y-auto">
-          {project.commits.map((c) => (
-            <li
-              key={c.hash}
-              className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-2.5 text-xs"
-            >
-              <span className="font-mono text-sky-400">{c.hash}</span>
-              <span className="truncate text-foreground/90" title={c.subject}>
-                {c.subject}
-              </span>
-              <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                {formatRelativeTime(c.timestamp, language)}
-              </span>
-            </li>
-          ))}
+        <ul className="max-h-64 overflow-y-auto">
+          {changedFiles.map((file) => {
+            const badge = workingTreeBadge(file);
+            return (
+              <li key={file.path}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-xs hover:bg-accent/40"
+                  onClick={() => onViewChangedFile(file)}
+                >
+                  <span
+                    className="min-w-0 truncate font-mono text-muted-foreground"
+                    title={file.path}
+                  >
+                    {file.path}
+                  </span>
+                  <GitStatusIcon badge={badge} />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
-      <footer className="flex flex-wrap items-center justify-between gap-2 pt-3">
-        <span className="text-[11px] text-muted-foreground">
-          {t("projects:card.changeCount", { count: changeCount })}
-        </span>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={locked || !hasChanges}
-            onClick={onOneClick}
-          >
-            {t("projects:card.allCommits")}
-          </Button>
-          {runMenu}
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={locked || changeCount === 0}
-            onClick={onViewChanges}
-          >
-            {t("projects:card.viewChanges")}
-          </Button>
-          <Button
-            type="button"
-            size="xs"
-            disabled={locked || !hasChanges}
-            onClick={onManualCommit}
-          >
-            {t("projects:card.commitAction")}
-          </Button>
+    </section>
+  );
+
+  const commitHistorySection = (limit?: number) => {
+    const commits = typeof limit === "number" ? project.commits.slice(0, limit) : project.commits;
+    return (
+      <section className="space-y-1.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
+            {t("projects:card.commitHistory")}
+          </h3>
+          {typeof limit === "number" ? (
+            <span className="text-[11px] text-muted-foreground">{t("projects:card.recentThree")}</span>
+          ) : null}
         </div>
-      </footer>
+        {commits.length === 0 ? (
+          <p className="py-3 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
+        ) : (
+          <ul
+            className={cn(
+              "overflow-y-auto",
+              typeof limit === "number" ? undefined : "max-h-[min(45vh,480px)]",
+            )}
+          >
+            {commits.map((c) => (
+              <li
+                key={c.hash}
+                className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-1.5 text-xs"
+              >
+                <span className="font-mono text-sky-400">{c.hash}</span>
+                <span className="truncate text-foreground/90" title={c.subject}>
+                  {c.subject}
+                </span>
+                <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                  {formatRelativeTime(c.timestamp, language)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  };
+
+  const boardCodeActions = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Button
+        type="button"
+        size="xs"
+        disabled={locked || !hasChanges}
+        onClick={onOneClick}
+      >
+        {t("projects:card.oneClick")}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        className="text-destructive hover:bg-destructive/10"
+        disabled={locked || !hasChanges}
+        onClick={onDiscard}
+      >
+        {t("projects:card.discardAll")}
+      </Button>
+    </div>
+  );
+
+  /** 看板代码区：当前改动 → 一键提交/放弃 → 最近 3 条提交；分区用标题与间距，不套内层卡片 */
+  const boardCodeModule = (
+    <section className="space-y-5">
+      {currentChangesSection}
+      {boardCodeActions}
+      {commitHistorySection(3)}
     </section>
   );
 
@@ -498,68 +512,8 @@ export function ProjectCard({
               </div>
             </div>
 
-            <section className="space-y-1.5">
-              <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                {t("projects:card.currentChanges")}
-                {changeCount > 0 ? (
-                  <span className="ml-1.5 font-normal tabular-nums">{changeCount}</span>
-                ) : null}
-              </h3>
-              {changesLoading ? (
-                <p className="py-3 text-xs text-muted-foreground">{t("common:state.loading")}</p>
-              ) : changedFiles.length === 0 ? (
-                <p className="py-3 text-xs text-muted-foreground">{t("projects:changesDialog.empty")}</p>
-              ) : (
-                <ul className="max-h-64 overflow-y-auto">
-                  {changedFiles.map((file) => {
-                    const badge = workingTreeBadge(file);
-                    return (
-                      <li key={file.path}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-xs hover:bg-accent/40"
-                          onClick={() => onViewChangedFile(file)}
-                        >
-                          <span
-                            className="min-w-0 truncate font-mono text-muted-foreground"
-                            title={file.path}
-                          >
-                            {file.path}
-                          </span>
-                          <GitStatusIcon badge={badge} />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-
-            <section className="space-y-1.5">
-              <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground">
-                {t("projects:card.commitHistory")}
-              </h3>
-              {project.commits.length === 0 ? (
-                <p className="py-3 text-xs text-muted-foreground">{t("projects:card.noCommits")}</p>
-              ) : (
-                <ul className="max-h-[min(45vh,480px)] overflow-y-auto">
-                  {project.commits.map((c) => (
-                    <li
-                      key={c.hash}
-                      className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-baseline gap-2 py-1.5 text-xs"
-                    >
-                      <span className="font-mono text-sky-400">{c.hash}</span>
-                      <span className="truncate text-foreground/90" title={c.subject}>
-                        {c.subject}
-                      </span>
-                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                        {formatRelativeTime(c.timestamp, language)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            {currentChangesSection}
+            {commitHistorySection()}
           </TabsContent>
 
           <TabsContent value="docs" className="mt-4">
@@ -612,7 +566,7 @@ export function ProjectCard({
   }
 
   return (
-    <article className="bg-card">
+    <article className="rounded-xl border border-border bg-card p-5">
       {removeConfirmDialog}
       <header className="flex items-center justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
@@ -639,11 +593,11 @@ export function ProjectCard({
       </header>
 
       {project.error ? (
-        <p className="border-b border-border px-4 py-2 text-xs text-destructive">{project.error}</p>
+        <p className="border-b border-border py-2 text-xs text-destructive">{project.error}</p>
       ) : null}
 
-      <div className="space-y-4 pt-4">
-        {codeModule}
+      <div className="space-y-5 pt-4">
+        {boardCodeModule}
         <section className="overflow-hidden border-t border-border pt-4">
           <DocumentLibraryTab
             projectId={project.id}
@@ -658,7 +612,7 @@ export function ProjectCard({
       </div>
 
       {(busy || docsBusy || runBusy) && (
-        <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+        <div className="border-t border-border pt-2 text-xs text-muted-foreground">
           {busy || docsBusy || (runBusy ? t("projects:card.starting") : null)}
         </div>
       )}
