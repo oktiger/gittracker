@@ -369,7 +369,7 @@ export default interface Resources {
       "addTarget": "Add a target manually…",
       "aheadBy": "{{count}} commits ahead",
       "aiMergeBusy": "AI is merging PRs…",
-      "aiMergePullRequests": "AI merge ({{count}})",
+      "aiMergePullRequests": "AI review & merge ({{count}})",
       "allBranches": "All local and remote branches",
       "allCommits": "All commits",
       "behindBy": "{{count}} commits behind",
