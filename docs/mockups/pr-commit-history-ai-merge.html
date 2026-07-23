@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitTracker · PR 与提交记录统一视图</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            card: "hsl(var(--card))",
+            muted: "hsl(var(--muted))",
+            "muted-foreground": "hsl(var(--muted-foreground))",
+            border: "hsl(var(--border))",
+          },
+          borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)" },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 5.5%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --border: 240 3.7% 15.9%;
+      --radius: .625rem;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 1120px;
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .filter.active { background: #fafafa; color: #18181b; border-color: #fafafa; }
+    .row { transition: background .15s ease; }
+    .row:hover { background: rgba(63, 63, 70, .35); }
+    .sheet { transform: translateX(105%); transition: transform .24s ease; }
+    .sheet.open { transform: translateX(0); }
+    .backdrop { opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    .backdrop.open { opacity: 1; pointer-events: auto; }
+    .step-line { position: absolute; left: 11px; top: 24px; bottom: -12px; width: 1px; background: #3f3f46; }
+    .step:last-child .step-line { display: none; }
+    .step-dot { transition: background .2s ease, color .2s ease, border-color .2s ease; }
+    .step.done .step-dot { background: #10b981; border-color: #10b981; color: white; }
+    .step.running .step-dot { border-color: #60a5fa; color: #60a5fa; box-shadow: 0 0 0 4px rgba(59,130,246,.12); }
+    .step.done .step-state { color: #34d399; }
+    .step.running .step-state { color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <main class="min-h-screen">
+    <header class="flex h-16 items-center justify-between border-b border-border bg-card px-8">
+      <div class="flex items-center gap-3">
+        <div class="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-sm font-bold text-white">G</div>
+        <span class="font-semibold tracking-tight">GitTracker</span>
+        <span class="text-sm text-muted-foreground">/ gittracker</span>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+        已与 main 同步
+      </div>
+    </header>
+
+    <section class="mx-auto max-w-[1480px] px-8 py-8">
+      <div class="mb-6 flex items-end justify-between gap-6">
+        <div>
+          <div class="mb-2 text-sm font-medium text-blue-400">代码 · 提交记录</div>
+          <h1 class="text-2xl font-semibold tracking-tight">PR 与提交记录</h1>
+          <p class="mt-2 text-sm text-muted-foreground">待合并 PR 和已进入 main 的提交放在同一张表里，状态清楚、动作集中。</p>
+        </div>
+        <button
+          type="button"
+          class="inline-flex h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-zinc-950 shadow-sm hover:bg-zinc-200"
+          onclick="openMergePanel()"
+        >
+          <span class="text-base">✦</span>
+          AI 一键合并
+          <span class="rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] text-white">3</span>
+        </button>
+      </div>
+
+      <div class="mb-4 flex items-center justify-between rounded-lg border border-border bg-card p-3">
+        <div class="flex gap-2" role="tablist" aria-label="记录筛选">
+          <button class="filter active rounded-md border border-border px-3 py-1.5 text-sm" data-filter="all">全部记录 <span class="ml-1 opacity-60">14</span></button>
+          <button class="filter rounded-md border border-border px-3 py-1.5 text-sm" data-filter="pr">待合并 PR <span class="ml-1 text-amber-400">3</span></button>
+          <button class="filter rounded-md border border-border px-3 py-1.5 text-sm" data-filter="commit">main 提交 <span class="ml-1 opacity-60">11</span></button>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+          <span class="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300">3 个 PR 等待处理</span>
+          <span>AI 会先检查，再决定合并顺序</span>
+        </div>
+      </div>
+
+      <div class="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-black/10">
+        <div class="grid grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] border-b border-border bg-zinc-900/80 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div>类型 / 编号</div>
+          <div>分支</div>
+          <div>说明</div>
+          <div>作者</div>
+          <div>时间 / 状态</div>
+          <div class="text-right">操作</div>
+        </div>
+
+        <div id="records">
+          <div class="section-label border-b border-border bg-amber-500/[.06] px-5 py-2 text-xs font-medium text-amber-300" data-kind="pr">
+            待合并 PR · 这些改动尚未进入 main
+          </div>
+
+          <article class="row grid min-h-[84px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center border-b border-border px-5" data-kind="pr">
+            <div><span class="rounded border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-xs font-medium text-violet-300">PR #3</span></div>
+            <div class="truncate font-mono text-xs text-violet-300" title="cursor/project-git-sync-81ea">cursor/project-git-sync…</div>
+            <div>
+              <div class="font-medium">增加项目 Git 同步，支持拉取最新并标记未同步提交</div>
+              <div class="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><span class="rounded-full bg-zinc-800 px-2 py-0.5">草稿</span><span>13 个文件</span><span>待 AI 检查依赖</span></div>
+            </div>
+            <div class="text-sm text-muted-foreground">Cursor Agent</div>
+            <div><div class="text-sm">07:19</div><div class="mt-1 text-xs text-amber-300">尚未合并</div></div>
+            <div class="text-right"><button class="rounded-md px-2 py-1 text-xs text-blue-400 hover:bg-zinc-800">查看 PR</button></div>
+          </article>
+
+          <article class="row grid min-h-[84px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center border-b border-border px-5" data-kind="pr">
+            <div><span class="rounded border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-xs font-medium text-violet-300">PR #2</span></div>
+            <div class="truncate font-mono text-xs text-violet-300" title="cursor/auto-run-targets-74c1">cursor/auto-run-targets…</div>
+            <div>
+              <div class="font-medium">导入与 AI 识别后自动写入全部启动方式</div>
+              <div class="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><span class="rounded-full bg-zinc-800 px-2 py-0.5">草稿</span><span>8 个文件</span><span>与 PR #1 都修改 ProjectCard</span></div>
+            </div>
+            <div class="text-sm text-muted-foreground">Cursor Agent</div>
+            <div><div class="text-sm">07:16</div><div class="mt-1 text-xs text-amber-300">尚未合并</div></div>
+            <div class="text-right"><button class="rounded-md px-2 py-1 text-xs text-blue-400 hover:bg-zinc-800">查看 PR</button></div>
+          </article>
+
+          <article class="row grid min-h-[84px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center border-b border-border px-5" data-kind="pr">
+            <div><span class="rounded border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-xs font-medium text-violet-300">PR #1</span></div>
+            <div class="truncate font-mono text-xs text-violet-300" title="cursor/board-project-code-block-7de0">cursor/board-project-code…</div>
+            <div>
+              <div class="font-medium">重构看板项目卡片代码区，对齐详情页改动与提交模块</div>
+              <div class="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><span class="rounded-full bg-zinc-800 px-2 py-0.5">草稿</span><span>1 个文件</span><span>待 AI 检查与当前 main 的重叠</span></div>
+            </div>
+            <div class="text-sm text-muted-foreground">Cursor Agent</div>
+            <div><div class="text-sm">07:07</div><div class="mt-1 text-xs text-amber-300">尚未合并</div></div>
+            <div class="text-right"><button class="rounded-md px-2 py-1 text-xs text-blue-400 hover:bg-zinc-800">查看 PR</button></div>
+          </article>
+
+          <div class="section-label border-b border-border bg-emerald-500/[.04] px-5 py-2 text-xs font-medium text-emerald-300" data-kind="commit">
+            main 提交 · 已合并并生效
+          </div>
+
+          <article class="row grid min-h-[72px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center border-b border-border px-5" data-kind="commit">
+            <div class="font-mono text-sm text-sky-400">7c03d07</div><div><span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">main</span></div><div class="font-medium">提交分支去重并显示本地同步状态</div><div class="text-sm text-muted-foreground">Codex</div><div class="text-sm text-muted-foreground">刚刚</div><div></div>
+          </article>
+          <article class="row grid min-h-[72px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center border-b border-border px-5" data-kind="commit">
+            <div class="font-mono text-sm text-sky-400">6279309</div><div><span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">main</span></div><div class="font-medium">全分支历史取消数量限制，完整展示可达提交</div><div class="text-sm text-muted-foreground">Codex</div><div class="text-sm text-muted-foreground">12 分钟前</div><div></div>
+          </article>
+          <article class="row grid min-h-[72px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center border-b border-border px-5" data-kind="commit">
+            <div class="font-mono text-sm text-sky-400">2657bf1</div><div><span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">main</span></div><div class="font-medium">提交历史展示全部分支，按版本与分支列表呈现</div><div class="text-sm text-muted-foreground">Codex</div><div class="text-sm text-muted-foreground">18 分钟前</div><div></div>
+          </article>
+          <article class="row grid min-h-[72px] grid-cols-[110px_190px_minmax(360px,1fr)_140px_140px_100px] items-center px-5" data-kind="commit">
+            <div class="font-mono text-sm text-sky-400">e55c2ba</div><div><span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">main</span></div><div class="font-medium">macOS 点击 Dock 图标时恢复显示已隐藏主窗口</div><div class="text-sm text-muted-foreground">Biem</div><div class="text-sm text-muted-foreground">今天</div><div></div>
+          </article>
+        </div>
+
+        <div class="border-t border-border bg-zinc-900/50 px-5 py-3 text-center text-sm text-muted-foreground">
+          已显示全部待合并 PR · <button class="font-medium text-blue-400 hover:underline">加载更早提交</button>
+        </div>
+      </div>
+
+      <div class="mt-5 grid grid-cols-3 gap-4 text-sm">
+        <div class="rounded-lg border border-border bg-card p-4"><div class="mb-1 font-medium">先建集成分支</div><p class="m-0 leading-6 text-muted-foreground">AI 不直接在 main 上处理冲突，所有尝试都在临时集成分支中完成。</p></div>
+        <div class="rounded-lg border border-border bg-card p-4"><div class="mb-1 font-medium">测试通过才落地</div><p class="m-0 leading-6 text-muted-foreground">自动排序、解决冲突并运行构建与测试，全部通过后才合入 main。</p></div>
+        <div class="rounded-lg border border-border bg-card p-4"><div class="mb-1 font-medium">失败就安全停止</div><p class="m-0 leading-6 text-muted-foreground">AI 无法确定或测试失败时不会强行合并，只保留报告供稍后处理。</p></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="backdrop fixed inset-0 z-20 bg-black/60" onclick="closeMergePanel()"></div>
+  <aside id="merge-panel" class="sheet fixed inset-y-0 right-0 z-30 flex w-[460px] flex-col border-l border-border bg-zinc-950 shadow-2xl" aria-label="AI 一键合并">
+    <header class="border-b border-border px-6 py-5">
+      <div class="flex items-start justify-between gap-4">
+        <div><div class="text-sm font-medium text-blue-400">AI 一键合并</div><h2 class="mt-1 text-xl font-semibold">合并 3 个待处理 PR</h2><p class="mt-2 text-sm text-muted-foreground">AI 自动分析顺序、解决冲突、验证并合入 main。</p></div>
+        <button class="grid h-8 w-8 place-items-center rounded-md text-xl text-muted-foreground hover:bg-zinc-800" onclick="closeMergePanel()" aria-label="关闭">×</button>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto px-6 py-5">
+      <div class="mb-6 rounded-lg border border-blue-500/20 bg-blue-500/10 p-4 text-sm leading-6 text-blue-100">
+        <strong>安全模式已开启：</strong>不会直接修改 main。AI 会先创建 <span class="font-mono text-xs">codex/ai-merge-0723</span>，验证全部通过后才完成最终合并。
+      </div>
+
+      <div class="mb-6">
+        <div class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">准备合并</div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between rounded-md border border-border bg-zinc-900 px-3 py-2 text-sm"><span>PR #3 · Git 同步</span><span class="text-xs text-muted-foreground">Cursor Agent</span></div>
+          <div class="flex items-center justify-between rounded-md border border-border bg-zinc-900 px-3 py-2 text-sm"><span>PR #2 · 自动运行目标</span><span class="text-xs text-muted-foreground">Cursor Agent</span></div>
+          <div class="flex items-center justify-between rounded-md border border-border bg-zinc-900 px-3 py-2 text-sm"><span>PR #1 · 看板代码区</span><span class="text-xs text-muted-foreground">Cursor Agent</span></div>
+        </div>
+      </div>
+
+      <div class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">AI 执行过程</div>
+      <div id="steps" class="space-y-4">
+        <div class="step relative flex gap-3" data-step="0"><span class="step-line"></span><span class="step-dot relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-[10px] text-muted-foreground">1</span><div class="min-w-0 flex-1"><div class="flex justify-between gap-3 text-sm"><span>读取 PR 和 main 的差异</span><span class="step-state text-xs text-muted-foreground">等待</span></div><p class="mt-1 text-xs text-muted-foreground">识别文件重叠、依赖和潜在冲突</p></div></div>
+        <div class="step relative flex gap-3" data-step="1"><span class="step-line"></span><span class="step-dot relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-[10px] text-muted-foreground">2</span><div class="min-w-0 flex-1"><div class="flex justify-between gap-3 text-sm"><span>生成安全合并顺序</span><span class="step-state text-xs text-muted-foreground">等待</span></div><p class="mt-1 text-xs text-muted-foreground">按依赖关系安排 PR，避免相互覆盖</p></div></div>
+        <div class="step relative flex gap-3" data-step="2"><span class="step-line"></span><span class="step-dot relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-[10px] text-muted-foreground">3</span><div class="min-w-0 flex-1"><div class="flex justify-between gap-3 text-sm"><span>在集成分支逐个合并</span><span class="step-state text-xs text-muted-foreground">等待</span></div><p class="mt-1 text-xs text-muted-foreground">AI 处理冲突，并记录每次修改</p></div></div>
+        <div class="step relative flex gap-3" data-step="3"><span class="step-line"></span><span class="step-dot relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-[10px] text-muted-foreground">4</span><div class="min-w-0 flex-1"><div class="flex justify-between gap-3 text-sm"><span>运行构建与测试</span><span class="step-state text-xs text-muted-foreground">等待</span></div><p class="mt-1 text-xs text-muted-foreground">失败时自动修复一次，仍失败则安全停止</p></div></div>
+        <div class="step relative flex gap-3" data-step="4"><span class="step-line"></span><span class="step-dot relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-[10px] text-muted-foreground">5</span><div class="min-w-0 flex-1"><div class="flex justify-between gap-3 text-sm"><span>合入 main 并同步远程</span><span class="step-state text-xs text-muted-foreground">等待</span></div><p class="mt-1 text-xs text-muted-foreground">仅在前面全部通过时执行</p></div></div>
+      </div>
+    </div>
+
+    <footer class="border-t border-border p-5">
+      <div id="merge-result" class="mb-3 hidden rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">演示完成：3 个 PR 已安全合并并通过验证。</div>
+      <button id="merge-button" class="h-10 w-full rounded-md bg-white text-sm font-semibold text-zinc-950 hover:bg-zinc-200" onclick="runMergeDemo()">开始 AI 一键合并</button>
+      <p class="mb-0 mt-2 text-center text-xs text-muted-foreground">原 PR 会保留合并记录，不会被静默删除。</p>
+    </footer>
+  </aside>
+
+  <script>
+    function openMergePanel() {
+      document.getElementById("merge-panel").classList.add("open");
+      document.querySelector(".backdrop").classList.add("open");
+    }
+    function closeMergePanel() {
+      document.getElementById("merge-panel").classList.remove("open");
+      document.querySelector(".backdrop").classList.remove("open");
+    }
+    document.querySelectorAll(".filter").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".filter").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        const filter = button.dataset.filter;
+        document.querySelectorAll("[data-kind]").forEach((row) => {
+          row.classList.toggle("hidden", filter !== "all" && row.dataset.kind !== filter);
+        });
+      });
+    });
+    function runMergeDemo() {
+      const button = document.getElementById("merge-button");
+      const steps = [...document.querySelectorAll(".step")];
+      const result = document.getElementById("merge-result");
+      result.classList.add("hidden");
+      steps.forEach((step) => {
+        step.classList.remove("done", "running");
+        step.querySelector(".step-state").textContent = "等待";
+      });
+      button.disabled = true;
+      button.textContent = "AI 正在合并…";
+      let index = 0;
+      const advance = () => {
+        if (index > 0) {
+          steps[index - 1].classList.remove("running");
+          steps[index - 1].classList.add("done");
+          steps[index - 1].querySelector(".step-state").textContent = "完成";
+          steps[index - 1].querySelector(".step-dot").textContent = "✓";
+        }
+        if (index === steps.length) {
+          result.classList.remove("hidden");
+          button.textContent = "合并完成";
+          return;
+        }
+        steps[index].classList.add("running");
+        steps[index].querySelector(".step-state").textContent = "进行中";
+        index += 1;
+        setTimeout(advance, 650);
+      };
+      advance();
+    }
+  </script>
+</body>
+</html>
