@@ -14,6 +14,8 @@ export type AiPanelSession = (
       kind: "identify";
       projectId: string;
       projectName: string;
+      /** Existing targets are retained when an AI re-scan finds additional commands. */
+      initialTargets?: RunTarget[];
     }
   | {
       kind: "config";

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -247,15 +248,7 @@ export function ProjectCard({
     }
   };
 
-  const onIdentify = () => {
-    if (
-      hasTargets &&
-      !window.confirm(t("projects:card.replaceTargets"))
-    ) {
-      return;
-    }
-    onConfigureRun("identify");
-  };
+  const onIdentify = () => onConfigureRun("identify");
 
   const openEditTarget = (target: RunTarget) => {
     setEditingTarget(target);
@@ -486,17 +479,18 @@ export function ProjectCard({
                   className="font-mono text-xs"
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  className="size-4 accent-primary"
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Switch
+                  id="run-target-default"
                   checked={Boolean(editDraft.isDefault)}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, isDefault: e.target.checked })
+                  onCheckedChange={(checked) =>
+                    setEditDraft({ ...editDraft, isDefault: checked })
                   }
                 />
-                {t("activity:ai.default")}
-              </label>
+                <Label htmlFor="run-target-default" className="cursor-pointer font-normal">
+                  {t("activity:ai.default")}
+                </Label>
+              </div>
             </div>
           ) : null}
           <DialogFooter>

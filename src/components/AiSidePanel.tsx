@@ -48,6 +48,29 @@ function toDraft(targets: RunTarget[], allChecked = true): Draft[] {
   }));
 }
 
+/** Commands identify a run target more reliably than AI-generated display names. */
+function runTargetKey(target: Pick<RunTarget, "cwd" | "command">): string {
+  return `${(target.cwd || ".").trim()}\u0000${target.command.trim()}`;
+}
+
+function mergeIdentifiedTargets(existing: RunTarget[], identified: RunTarget[]): RunTarget[] {
+  const merged = [...existing];
+  const existingKeys = new Set(existing.map(runTargetKey));
+
+  for (const target of identified) {
+    const key = runTargetKey(target);
+    if (!existingKeys.has(key)) {
+      merged.push(target);
+      existingKeys.add(key);
+    }
+  }
+
+  if (merged.length > 0 && !merged.some((target) => target.isDefault)) {
+    merged[0] = { ...merged[0], isDefault: true };
+  }
+  return merged;
+}
+
 function kindLabel(kind: string, t: TFunction<any>): string {
   return t(`activity:transcript.${kind}`, { defaultValue: kind });
 }
@@ -281,20 +304,18 @@ export function AiSidePanel({
               error: result.warning ?? undefined,
             });
 
-            // 识别结果直接全部写入运行列表，不再进入勾选确认步骤
-            const valid = result.targets.filter((t) => t.name.trim() && t.command.trim());
-            let payload = valid.map((t) => ({
-              id: t.id || "",
-              name: t.name.trim(),
-              description: t.description?.trim() || null,
-              cwd: (t.cwd || ".").trim() || ".",
-              command: t.command.trim(),
-              kind: t.kind ?? null,
-              isDefault: Boolean(t.isDefault),
+            // 识别结果直接加入运行列表；保留手动配置，并跳过相同目录与命令的重复项。
+            const valid = result.targets.filter((target) => target.name.trim() && target.command.trim());
+            const identified = valid.map((target) => ({
+              id: target.id || "",
+              name: target.name.trim(),
+              description: target.description?.trim() || null,
+              cwd: (target.cwd || ".").trim() || ".",
+              command: target.command.trim(),
+              kind: target.kind ?? null,
+              isDefault: Boolean(target.isDefault),
             }));
-            if (payload.length > 0 && !payload.some((t) => t.isDefault)) {
-              payload = payload.map((t, i) => ({ ...t, isDefault: i === 0 }));
-            }
+            const payload = mergeIdentifiedTargets(session.initialTargets ?? [], identified);
             const saved = await api.setRunTargets(session.projectId, payload);
             if (cancelled) return;
             onLog({

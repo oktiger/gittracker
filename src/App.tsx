@@ -369,6 +369,7 @@ function App() {
                 kind: "identify",
                 projectId: p.id,
                 projectName: p.name,
+                initialTargets: p.runTargets ?? [],
               },
         )
       }
