@@ -347,8 +347,10 @@ export default interface Resources {
     },
     "card": {
       "addTarget": "Add a target manually…",
+      "aheadBy": "{{count}} commits ahead",
       "allBranches": "All local and remote branches",
       "allCommits": "All commits",
+      "behindBy": "{{count}} commits behind",
       "changeCount": "{{count}} changes",
       "changes": "Changes",
       "code": "Code",
@@ -397,6 +399,7 @@ export default interface Resources {
       "runnable": "Runnable commands",
       "runnableSource": "From project settings / AI identification",
       "starting": "Starting…",
+      "syncedWithBranch": "Synced with {{branch}}",
       "tabs": {
         "code": "Code",
         "documents": "Documents",

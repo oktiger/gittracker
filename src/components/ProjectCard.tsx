@@ -170,6 +170,29 @@ export function ProjectCard({
     return "border-violet-500/30 bg-violet-500/10 text-violet-500";
   };
 
+  const displayCommitBranches = (commit: CommitInfo) => {
+    const localNames = new Set(
+      commit.branches
+        .filter((branch) => branch.kind === "local")
+        .map((branch) => branch.name),
+    );
+    return commit.branches.filter((branch) => {
+      if (branch.kind !== "remote") return true;
+      const localName = branch.name.replace(/^[^/]+\//, "");
+      return !localNames.has(localName);
+    });
+  };
+
+  const syncStatus =
+    project.ahead === 0 && project.behind === 0
+      ? t("projects:card.syncedWithBranch", { branch: project.branch || "main" })
+      : [
+          project.ahead > 0 ? t("projects:card.aheadBy", { count: project.ahead }) : null,
+          project.behind > 0 ? t("projects:card.behindBy", { count: project.behind }) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
   const onRunTarget = async (targetId: string) => {
     setRunBusy(true);
     const target = targets.find((x) => x.id === targetId);
@@ -648,7 +671,7 @@ export function ProjectCard({
                   {t("projects:card.commitHistory")}
                 </h3>
                 <span className="text-[11px] text-muted-foreground">
-                  {t("projects:card.allBranches")}
+                  {syncStatus}
                 </span>
               </div>
               {commitHistoryLoading ? (
@@ -673,13 +696,13 @@ export function ProjectCard({
                           <TableCell className="font-mono text-sky-500">{commit.hash.slice(0, 7)}</TableCell>
                           <TableCell className="max-w-[320px] whitespace-normal">
                             <div className="flex flex-wrap gap-1">
-                              {commit.branches.map((branch) => (
+                              {displayCommitBranches(commit).map((branch) => (
                                 <Badge
                                   key={`${branch.kind}:${branch.name}`}
                                   variant="outline"
                                   className={cn("rounded-full px-1.5 py-0 text-[10px] font-medium", branchBadgeClass(branch))}
                                 >
-                                  {branch.current ? `HEAD → ${branch.name}` : branch.name}
+                                  {branch.name}
                                 </Badge>
                               ))}
                             </div>
