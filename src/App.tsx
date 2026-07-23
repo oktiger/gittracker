@@ -254,6 +254,22 @@ function App() {
     });
   };
 
+  const onSync = async (id: string) => {
+    const project = projects.find((p) => p.id === id);
+    const projectName = project?.name ?? id;
+    setBusy(id, t("projects:card.syncBusy"));
+    setError(null);
+    try {
+      await api.syncProject(id);
+      showToast(t("projects:card.synced"));
+    } catch (e) {
+      setError(formatBackendError(e, t));
+      showToast(t("projects:card.syncFailed", { name: projectName }));
+    } finally {
+      setBusy(id, null);
+    }
+  };
+
   const selectedProject =
     view === "project" && selectedProjectId
       ? projects.find((p) => p.id === selectedProjectId) ?? null
@@ -284,6 +300,7 @@ function App() {
       onOpenProject={() => openProject(p.id)}
       onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
       onOneClick={() => onOneClick(p.id)}
+      onSync={() => void onSync(p.id)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
       onViewChangedFile={(file) => setDialog({ type: "changedFile", id: p.id, file })}

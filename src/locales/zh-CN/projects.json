@@ -28,7 +28,8 @@
     "staged": "已暂存",
     "unstaged": "未暂存",
     "ahead": "领先",
-    "behind": "落后"
+    "behind": "落后",
+    "unsynced": "未同步"
   },
   "card": {
     "projectSettings": "项目设置",
@@ -39,6 +40,10 @@
     "replaceTargets": "将用新的识别结果替换当前启动目标，是否继续？",
     "runTargetMissing": "未找到启动目标",
     "runFailed": "运行失败 · {{name}}",
+    "sync": "同步",
+    "syncBusy": "同步中…",
+    "synced": "已同步到最新",
+    "syncFailed": "同步失败 · {{name}}",
     "oneClick": "一键提交",
     "oneClickBusy": "一键提交中…",
     "manualCommit": "手动提交",
