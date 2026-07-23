@@ -39,9 +39,6 @@ export const api = {
     invoke<FileChange[]>("list_changed_files", { id }),
   listBranches: (id: string) => invoke<BranchList>("list_branches", { id }),
   listCommitHistory: (id: string) => invoke<import("./types").CommitInfo[]>("list_commit_history", { id }),
-  listOpenPullRequests: (id: string) => invoke<import("./types").PullRequestInfo[]>("list_open_pull_requests", { id }),
-  mergeOpenPullRequests: (id: string, sessionId: string, locale: ResolvedLanguage) =>
-    invoke<import("./types").MergePullRequestsResult>("merge_open_pull_requests", { id, sessionId, locale }),
   getFileDiff: (id: string, path: string, staged: boolean) =>
     invoke<string>("get_file_diff", { id, path, staged }),
   readProjectFile: (id: string, relativePath: string) =>

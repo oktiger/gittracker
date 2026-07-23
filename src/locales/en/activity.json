@@ -66,7 +66,6 @@
       "testCodex": "Test Codex",
       "generateCommit": "Generate Commit Message with AI",
       "oneClick": "One-click commit",
-      "mergePullRequests": "AI merge pull requests",
       "generateTasks": "Generate tasks with AI",
       "runTask": "Implement task {{number}}", "runDocument": "Execute document {{name}}"
     },
@@ -83,7 +82,6 @@
       "test": "Testing {{provider}}…",
       "commit": "Generating a Commit message for “{{project}}”…",
       "oneClick": "One-click commit for “{{project}}”: AI → Commit → Push…",
-      "mergePullRequests": "Safely merging {{count}} PRs for “{{project}}”…",
       "tasks": "Generating tasks for “{{project}}” from its Goal…",
       "implement": "Implementing task {{number}} “{{title}}”…", "runDocument": "Executing document “{{name}}”…"
     },
@@ -92,10 +90,7 @@
       "daily": "Daily completion generated",
       "commitPushed": "Committed and pushed:\n{{message}}",
       "tasks": "Generated {{count}} tasks", "document": "Document execution completed",
-      "task": "Implemented {{number}}",
-      "mergePullRequests": "Safely merged {{count}} PRs\n{{summary}}",
-      "mergePullRequestsToast": "Safely merged {{count}} PRs",
-      "mergePullRequestsNoSummary": "Validation passed and main is synced"
+      "task": "Implemented {{number}}"
     },
     "phase": { "running": "In progress", "done": "Done" },
     "showProcess": "View AI process ({{count}} items)", "processCount": "AI process ({{count}} items)",
@@ -107,7 +102,7 @@
     "saveTitle": "Save run targets · {{project}}", "saveFailed": "Failed to save run targets · {{project}}",
     "dailyFailed": "Daily completion summary failed", "identifyFailed": "Run-target identification failed · {{project}}",
     "testFailed": "{{provider}} test failed", "generateFailed": "AI generation failed · {{project}}", "oneClickFailed": "One-click commit failed · {{project}}",
-    "tasksFailed": "Task generation failed · {{project}}", "taskFailed": "Task {{number}} implementation failed · {{title}}", "mergePullRequestsFailed": "AI PR merge failed · {{project}}",
+    "tasksFailed": "Task generation failed · {{project}}", "taskFailed": "Task {{number}} implementation failed · {{title}}",
     "log": {
       "dailyTitle": "{{mode}} summary · {{period}}", "automatic": "Automatic", "manual": "Manual",
       "identifyTitle": "Identify run targets · {{project}}", "source": "Source: {{source}}\n{{count}} suggestions:\n{{preview}}", "testTitle": "Test {{provider}}", "reply": "Reply: {{reply}}",
@@ -116,7 +111,7 @@
       "taskDetail": "Path: {{path}}\n\nImplementation summary:\n{{summary}}", "empty": "(empty)", "noSummary": "(no summary)",
       "dailyFailure": "Generate a summary from project commit messages through the selected AI provider.", "identifyFailure": "Analyze the repository and suggest run targets through the selected AI provider.",
       "testFailure": "Verify that the CLI is installed and can return a minimal read-only response.", "generateFailure": "Generate a Commit message from all current worktree changes through the selected AI provider.",
-      "oneClickFailure": "Flow: AI Commit Message → Commit → Push", "mergePullRequestsTitle": "AI PR merge · {{project}}", "mergePullRequestsFailure": "Flow: read open PRs → create isolated integration branch → AI merge and validate → safely update main.", "tasksFailure": "Generate tasks from the Goal and prompt template through the selected AI provider.", "path": "Path: {{path}}"
+      "oneClickFailure": "Flow: AI Commit Message → Commit → Push", "tasksFailure": "Generate tasks from the Goal and prompt template through the selected AI provider.", "path": "Path: {{path}}"
     }
   },
   "logs": {
@@ -139,7 +134,7 @@
       "oneClick": "One-click commit", "generateCommit": "Generate commit message", "commit": "Manual commit",
       "ensureDocs": "Create documents", "generateTasks": "Generate tasks", "runTask": "Implement task",
       "suggestRunTargets": "Identify run targets", "saveRunTargets": "Save run targets", "runTarget": "Run / upgrade",
-      "discard": "Discard changes", "testConnection": "Test AI connection", "dailyCompletion": "Daily completion", "mergePullRequests": "AI PR merge"
+      "discard": "Discard changes", "testConnection": "Test AI connection", "dailyCompletion": "Daily completion"
     },
     "statuses": { "ok": "Success", "error": "Failed", "running": "In progress", "ended": "Ended" }
   },

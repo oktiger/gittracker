@@ -114,8 +114,6 @@ function bootLine(session: AiPanelSession, t: TFunction<any>): AiTranscriptLine 
         return t("activity:ai.boot.commit", { project: session.projectName });
       case "oneClick":
         return t("activity:ai.boot.oneClick", { project: session.projectName });
-      case "mergePullRequests":
-        return t("activity:ai.boot.mergePullRequests", { project: session.projectName, count: session.pullRequestCount });
       case "generateTasks":
         return t("activity:ai.boot.tasks", { project: session.projectName });
       case "runTask":
@@ -342,23 +340,6 @@ export function AiSidePanel({
             setPhase("done");
             break;
           }
-          case "mergePullRequests": {
-            const result = await api.mergeOpenPullRequests(session.projectId, sessionId, outputLanguage);
-            if (cancelled) return;
-            onLog({
-              kind: "mergePullRequests",
-              status: "ok",
-              title: t("activity:ai.log.mergePullRequestsTitle", { project: session.projectName }),
-              projectId: session.projectId,
-              projectName: session.projectName,
-              detail: result.summary,
-            });
-            setResultSummary(t("activity:ai.done.mergePullRequests", { count: result.mergedCount, summary: result.summary || t("activity:ai.done.mergePullRequestsNoSummary") }));
-            onToast?.(t("activity:ai.done.mergePullRequestsToast", { count: result.mergedCount }));
-            onProjectRefresh?.(session.projectId);
-            setPhase("done");
-            break;
-          }
           case "generateTasks": {
             const result = await api.generateTasksFromGoal(session.projectId, sessionId, outputLanguage);
             if (cancelled) return;
@@ -496,19 +477,6 @@ export function AiSidePanel({
               projectId: session.projectId,
               projectName: session.projectName,
               detail: t("activity:ai.log.oneClickFailure"),
-              error: err,
-            });
-            onProjectRefresh?.(session.projectId);
-            setPhase("done");
-            break;
-          case "mergePullRequests":
-            onLog({
-              kind: "mergePullRequests",
-              status: "error",
-              title: t("activity:ai.mergePullRequestsFailed", { project: session.projectName }),
-              projectId: session.projectId,
-              projectName: session.projectName,
-              detail: t("activity:ai.log.mergePullRequestsFailure"),
               error: err,
             });
             onProjectRefresh?.(session.projectId);

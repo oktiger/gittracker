@@ -39,8 +39,6 @@ pub fn run() {
             commands::list_changed_files,
             commands::list_branches,
             commands::list_commit_history,
-            commands::list_open_pull_requests,
-            commands::merge_open_pull_requests,
             commands::get_file_diff,
             commands::read_project_file,
             commands::write_project_file,

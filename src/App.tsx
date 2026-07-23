@@ -288,19 +288,6 @@ function App() {
     });
   };
 
-  const onMergePullRequests = (id: string, pullRequestCount: number) => {
-    const project = projects.find((p) => p.id === id);
-    const projectName = project?.name ?? id;
-    setBusy(id, t("projects:card.aiMergeBusy"));
-    setError(null);
-    openAiSession({
-      kind: "mergePullRequests",
-      projectId: id,
-      projectName,
-      pullRequestCount,
-    });
-  };
-
   const selectedProject =
     view === "project" && selectedProjectId
       ? projects.find((p) => p.id === selectedProjectId) ?? null
@@ -331,7 +318,6 @@ function App() {
       onOpenProject={() => openProject(p.id)}
       onManualCommit={() => setDialog({ type: "commit", id: p.id, name: p.name })}
       onOneClick={() => onOneClick(p.id)}
-      onMergePullRequests={(count) => onMergePullRequests(p.id, count)}
       onDiscard={() => setDialog({ type: "discard", id: p.id, name: p.name })}
       onViewChanges={() => setDialog({ type: "changes", id: p.id, name: p.name })}
       onViewChangedFile={(file) => setDialog({ type: "changedFile", id: p.id, file })}
@@ -605,7 +591,7 @@ function App() {
           runSessions={runSessions}
           onHide={() => setActivityOpen(false)}
           onDismissAi={(id, session) => {
-            if (session.kind === "oneClick" || session.kind === "mergePullRequests") setBusy(session.projectId, null);
+            if (session.kind === "oneClick") setBusy(session.projectId, null);
             setAiSessions((items) => items.filter((item) => item.id !== id));
           }}
           onAiActivityChange={onAiActivityChange}
@@ -617,7 +603,7 @@ function App() {
             void refreshOne(projectId);
           }}
           onProjectRefresh={(projectId, session) => {
-            if (session.kind === "oneClick" || session.kind === "mergePullRequests") {
+            if (session.kind === "oneClick") {
               setBusy(projectId, null);
             }
             if (session.kind === "generateTasks" || session.kind === "runTask") {

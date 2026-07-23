@@ -167,7 +167,9 @@ pub fn list_commit_history(repo: &Path) -> AppResult<Vec<CommitInfo>> {
             "log",
             "--date-order",
             "--pretty=format:%H\t%ct\t%an\t%s",
+            "--exclude=refs/heads/codex/ai-merge-*",
             "--branches",
+            "--exclude=refs/remotes/gittracker/pr/*",
             "--remotes",
         ],
     )?;
@@ -243,7 +245,10 @@ fn history_branch_refs(repo: &Path) -> AppResult<Vec<(String, BranchInfo)>> {
         let Some((ref_name, short_name)) = line.split_once('\t') else {
             continue;
         };
-        if short_name.is_empty() || ref_name.ends_with("/HEAD") {
+        if short_name.is_empty()
+            || ref_name.ends_with("/HEAD")
+            || is_removed_pr_feature_ref(ref_name)
+        {
             continue;
         }
         let kind = if ref_name.starts_with("refs/remotes/") {
@@ -293,6 +298,9 @@ pub fn list_branches(repo: &Path) -> AppResult<BranchList> {
         if short.is_empty() {
             continue;
         }
+        if is_removed_pr_feature_ref(full_ref) {
+            continue;
+        }
 
         if full_ref.starts_with("refs/remotes/") {
             // Skip remote symbolic HEAD pointers such as refs/remotes/origin/HEAD
@@ -323,6 +331,11 @@ pub fn list_branches(repo: &Path) -> AppResult<BranchList> {
         local,
         remote,
     })
+}
+
+fn is_removed_pr_feature_ref(full_ref: &str) -> bool {
+    full_ref.starts_with("refs/remotes/gittracker/pr/")
+        || full_ref.starts_with("refs/heads/codex/ai-merge-")
 }
 
 pub fn list_changed_files(repo: &Path) -> AppResult<Vec<FileChange>> {
