@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitTracker · 全部分支提交历史</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        background: "hsl(var(--background))", foreground: "hsl(var(--foreground))",
+        card: "hsl(var(--card))", muted: "hsl(var(--muted))", "muted-foreground": "hsl(var(--muted-foreground))",
+        border: "hsl(var(--border))", primary: "hsl(var(--primary))", accent: "hsl(var(--accent))"
+      }, borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)" } } }
+    }
+  </script>
+  <style>
+    :root { --background: 0 0% 100%; --foreground: 240 10% 3.9%; --card: 0 0% 100%; --muted: 240 4.8% 95.9%; --muted-foreground: 240 3.8% 46.1%; --border: 240 5.9% 90%; --primary: 221 83% 53%; --accent: 240 4.8% 95.9%; --radius: .625rem; }
+    * { box-sizing: border-box; } body { margin: 0; min-width: 1040px; background: hsl(var(--background)); color: hsl(var(--foreground)); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .dot { position: absolute; z-index: 2; width: 13px; height: 13px; border: 2px solid white; border-radius: 999px; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px rgba(15,23,42,.14); }
+    .line { position: absolute; z-index: 1; width: 3px; border-radius: 99px; }
+    .line-diagonal { position: absolute; z-index: 1; height: 3px; transform-origin: left center; border-radius: 99px; }
+    .commit { transition: background .15s ease, box-shadow .15s ease; cursor: pointer; }
+    .commit:hover, .commit.selected { background: hsl(var(--muted)); box-shadow: inset 3px 0 0 hsl(var(--primary)); }
+    .filter.active { background: hsl(var(--foreground)); color: white; border-color: hsl(var(--foreground)); }
+    .filter { transition: background .15s ease; }
+    .branch-main { background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe; } .branch-current { background:#dcfce7; color:#15803d; border-color:#bbf7d0; } .branch-release { background:#f3e8ff; color:#7e22ce; border-color:#e9d5ff; } .branch-remote { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+    .panel { transform: translateX(105%); transition: transform .22s ease; } .panel.open { transform: translateX(0); }
+    .panel-backdrop { display:none; } .panel-backdrop.open { display:block; }
+    .legend-line { width: 18px; height: 3px; border-radius: 99px; }
+  </style>
+</head>
+<body>
+  <main class="min-h-screen">
+    <header class="flex h-16 items-center justify-between border-b border-border bg-card px-8">
+      <div class="flex items-center gap-3">
+        <div class="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-sm font-bold text-white">G</div>
+        <span class="font-semibold tracking-tight">GitTracker</span>
+        <span class="text-sm text-muted-foreground">/ gittracker</span>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-muted-foreground"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>工作区干净</div>
+    </header>
+
+    <section class="mx-auto max-w-[1440px] px-8 py-8">
+      <div class="mb-6 flex items-end justify-between">
+        <div>
+          <div class="mb-2 text-sm font-medium text-blue-600">代码 · 提交历史</div>
+          <h1 class="text-2xl font-semibold tracking-tight">所有分支的提交记录</h1>
+          <p class="mt-2 text-sm text-muted-foreground">每个提交只出现一次；分支标签表示当前有哪些引用直接指向该提交。</p>
+        </div>
+        <button class="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium shadow-sm hover:bg-muted" onclick="selectCommit('a84f2ce')">查看选中提交</button>
+      </div>
+
+      <div class="mb-5 flex items-center justify-between rounded-lg border border-border bg-card p-3 shadow-sm">
+        <div class="flex gap-2" role="tablist" aria-label="提交范围">
+          <button class="filter active rounded-md border border-border px-3 py-1.5 text-sm font-medium" data-filter="all">全部分支 <span class="ml-1 opacity-70">18</span></button>
+          <button class="filter rounded-md border border-border px-3 py-1.5 text-sm" data-filter="current">当前分支 <span class="ml-1 opacity-70">6</span></button>
+          <button class="filter rounded-md border border-border px-3 py-1.5 text-sm" data-filter="main">main <span class="ml-1 opacity-70">12</span></button>
+          <button class="filter rounded-md border border-border px-3 py-1.5 text-sm" data-filter="feature">feature/branch-history <span class="ml-1 opacity-70">5</span></button>
+        </div>
+        <div class="flex items-center gap-4 text-xs text-muted-foreground">
+          <span class="flex items-center gap-1.5"><i class="legend-line bg-blue-500"></i>main</span>
+          <span class="flex items-center gap-1.5"><i class="legend-line bg-emerald-500"></i>当前分支</span>
+          <span class="flex items-center gap-1.5"><i class="legend-line bg-purple-500"></i>release</span>
+        </div>
+      </div>
+
+      <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div class="grid grid-cols-[160px_210px_minmax(0,1fr)_150px] border-b border-border bg-muted/50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div>提交图</div><div>引用 / 分支</div><div>提交说明</div><div>作者 · 时间</div>
+        </div>
+
+        <div id="history" class="relative">
+          <!-- The graph intentionally uses lanes, rather than duplicating a commit under every branch. -->
+          <div class="line bg-blue-500" style="left:48px;top:0;height:568px"></div>
+          <div class="line bg-emerald-500" style="left:82px;top:0;height:143px"></div>
+          <div class="line bg-purple-500" style="left:116px;top:0;height:355px"></div>
+          <div class="line-diagonal bg-emerald-500" style="left:82px;top:139px;width:38px;transform:rotate(42deg)"></div>
+          <div class="line-diagonal bg-purple-500" style="left:116px;top:351px;width:89px;transform:rotate(161deg)"></div>
+
+          <article class="commit selected grid h-[71px] grid-cols-[160px_210px_minmax(0,1fr)_150px] items-center px-5" data-groups="all,current,feature" data-hash="a84f2ce" onclick="selectCommit('a84f2ce')">
+            <div class="relative h-full"><span class="dot bg-emerald-500" style="left:62px;top:50%"></span><span class="ml-[78px] inline-flex h-full items-center font-mono text-xs text-muted-foreground">a84f2ce</span></div>
+            <div class="flex flex-wrap gap-1"><span class="branch-current rounded border px-2 py-0.5 text-xs font-medium">HEAD → feature/branch-history</span></div>
+            <div><div class="font-medium">feat: 统一展示全部分支提交历史</div><div class="mt-1 text-xs text-muted-foreground">新增图谱、分支筛选与提交归属说明</div></div><div class="text-sm text-muted-foreground">Biem · 刚刚</div>
+          </article>
+          <article class="commit grid h-[71px] grid-cols-[160px_210px_minmax(0,1fr)_150px] items-center px-5" data-groups="all,current,feature" data-hash="c17de0a" onclick="selectCommit('c17de0a')">
+            <div class="relative h-full"><span class="dot bg-emerald-500" style="left:62px;top:50%"></span><span class="ml-[78px] inline-flex h-full items-center font-mono text-xs text-muted-foreground">c17de0a</span></div>
+            <div></div><div><div class="font-medium">refactor: 提取提交读取服务</div><div class="mt-1 text-xs text-muted-foreground">将历史查询与状态查询解耦</div></div><div class="text-sm text-muted-foreground">Biem · 18 分钟前</div>
+          </article>
+          <article class="commit grid h-[71px] grid-cols-[160px_210px_minmax(0,1fr)_150px] items-center px-5" data-groups="all,current,feature,main" data-hash="7d9bcb1" onclick="selectCommit('7d9bcb1')">
+            <div class="relative h-full"><span class="dot bg-blue-500" style="left:28px;top:50%"></span><span class="dot bg-emerald-500" style="left:62px;top:50%"></span><span class="ml-[78px] inline-flex h-full items-center font-mono text-xs text-muted-foreground">7d9bcb1</span></div>
+            <div><span class="branch-main rounded border px-2 py-0.5 text-xs font-medium">main</span></div><div><div class="font-medium">fix: 修复远程分支的显示顺序</div><div class="mt-1 text-xs text-muted-foreground">这个提交被 main 和当前功能分支共同包含</div></div><div class="text-sm text-muted-foreground">Lin · 昨天</div>
+          </article>
+          <article class="commit grid h-[71px] grid-cols-[160px_210px_minmax(0,1fr)_150px] items-center px-5" data-groups="all,main" data-hash="e3fd708" onclick="selectCommit('e3fd708')">
+            <div class="relative h-full"><span class="dot bg-blue-500" style="left:28px;top:50%"></span><span class="ml-[78px] inline-flex h-full items-center font-mono text-xs text-muted-foreground">e3fd708</span></div>
+            <div></div><div><div class="font-medium">docs: 更新项目使用说明</div><div class="mt-1 text-xs text-muted-foreground">合并之前的稳定基线</div></div><div class="text-sm text-muted-foreground">Lin · 昨天</div>
+          </article>
+          <article class="commit grid h-[71px] grid-cols-[160px_210px_minmax(0,1fr)_150px] items-center px-5" data-groups="all,main" data-hash="04b1c58" onclick="selectCommit('04b1c58')">
+            <div class="relative h-full"><span class="dot bg-purple-500" style="left:96px;top:50%"></span><span class="dot bg-blue-500" style="left:28px;top:50%"></span><span class="ml-[78px] inline-flex h-full items-center font-mono text-xs text-muted-foreground">04b1c58</span></div>
+            <div><div class="flex flex-wrap gap-1"><span class="branch-main rounded border px-2 py-0.5 text-xs font-medium">main</span><span class="branch-release rounded border px-2 py-0.5 text-xs font-medium">release/0.4</span></div></div><div><div class="font-medium">chore: 发布 v0.4.0</div><div class="mt-1 text-xs text-muted-foreground">两个分支引用恰好指向同一个版本提交</div></div><div class="text-sm text-muted-foreground">Biem · 3 天前</div>
+          </article>
+          <article class="commit grid h-[71px] grid-cols-[160px_210px_minmax(0,1fr)_150px] items-center px-5" data-groups="all,main" data-hash="f2e019b" onclick="selectCommit('f2e019b')">
+            <div class="relative h-full"><span class="dot bg-blue-500" style="left:28px;top:50%"></span><span class="ml-[78px] inline-flex h-full items-center font-mono text-xs text-muted-foreground">f2e019b</span></div>
+            <div></div><div><div class="font-medium">feat: 支持项目级分支列表</div><div class="mt-1 text-xs text-muted-foreground">继续向下可加载更早的历史</div></div><div class="text-sm text-muted-foreground">Chen · 4 天前</div>
+          </article>
+          <div id="empty" class="hidden px-6 py-12 text-center text-sm text-muted-foreground">这个范围内没有额外的提交。</div>
+        </div>
+        <div class="border-t border-border bg-muted/30 px-5 py-3 text-center text-sm text-muted-foreground">显示最近 6 条提交 · <button class="font-medium text-blue-600 hover:underline">加载更早记录</button></div>
+      </div>
+
+      <aside class="mt-5 flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-700">
+        <span class="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-bold text-white">i</span>
+        <p class="m-0 leading-6"><strong>阅读方式：</strong>彩色线条是提交父子关系，标签是“此刻直接指向该提交的分支”。没有标签不代表提交没有分支，只表示分支尖端目前不在这里。点击任意提交可查看它被哪些分支包含。</p>
+      </aside>
+    </section>
+  </main>
+
+  <div class="panel-backdrop fixed inset-0 z-20 bg-slate-950/20" onclick="closePanel()"></div>
+  <aside id="detail" class="panel fixed inset-y-0 right-0 z-30 w-[420px] border-l border-border bg-card p-6 shadow-2xl" aria-label="提交详情">
+    <div class="mb-7 flex items-center justify-between"><div><div class="text-sm font-medium text-blue-600">提交详情</div><h2 id="detail-title" class="mt-1 text-lg font-semibold">统一展示全部分支提交历史</h2></div><button class="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted" onclick="closePanel()" aria-label="关闭">×</button></div>
+    <dl class="space-y-5 text-sm"><div><dt class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Commit</dt><dd id="detail-hash" class="font-mono text-xs">a84f2ce</dd></div><div><dt class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">直接指向此提交的分支</dt><dd id="detail-refs" class="flex flex-wrap gap-1"><span class="branch-current rounded border px-2 py-0.5 text-xs font-medium">HEAD → feature/branch-history</span></dd></div><div><dt class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">被哪些分支包含</dt><dd id="detail-contains" class="flex flex-wrap gap-1"><span class="branch-main rounded border px-2 py-0.5 text-xs font-medium">main</span><span class="branch-current rounded border px-2 py-0.5 text-xs font-medium">feature/branch-history</span><span class="branch-release rounded border px-2 py-0.5 text-xs font-medium">release/0.4</span></dd></div><div><dt class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">说明</dt><dd id="detail-copy" class="leading-6 text-muted-foreground">分支是指向提交的引用；一个提交可以同时被多个分支包含，因此这里展示事实关系，而不虚构“唯一归属”。</dd></div></dl>
+    <div class="mt-8 border-t border-border pt-5"><button class="w-full rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">复制完整 Commit SHA</button></div>
+  </aside>
+
+  <script>
+    const details = {
+      a84f2ce: ['统一展示全部分支提交历史', 'HEAD → feature/branch-history', 'main、feature/branch-history、release/0.4', '这是当前分支的尖端，因此可以确定地展示 HEAD 标签。'],
+      c17de0a: ['提取提交读取服务', '—', 'main、feature/branch-history、release/0.4', '这是当前功能分支上的普通提交；没有分支尖端直接指向它。'],
+      '7d9bcb1': ['修复远程分支的显示顺序', 'main', 'main、feature/branch-history、release/0.4', '它已在 main 中，也被当前功能分支继承；同一提交仅显示一行。'],
+      e3fd708: ['更新项目使用说明', '—', 'main、feature/branch-history、release/0.4', '历史提交没有唯一的“所属分支”。这里列出当前可达它的分支。'],
+      '04b1c58': ['发布 v0.4.0', 'main、release/0.4', 'main、feature/branch-history、release/0.4', '两个分支尖端指向同一版本提交，所以并列显示两个引用标签。'],
+      f2e019b: ['支持项目级分支列表', '—', 'main、feature/branch-history、release/0.4', '这个提交位于共同历史中。']
+    };
+    function chips(text) { if (text === '—') return '<span class="text-muted-foreground">没有分支尖端在此提交</span>'; return text.split('、').map((name, i) => `<span class="${name.includes('feature') || name.includes('HEAD') ? 'branch-current' : name.includes('release') ? 'branch-release' : 'branch-main'} rounded border px-2 py-0.5 text-xs font-medium">${name}</span>`).join(''); }
+    function selectCommit(hash) { const data = details[hash]; document.querySelectorAll('.commit').forEach(x => x.classList.toggle('selected', x.dataset.hash === hash)); document.getElementById('detail-title').textContent = data[0]; document.getElementById('detail-hash').textContent = hash; document.getElementById('detail-refs').innerHTML = chips(data[1]); document.getElementById('detail-contains').innerHTML = chips(data[2]); document.getElementById('detail-copy').textContent = data[3]; document.getElementById('detail').classList.add('open'); document.querySelector('.panel-backdrop').classList.add('open'); }
+    function closePanel() { document.getElementById('detail').classList.remove('open'); document.querySelector('.panel-backdrop').classList.remove('open'); }
+    document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.filter').forEach(x => x.classList.remove('active')); button.classList.add('active'); const target = button.dataset.filter; let visible = 0; document.querySelectorAll('.commit').forEach(row => { const show = target === 'all' || row.dataset.groups.split(',').includes(target); row.classList.toggle('hidden', !show); if (show) visible++; }); document.getElementById('empty').classList.toggle('hidden', visible !== 0); }));
+  </script>
+</body>
+</html>
