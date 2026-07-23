@@ -42,7 +42,7 @@
     "phase": { "running": "进行中", "done": "完成" },
     "showProcess": "查看 AI 过程（{{count}} 条）", "processCount": "AI 过程（{{count}} 条）",
     "configTitle": "确认启动目标", "configDescription": "编辑启动目标。保存后可从运行菜单选择。",
-    "identifyDescription": "请勾选需要保留的项，可改名称、说明、目录与命令。",
+    "identifyDescription": "识别完成后会直接写入运行列表，无需再勾选确认。",
     "manualAdd": "手动添加", "default": "默认", "name": "名称", "description": "说明", "directory": "目录", "command": "命令",
     "namePlaceholder": "名称，如：启动 APP", "descriptionPlaceholder": "一句话说明用途", "custom": "自定义", "development": "开发",
     "selectRequired": "请至少勾选一条启动目标", "fieldsRequired": "名称和命令不能为空",

@@ -86,7 +86,7 @@
     "phase": { "running": "In progress", "done": "Done" },
     "showProcess": "View AI process ({{count}} items)", "processCount": "AI process ({{count}} items)",
     "configTitle": "Confirm run targets", "configDescription": "Edit run targets. Saved targets appear in the Run menu.",
-    "identifyDescription": "Select the targets to keep and edit their name, description, directory, or command.",
+    "identifyDescription": "Detected targets are added to the run list automatically—no selection step.",
     "manualAdd": "Add manually", "default": "Default", "name": "Name", "description": "Description", "directory": "Directory", "command": "Command",
     "namePlaceholder": "Name, for example: Start app", "descriptionPlaceholder": "Describe its purpose in one sentence", "custom": "Custom", "development": "Development",
     "selectRequired": "Select at least one run target", "fieldsRequired": "Name and command are required",

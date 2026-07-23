@@ -37,7 +37,7 @@ export default interface Resources {
       "error": "Error",
       "fieldsRequired": "Name and command are required",
       "generateFailed": "AI generation failed · {{project}}",
-      "identifyDescription": "Select the targets to keep and edit their name, description, directory, or command.",
+      "identifyDescription": "Detected targets are added to the run list automatically—no selection step.",
       "identifyFailed": "Run-target identification failed · {{project}}",
       "log": {
         "automatic": "Automatic",
@@ -357,8 +357,12 @@ export default interface Resources {
       "configureTargets": "Configure run targets…",
       "currentChanges": "Current changes",
       "customConfig": "Custom config",
+      "deleteTargetDescription": "This removes the run target from the list. You can identify again with AI to recreate it.",
+      "deleteTargetTitle": "Delete “{{name}}”?",
       "discard": "Discard changes",
       "discardAll": "Discard all changes",
+      "editTargetDescription": "Update the name, description, directory, or command, then save.",
+      "editTargetTitle": "Edit run target",
       "htmlOpened": "Opened HTML with the system app",
       "identify": "Identify with AI",
       "identifyAgain": "Identify again with AI…",
@@ -391,6 +395,9 @@ export default interface Resources {
         "evolution": "Evolution",
         "run": "Run"
       },
+      "targetActions": "Run target actions",
+      "targetDeleted": "Deleted run target · {{name}}",
+      "targetUpdated": "Updated run target · {{name}}",
       "viewChanges": "View changes"
     },
     "changedFileDialog": {
